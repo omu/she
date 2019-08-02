@@ -1,0 +1,847 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
+
+export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
+
+apti() {
+	[[ -n $(find /var/cache/apt/pkgcache.bin -mmin -60 2>/dev/null) ]] || apt-get update
+	[[ $# -eq 0 ]] || apt-get -y install --no-install-recommends "$@"
+}
+
+cry() {
+	echo -e >&2 "$@"
+}
+
+die() {
+	cry "$@"
+	exit 1
+}
+
+bug() {
+	cry "BUG: $*"
+	exit 70
+}
+
+fin() {
+	cry "$@"
+	exit 0
+}
+
+veto() {
+	[[ ${EUID:-} -eq 0 ]] || die "Must be run with root privileges"
+}
+
+[[ ${BASH_VERSION%%.*} -ge 4 ]] || die "Bash version 4 or higher required"
+
+# FIXME: fix portability
+case $OSTYPE in
+darwin)
+	export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
+	command -v greadlink >/dev/null || die "GNU coreutils required"
+	alias readlink=greadlink
+	;;
+*)
+	has_package() {
+		# shellcheck disable=SC2016
+		[[ -n "$(dpkg-query -W -f='${Installed-Size}' "$1" 2>/dev/null ||:)" ]]
+	}
+	;;
+esac
+
+cmd.self() {
+	self.version() {
+		echo 0.0
+	}
+
+	self.name() {
+		echo she
+	}
+
+	self.path() {
+		local self
+
+		self=${BASH_SOURCE[0]}
+		case $self in
+		./*) readlink -f "$self" ;;
+		/*)  echo "$self" ;;
+		*)   readlink -f "$(command -v "$self")" ;;
+		esac
+	}
+
+	self.usage() {
+		local message
+
+		for message;  do
+			echo >&2 "$message"
+		done
+
+		echo >&2 "Usage: $(self.path) CMD [ARGS]..."
+		exit 1
+	}
+
+	declare -Ag missing=()
+
+	self.boot() {
+		local -a required=(
+			apt-transport-https
+			ca-certificates
+			curl
+			git
+			lsb-release
+		)
+
+		[[ $(grep -c docker </proc/1/cgroup 2>/dev/null) -gt 0 ]] || [[ -f /.dockerenv ]] || required+=(
+			sudo
+		)
+
+		local package
+		for package in "${required[@]}"; do
+			has_package "$package" || missing[packages]="${missing[packages]:-} $package"
+		done
+
+		local self
+		self=$(self.name)
+
+		[[ -x /usr/local/bin/goss ]]  || missing[goss]=true
+
+		if [[ -x /usr/local/bin/$self ]]; then
+			cmp -s "$(self.path)" "/usr/local/bin/$self" || missing[self]=true
+		else
+			missing[self]=true
+		fi
+
+		[[ ${#missing[@]} -gt 0 ]] || return 0
+
+		veto
+
+		export DEBIAN_FRONTEND=noninteractive
+
+		if [[ -n ${missing[packages]:-} ]]; then
+			cry "Installing missing packages:${missing[packages]}"
+
+			apti ${missing[packages]} || apti ${missing[packages]}
+		fi
+
+		if [[ -n ${missing[goss]:-} ]]; then
+			cry "Installing goss for tests..."
+			curl -fsSL https://goss.rocks/install | GOSS_DST=/usr/local/bin sh
+		fi
+
+		if [[ -n ${missing[self]:-} ]]; then
+			cry "Installing $self itself..."
+			cp "$(self.path)" "/usr/local/bin/$self"
+			ln -sf "/usr/local/bin/$self" /usr/local/bin/_
+			ln -sf "/usr/local/bin/$self" /usr/local/bin/scripts
+		fi
+	}
+
+	main.self() {
+		local arg
+
+		if [[ $# -gt 0 ]]; then
+			arg=$1
+			shift
+
+			[[ $(type -t "self.$arg" || true) == function ]] || die "No self command: $arg"
+
+			"self.$arg" "$@"
+		fi
+	}
+}
+
+cmd.ensure() {
+	ensure.root() {
+		[[ ${EUID:-} -eq 0 ]] || die "Must be run with root privileges"
+	}
+
+	main.ensure() {
+		local arg
+
+		if [[ $# -gt 0 ]]; then
+			arg=$1
+			shift
+
+			[[ $(type -t "ensure.$arg" || true) == function ]] || die "No ensure command: $arg"
+
+			"ensure.$arg" "$@"
+		fi
+	}
+}
+
+cmd.from() {
+	TMPDIR=${TMPDIR:-/tmp}
+	FROM_TMPDIR=${FROM_TMPDIR:-$TMPDIR}
+	export FROM_TMPDIR
+
+	from.parse() {
+		local variable=$1
+		shift
+
+		local protocol
+		local url
+
+		protocol=
+		case $1 in
+		*://*)
+			protocol=${1%%:*}
+			url=${1#*://}
+			;;
+		/*|./*)
+			protocol='file'
+			url=$(readlink -m "$1")
+			;;
+		*)
+			url=$1
+			;;
+		esac
+
+		if [[ $protocol == file ]]; then
+			eval -- "declare -Ag $variable=(
+				[protocol]='$protocol'
+				[path]='$url'
+			)"
+			return 0
+		elif [[ -z $protocol ]]; then
+			protocol=https
+		fi
+
+		local provider owner repo slug
+
+		IFS=$'/' read -r provider owner repo slug < <(echo "$url") || die "Parse error at $1"
+		[[ ${provider:-} =~ (github.com|gitlab.com|bitbucket.com) ]] || die "Unsupported provider $provider at $1"
+		[[ -n ${owner:-} ]] || die "Missing owner at $1"
+		[[ -n ${repo:-} ]] || die "Missing repository at $1"
+
+		local auth=
+		if [[ $protocol == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
+			auth="${HTTPS_TOKEN}:x-oauth-basic"
+		fi
+
+		eval -- "declare -Ag $variable=(
+			[protocol]='$protocol'
+			[provider]='$provider'
+			[owner]='$owner'
+			[repo]='$repo'
+			[slug]='$slug'
+			[path]='$provider/$owner/$repo'
+			[auth]='$auth'
+		)"
+	}
+
+	from.get() {
+		local url=$1
+
+		git clone -q --depth 1 -b "${SCRIPTS_BRANCH:-master}" "$url" tmp >/dev/null
+		mv tmp/.git .
+		rm -rf tmp
+		git reset -q --hard HEAD
+	}
+
+	from.chdir() {
+		local source=$1
+
+		declare -Ag url=()
+
+		from.parse url "$source"
+
+		local path
+		if [[ ${url[protocol]:-} == file ]] ||[[ -n ${FROM_TO:-} ]]; then
+			if [[ -n ${FROM_TO:-} ]]; then
+				path=$FROM_TO
+			else
+				path=${url[path]}
+			fi
+			[[ -d $path ]] || die "No directory: $path"
+			cd "$path"
+		elif [[ -n ${url[protocol]:-} ]]; then
+			tmpdir=$(mktemp -d -p "$FROM_TMPDIR" from.XXXXXXXX) || die "Fatal error: mktemp"
+			path=$tmpdir
+
+			local addr=${url[path]}
+			[[ -z ${url[auth]:-} ]] || addr="${url[auth]}@${addr}"
+			addr="${url[protocol]}://${addr}"
+
+			cd "$path"
+
+			from.get "$addr"
+		else
+			die "No protocol found at:$1"
+		fi
+
+		if [[ -n ${url[slug]:-} ]]; then
+			local slug=${url[slug]}
+			[[ -d $slug ]] || die "No directory: $slug"
+			cd "./$slug"
+		fi
+
+		[[ -z ${tmpdir:-} ]] || echo "$tmpdir" >"${SHE_SHIBBOLETH:-.she}"
+
+		unset url
+	}
+
+	main.from() {
+		from.chdir "$1"
+		shift
+
+		[[ $# -eq 0 ]] || exec "$@"
+		echo "$PWD"
+	}
+}
+
+cmd.run() {
+	declare -a environment
+
+	run.title() {
+		local title=$1
+		local color=$2
+		echo -e >&2 "\\e[38;5;${color}m★\\e[0m\\e[1m  ${title}\\e[0m"
+	}
+
+	run.tester() {
+		local this=$1
+		echo "${this%%.*}_test.${this#*.}"
+	}
+
+	run.run() {
+		local script
+
+		while [[ $# -gt 0 ]]; do
+			[[ "$1" =~ [a-zA-Z_][a-zA-Z0-9_]*= ]] || break
+			environment+=("$1")
+			shift
+		done
+
+		[[ $# -gt 0 ]] || die "No command found"
+
+		name=$1
+		script=$name.sh
+		shift
+
+		[[ -f $script ]] || die "No $script found"
+
+		run.title "$name" "153"
+		env "${environment[@]+"${environment[@]}"}" bash "$script" "$@"
+		if [[ ${FUNCNAME[1]} =~ try ]]; then
+			local t
+			t=$(run.tester "$script")
+			if [[ -f $t ]]; then
+				run.title "$name" "149"
+				env "${environment[@]+"${environment[@]}"}" bash "$t" "$@"
+			fi
+		fi
+	}
+
+	main.run() {
+		run.run "$@"
+	}
+}
+
+cmd.try() {
+	[[ ! $(type -t cmd.run || true) == function ]] || cmd.run
+	main.try() {
+		run.run "$@"
+	}
+}
+
+cmd.is() {
+	is.virtual() {
+		[[ -z ${CI:-} ]] || return 0
+		[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
+		! is.docker || return 0
+		systemd-detect-virt -q
+	}
+
+	is.physical() {
+		! is.virtual
+	}
+
+	is.container() {
+		! is.docker || return 0
+		systemd-detect-virt -c -q
+	}
+
+	is.vm() {
+		! is.docker || return 1
+		systemd-detect-virt -v -q
+	}
+
+	is.docker() {
+		[[ $(grep -c  docker </proc/1/cgroup 2>/dev/null) -gt 0 ]] || [[ -f /.dockerenv ]]
+	}
+
+	is.lxc() {
+		! is.docker || return 1
+		[[ $(systemd-detect-virt || true) =~ lxc ]]
+	}
+
+	is.virtualbox() {
+		! is.docker || return 1
+		[[ $(systemd-detect-virt || true) == oracle ]]
+	}
+
+	is.vmware() {
+		! is.docker || return 1
+		[[ $(systemd-detect-virt || true) =~ vmware ]]
+	}
+
+	is.kvm() {
+		! is.docker || return 1
+		[[ $(systemd-detect-virt || true) =~ kvm ]]
+	}
+
+	is.qemu() {
+		! is.docker || return 1
+		[[ $(systemd-detect-virt || true) =~ qemu ]]
+	}
+
+	is.kvm-qemu() {
+		is.kvm || is.qemu
+	}
+
+	is.proxmox() {
+		command -v pveversion >/dev/null && uname -a | grep -q -i pve
+	}
+
+	is.vagrant() {
+		! [[ -e /etc/is_vagrant ]] || return 0 # fast code path
+		is.virtual || return 1
+		[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
+	}
+
+	is.vagrantable() {
+		case $(systemd-detect-virt 2>/dev/null || true) in
+		oracle|kvm|qemu|vmware|lxc|microsoft) return 0 ;;
+		esac
+		return 1
+	}
+
+	main.is() {
+		local arg
+
+		if [[ $# -gt 0 ]]; then
+			arg=$1
+			shift
+
+			[[ $(type -t "is.$arg" || true) == function ]] || die "No is command: $arg"
+
+			"is.$arg" "$@"
+		fi
+	}
+}
+
+# FIXME: Early shell prototype
+cmd.etc() {
+	declare -Ag ETC_NAMESPACE=(
+		[etc]=${SHE_ETC:-/etc/var}
+		[var]=${XDG_RUNTIME_DIR:-/run/user/${EUID:-$(id -u)}}/var
+	)
+
+	etc.init() {
+		local namespace=$1
+
+		local root=${ETC_NAMESPACE[$namespace]-}
+		[[ -n $root ]] || bug "etc: unsupported namespace"
+
+		[[ ! -d $root ]] || return 0
+
+		local mode
+
+		case $namespace in
+		var) mode=0700 ;;
+		*)   mode=0755 ;;
+		esac
+
+		mkdir -p "$root" && chmod "$mode" "$root"
+	}
+
+	etc.reset() {
+		local namespace=$1
+		shift
+
+		local slug=$1
+		shift
+
+		local dir
+		dir=$(etc.namespace "$namespace" "$slug")
+
+		rm -rf "$dir"
+	}
+
+	etc.namespace() {
+		local namespace=$1
+		shift
+
+		local slug=$1
+		shift
+
+		local root=${ETC_NAMESPACE[$namespace]-}
+		[[ -n $root ]] || bug "etc: unsupported namespace"
+
+		local dir
+
+		case $slug in
+		""|.|/)
+			dir=$root
+			;;
+		*)
+			dir=$(readlink -m "$root/$slug")
+			;;
+		esac
+
+		echo "$dir"
+	}
+
+	etc.accessor() {
+		[[ $# -ge 2 ]] || bug "etc: at least two arguments required"
+
+		local namespace=${1:-}
+		shift
+
+		local srcmode=
+		if [[ $1 = -src ]]; then
+			srcmode=true
+			shift
+
+			[[ $# -gt 0 ]] || bug "etc: insufficient number of arguments"
+		fi
+
+		local slug=$1
+		shift
+
+		local dir
+		dir=$(etc.namespace "$namespace" "$slug")
+
+		local -a args=("$@")
+
+		if [[ "${#args[@]}" -eq 0 ]]; then
+			if [[ -d $dir ]]; then
+				local f
+				for f in "$dir"/*; do
+					[[ -r $f ]] || continue
+					[[ -f $f ]] || continue
+					args+=("${f##*/}")
+				done
+			fi
+		fi
+
+		local -A variable=()
+		local -a writes=()
+		local arg name value
+
+		for arg in ${args[@]+"${args[@]}"}; do
+			if [[ "$arg" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+				name=$arg
+				[[ -r $dir/$name ]] || continue
+
+				value=$(<"$dir/$name")
+				variable[$name]=$value
+			elif [[ "$arg" =~ ^[a-zA-Z_][a-zA-Z0-9_]*= ]]; then
+				name=${arg%%=*}
+				value=${arg#$name=}
+
+				variable[$name]=$value
+				writes+=("$name")
+			fi
+		done
+
+		if [[ ${#writes[@]} -gt 0 ]]; then
+			etc.init "$namespace"
+
+			[[ -d $dir ]] || mkdir -p "$dir"
+			for name in "${writes[@]}"; do
+				echo "${variable[$name]-}" >"$dir/$name"
+			done
+		fi
+
+		[[ "${#variable[@]}" -gt 0 ]] || return 0
+
+		if [[ -n $srcmode ]]; then
+			echo "("
+			for name in "${!variable[@]}"; do
+				echo -e "\\t[$name]='${variable[$name]}'"
+			done
+			echo ")"
+		else
+			for name in "${!variable[@]}"; do
+				echo "${variable[$name]}"
+			done
+		fi
+	}
+
+	main.etc() {
+		etc.accessor etc "$@"
+	}
+}
+
+cmd.etcz() {
+	cmd.etc
+
+	main.etcz() {
+		etc.reset etc "$@"
+		etc.accessor etc "$@"
+	}
+}
+
+cmd.var() {
+	cmd.etc
+
+	main.var() {
+		etc.accessor var "$@"
+	}
+}
+
+cmd.varz() {
+	cmd.etc
+
+	main.varz() {
+		etc.reset var "$@"
+		etc.accessor var "$@"
+	}
+}
+
+cmd.src() {
+	src.strict() {
+		sed "s!'«SELF»'!'$(self.path)'!g" <<-'EOF'
+			set -euo pipefail
+
+			unset CDPATH
+			IFS=$' \t\n'
+
+		EOF
+	}
+
+	src.stdio() {
+		sed "s!'«SELF»'!'$(self.path)'!g" <<-'EOF'
+			cry() {
+				printf >&2 '%s\n' "$*"
+			}
+
+			err() {
+				local status
+				status=$1
+				shift
+				cry "$@"
+				exit "$status"
+			}
+
+			die() {
+				err 1 "$@"
+			}
+
+			veto() {
+				[[ ${EUID:-} -eq 0 ]] || die "Must be run with root privileges"
+			}
+
+		EOF
+	}
+
+	src.kernel() {
+		sed "s!'«SELF»'!'$(self.path)'!g" <<-'EOF'
+			SHE_SHIBBOLETH=.she
+			export SHE_SHIBBOLETH
+
+			_() { '«SELF»' "$@"; }
+
+			use() { eval -- "$('«SELF»' src "$@")"; }
+
+			paths() {
+				local d
+
+				for d; do
+					d=$(readlink -e "$d") || continue
+					PATH="$d:$PATH"
+				done
+
+				export PATH
+			}
+
+			ensure() { eval -- "$('«SELF»' ensure "$@")"; }
+
+			from() { '«SELF»' from "$@"; }
+
+			enter() {
+				local d
+
+				d=$(from "$1") && pushd "$d" >/dev/null
+			}
+			leave() {
+				local d=$PWD
+
+				popd >/dev/null
+
+				if [[ -e $d/$SHE_SHIBBOLETH ]]; then
+					local tmpdir=$(<"$d/$SHE_SHIBBOLETH")
+					if [[ -d $tmpdir ]]; then
+						rm -rf -- "$tmpdir"
+					fi
+				fi
+			}
+
+			run()  { '«SELF»' run "$@"; }
+
+			try()  { '«SELF»' try "$@"; }
+
+			is() { '«SELF»' is "$@"; }
+
+			etc() {
+				local variable=$1
+
+				eval -- "declare -Ag $variable=$('«SELF»' etc -src "$@")"
+			}
+			etcz() {
+				'«SELF»' etcz
+			}
+
+			var() {
+				local variable=$1
+
+				eval -- "declare -Ag $variable=$('«SELF»' var -src "$@")"
+			}
+			varz() {
+				'«SELF»' varz
+			}
+
+			self() { '«SELF»' self "$@"; }
+
+		EOF
+	}
+
+	# shellcheck disable=2120
+	main.src() {
+		local arg
+
+		src.strict
+		src.stdio
+		src.kernel
+
+		while [[ $# -gt 0 ]]; do
+			arg=$1
+			shift
+
+			case $arg in
+			-s|--stdin)
+				append_stdin=true
+				;;
+			-*)
+				die "Unrecognized switch: $arg"
+				;;
+			*)
+				[[ $(type -t "src.$arg" || true) == function ]] || die "No source found: $arg"
+				"src.$arg"
+				;;
+			esac
+		done
+
+		[[ -n ${append_stdin:-} ]] || return 0
+
+		if command -v ifne &>/dev/null; then
+			ifne cat
+		elif [[ ! -t 0 ]]; then
+			cat
+		fi
+	}
+}
+
+underscoring() {
+	cmd.self
+
+	local -a args=()
+
+	local arg=
+	local cmd=
+	local boot=
+
+	while [[ $# -gt 0 ]]; do
+		arg=$1
+		shift
+
+		case $arg in
+		-boot|--boot)
+			boot=true
+			;;
+		-veto|--veto)
+			veto
+			;;
+		-*|*=*)
+			args+=("$arg")
+			;;
+		*)
+			if [[ -n $cmd ]]; then
+				args+=("$arg")
+				continue
+			fi
+
+			[[ $(type -t "cmd.$arg" || true) == function ]] || die "No such command: $arg"
+
+			cmd=$arg
+			;;
+		esac
+	done
+
+	if [[ -z $cmd ]]; then
+		if [[ -n $boot ]]; then
+			self.boot
+			exit $?
+		fi
+
+		if [[ -t 1 ]]; then
+			self.usage
+		fi
+
+		cmd=src
+	fi
+
+	[[ -z $boot ]] || self.boot >/dev/null
+
+	"cmd.$cmd" && "main.$cmd" ${args[@]+"${args[@]}"}
+}
+
+scripting() {
+	veto
+
+	readonly SCRIPTS_REPOSITORY=${SCRIPTS_REPOSITORY:-github.com/omu/debian}
+	readonly SCRIPTS_PATH=${SCRIPTS_PATH:-lib/scripts}
+	readonly SCRIPTS_BRANCH=${SCRIPTS_BRANCH:-master}
+
+	export SCRIPTS_BRANCH
+
+	local -a scripts=() variables=()
+
+	while [[ $# -gt 0 ]]; do
+		if [[ "$1" =~ [a-zA-Z_][a-zA-Z0-9_]*= ]]; then
+			variables+=("$1")
+		else
+			scripts+=("$1")
+		fi
+		shift
+	done
+
+	[[ ${#scripts[@]} -gt 0 ]] || die "No script given"
+
+	# shellcheck disable=1090,2119
+	source <(cmd.src && main.src)
+
+	cmd.self && self.boot
+
+	enter "$SCRIPTS_REPOSITORY"/"$SCRIPTS_PATH"
+		paths ../../bin
+
+		local name
+		for name in "${scripts[@]}"; do
+			case $name in
+			*/*) try "${variables[@]}" "$name"   ;;
+			*)   try "${variables[@]}" "_/$name" ;;
+			esac
+		done
+	leave
+}
+
+main() {
+	case $0 in
+	*/scripts) scripting "$@"    ;;
+	*)         underscoring "$@" ;;
+	esac
+}
+
+[[ "${BASH_SOURCE[0]}" != "$0" ]] || main "$@"
