@@ -1,0 +1,325 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Compile shell files, that is, include (selected) code snippets and do substitutions via simple directives.
+# Note that, this is not a full-fledged implementation (i.e. no nested inclusions).
+#
+# See src/she for an example.
+
+module Fmt
+  DEFAULT_FMT_OPTIONS = {
+    space: "\t", indent: 0, prefix: nil, suffix: nil
+  }.freeze
+
+  refine String do
+    def fmt(**options)
+      options = DEFAULT_FMT_OPTIONS.merge options
+
+      out = dup
+      out.gsub!(/^/m, options[:space] * options[:indent]) if options[:indent].positive?
+      out.gsub!(/^/m, options[:prefix]) if options[:prefix]
+      out.gsub!(/$/m, options[:suffix]) if options[:suffix]
+      out
+    end
+  end
+
+  refine Array do
+    def fmt(**options)
+      map { |line| line.fmt(**options) }
+    end
+
+    def fmt!(**options)
+      map! { |line| line.fmt(**options) }
+    end
+  end
+end
+
+class Source
+  attr_reader :path, :blocks, :rawlines
+
+  def initialize(path)
+    @path     = path
+    @blocks   = Block.parse((@rawlines = File.readlines(path).map(&:chomp)).each)
+  end
+
+  class Block
+    using Fmt
+
+    attr_reader :lines, :type, :fun, :sig, :label
+    attr_writer :doc
+
+    def initialize(lines, type)
+      @lines = case (@type = type)
+               when :fun then parse_fun(lines)
+               when :doc then parse_doc(lines)
+               else           lines
+               end
+    end
+
+    def doc
+      type == :doc ? lines.join("\n").strip : @doc
+    end
+
+    def public
+      sig || fun
+    end
+
+    def documented_lines
+      return doc if type == :doc
+
+      [*doc, *lines]
+    end
+
+    def outlines(documented: true, **options)
+      (documented ? documented_lines : lines).fmt(**options)
+    end
+
+    def convey_doc_block(other)
+      self.doc   = other.doc
+      self.label = other.label
+      self.sig   = other.sig
+    end
+
+    private
+
+    attr_writer :fun, :sig, :label
+
+    FUN_RE = /
+      ^
+      (?<fun>[^(]+)
+      [(]
+    /x.freeze
+
+    def parse_fun(lines)
+      if (m = lines.first.match(FUN_RE))
+        self.fun = m[:fun] if m
+      end
+
+      lines
+    end
+
+    DOC_RE = /
+      ^
+      [#]
+      \s+
+      (?:
+        (?<sig>[\w.:-]+)
+        (
+          :\s*
+          |
+          \s+[-]{1,}\s+
+        )
+      )?
+      (?<label>.*)
+    /x.freeze
+
+    def parse_doc(lines)
+      if (m = lines.first.match(DOC_RE))
+        self.sig   = m[:sig]
+        self.label = m[:label]
+      end
+
+      sig ? [label, *lines[1..-1]] : lines
+    end
+
+    class << self
+      def parse(reader)
+        blocks = []
+
+        loop do
+          blocks << case reader.peek
+                    when /^#/     then new(read(reader, /^([^#]|$)/),               :doc)
+                    when /\{\s*$/ then new(read(reader, /\}\s*$/, inclusive: true), :fun)
+                    when /^\s*$/  then new(read(reader, /\S/),                      :blank)
+                    else               new([reader.next],                           :nonfun)
+                    end
+        end
+
+        normalize blocks
+      end
+
+      private
+
+      def read(reader, end_pattern, inclusive: false)
+        lines = [reader.next]
+
+        loop do
+          break if reader.peek.match? end_pattern
+
+          lines << reader.next
+        end
+        lines << reader.next if inclusive
+
+        lines
+      end
+
+      def normalize(blocks) # rubocop:disable Metrics/MethodLength
+        result = []
+
+        it = blocks.each
+        loop do
+          next if (current = it.next).type == :blank
+
+          if current.type == :doc && (trailing = it.peek).type != :doc && trailing.type != :blank
+            trailing.convey_doc_block(current)
+            next
+          end
+
+          result << current
+        end
+
+        result
+      end
+    end
+  end
+end
+
+class Compiler
+  using Fmt
+
+  attr_reader :inlines, :sources, :exports
+
+  def initialize(inlines, substitutions: nil)
+    @inlines       = inlines.map(&:chomp)
+    @substitutions = substitutions || {}
+    @sources       = {}
+  end
+
+  def compile
+    outlines = []
+    inlines.each do |line|
+      outlines += (m = line.match(INCLUDE_RE)) ? do_include(m) : [line]
+    end
+
+    self.exports = export
+
+    result = []
+    outlines.each do |line|
+      result += (m = line.match(SUBSTITUTE_RE)) ? do_substitute(m) : [line]
+    end
+
+    result.join "\n"
+  end
+
+  def export # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
+    symbols = []
+
+    sources.values.map(&:blocks).each do |blocks|
+      blocks.each do |block|
+        next unless block.type == :fun
+        next if !block.doc || block.doc.empty?
+
+        command, fun, label = block.public.split('.').join(' '), block.fun, block.label
+
+        next if fun =~ /(_$|\b_)/
+
+        symbols << { command: command, fun: fun, label: label }
+      end
+    end
+
+    symbols
+  end
+
+  private
+
+  attr_reader :substitutions
+  attr_writer :exports
+
+  INCLUDE_RE = /
+    ^
+    (?<lead>\s*)
+    \#:
+    (?<arg>.*)
+  /x.freeze
+
+  def do_include(match)
+    path, by, key = match[:arg].split ':'
+
+    lines = if !key || key.empty?
+              src(path).rawlines
+            else
+              query_blocks_for(src(path).blocks, key, by: by, prefix: match[:lead])
+            end
+
+    lines.fmt! prefix: match[:lead]
+
+    lines
+  end
+
+  SUBSTITUTE_RE = %r{
+    ^
+    (?<lead>\s*)
+    \#/
+    (?<substitution>\w+)
+    /
+    (?<arg>.*)
+  }x.freeze
+
+  def do_substitute(match)
+    unless (substituter = substitutions[substitution = match[:substitution]])
+      warn "No substituter found for: #{substitution}"
+      return [line]
+    end
+
+    lines = [*substituter.call(self, match[:arg])]
+    lines.fmt! prefix: match[:lead]
+
+    lines
+  end
+
+  def query_blocks_for(blocks, *strings, **args)
+    result = []
+
+    by = :label if !(by = args[:by]) || by.empty?
+
+    strings.each do |string|
+      founds = blocks.select do |block|
+        next unless (attribute = block.send(by))
+
+        attribute.casecmp(string.squeeze(' ')).zero?
+      end
+      founds.each { |found| result += found.outlines(**args) }
+    end
+
+    result
+  end
+
+  def src(path)
+    unless sources.key?(path)
+      raise "File not found: #{path}" unless File.exist?(path)
+
+      sources[path] = Source.new path
+    end
+
+    sources[path]
+  end
+
+  class << self
+    def compile(*args, **options)
+      new(*args, **options).compile
+    end
+  end
+end
+
+module Main
+  using Fmt
+
+  private_class_method def self.bash_array_lines(exports, variable, key)
+    [
+      "declare -Ag #{variable}=(",
+      *exports.map { |h| "['#{h[:command]}']='#{h[key]}'" }.fmt(indent: 1),
+      ')'
+    ]
+  end
+
+  SUBSTITUTIONS = {
+    'command' => proc { |compiler| bash_array_lines(compiler.exports, 'command', :fun)   },
+    'help'    => proc { |compiler| bash_array_lines(compiler.exports, 'help',    :label) }
+  }.freeze
+
+  def self.call
+    puts Compiler.compile ARGF.readlines, substitutions: SUBSTITUTIONS
+  end
+end
+
+Main.()

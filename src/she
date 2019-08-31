@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+
+#:lib/prelude.sh::strict options
+
+#:lib/prelude.sh::package installation
+
+#:lib/array.sh
+
+#:lib/deb.sh
+
+#:lib/file.sh
+
+#:lib/is.sh
+
+#:lib/self.sh
+
+#:lib/which.sh
+
+#:lib/ui.sh
+
+#/help/
+
+.usage() {
+	local cmd
+
+	ui.cry "Usage:    $0 commands ..."
+	ui.cry "Commands:"
+
+	# shellcheck disable=2154
+	for cmd in "${!help[@]}"; do
+		printf "\\t%-24s  %s\n" "$cmd" "${help[$cmd]}"
+	done | sort >&2
+}
+
+.help() {
+	if [[ $# -eq 0 ]]; then
+		.usage
+		ui.die 'E: Help topic required.'
+	fi
+
+	local subject=${help["${*}"]:-}
+
+	[[ -n ${subject:-} ]] || ui.die "E: No help found: ${*}."
+	ui.fin "$subject"
+}
+
+#/command/
+
+.dispatch() {
+	local -a args=("$@")
+
+	if [[ $# -eq 0 ]]; then
+		.usage
+		ui.die 'E: Command required.'
+	fi
+
+	if [[ $1 = help ]]; then
+		shift
+
+		.help "$@"
+		exit
+	fi
+
+	local -a try
+	while [[ $# -gt 0 ]]; do
+		try+=("$1")
+		shift
+
+		local key="${try[*]}"
+
+		local func
+		func=${command["$key"]:-}
+
+		if [[ -n $func ]]; then
+			"$func" "$@"
+			return $?
+		fi
+	done
+
+	ui.die "E: No command found: ${args[*]}."
+}
+
+.source() {
+	local self
+
+	self=$(self.path)
+
+	cat <<-'EOF'
+		#:lib/prelude.sh::strict options
+
+	EOF
+
+	cat <<-EOF
+		declare -grx UNDERSCORE=$self
+
+	EOF
+
+	cat <<'EOF'
+#:lib/_.sh
+EOF
+}
+
+.sourced() {
+	if [[ $# -gt 0 ]]; then
+		[[ $1 = src ]] && return 0 # source explicitly specified
+	else
+		[[ -t 1 ]] || return 0     # backticked or piped without args
+	fi
+
+	return 1
+}
+
+main() {
+	if .sourced "$@"; then
+		.source "$@"
+	else
+		.dispatch "$@"
+	fi
+}
+
+[[ "${BASH_SOURCE[0]}" != "$0" ]] || main "$@"

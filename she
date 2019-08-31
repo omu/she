@@ -1,0 +1,327 @@
+#!/usr/bin/env bash
+
+# Strict options
+set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
+
+# Package installation
+export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
+
+# array - Array functions
+
+# array.join: Join array with the given separator
+array.join() {
+	local IFS=$1
+	shift
+
+	echo "$*"
+}
+
+# deb - Debian package management
+
+# deb.update: Update Debian package index
+deb.update() {
+	[[ -n $(find /var/cache/apt/pkgcache.bin -mmin -60 2>/dev/null) ]] || apt-get update
+}
+
+# deb.install: Install Debian packages
+deb.install() {
+	deb.update
+
+	[[ $# -eq 0 ]] || apt-get -y install --no-install-recommends "$@"
+}
+
+# file - File related operations
+
+# bin: Install executable from URL
+file.bin() {
+	curl -fsSL -o "$2" "$1" && chmod +x "$2"
+}
+
+# enter: Get files from URL and chdir to directory
+file.enter() {
+	cd "$1" || exit
+	pwd
+}
+
+# is - Predications
+
+# is.virtual: Detect given virtualization
+is.virtual() {
+	if [[ $# -gt 0 ]]; then
+		[[ "$(which.virtual)" = "$1" ]]
+	else
+		[[ -z ${CI:-} ]] || return 0
+		[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
+
+		is.docker && return 0
+
+		systemd-detect-virt -q
+	fi
+}
+
+# is.debian: Detect Debian or its given release
+is.debian() {
+	if [[ $# -gt 0 ]]; then
+		[[ "$(which.codename)" = "$1" ]]
+	else
+		[[ "$(which.distribution)" = 'debian' ]]
+	fi
+}
+
+# is.ubuntu: Detect Ubuntu or its given release
+is.ubuntu() {
+	if [[ $# -gt 0 ]]; then
+		[[ "$(which.codename)" = "$1" ]]
+	else
+		[[ "$(which.distribution)" = 'ubuntu' ]]
+	fi
+}
+
+# self - Functions related to program itself
+
+# self.version: Print self version
+self.version() {
+	echo 0.0
+}
+
+# self.name: Print self name
+self.name() {
+	echo she
+}
+
+# self.path: Print self path
+self.path() {
+	local self
+
+	self=${BASH_SOURCE[0]}
+	case $self in
+	./*) readlink -f "$self" ;;
+	/*)  echo "$self" ;;
+	*)   readlink -f "$(command -v "$self")" ;;
+	esac
+}
+
+self.usage() {
+	local message
+
+	for message;  do
+		echo >&2 "$message"
+	done
+
+	echo >&2 "Usage: $(self.path) CMD [ARGS]..."
+	exit 1
+}
+
+# which - Show facts
+
+# which.virtual: Which virtualization
+which.virtual() {
+	systemd-detect-virt
+}
+
+# which.distribution: Which distribution
+which.distribution() {
+	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
+}
+
+# which.codename: Which distribution release
+which.codename() {
+	lsb_release -sc
+}
+
+# ui -- UI functions
+
+# cry: Print message on standard error
+ui.cry() {
+	echo "$@" >&2
+}
+
+# die: Print error message and exit failure
+ui.die() {
+	echo "$@" >&2
+	exit 1
+}
+
+# bug: Print bug message and exit failure
+ui.bug() {
+	echo "$@" >&2
+	exit 127
+}
+
+# fin: Print a message and exit successfully
+ui.fin() {
+	echo "$@" >&2
+	exit 0
+}
+
+declare -Ag help=(
+	['array join']='Join array with the given separator'
+	['deb update']='Update Debian package index'
+	['deb install']='Install Debian packages'
+	['bin']='Install executable from URL'
+	['enter']='Get files from URL and chdir to directory'
+	['is virtual']='Detect given virtualization'
+	['is debian']='Detect Debian or its given release'
+	['is ubuntu']='Detect Ubuntu or its given release'
+	['self version']='Print self version'
+	['self name']='Print self name'
+	['self path']='Print self path'
+	['which virtual']='Which virtualization'
+	['which distribution']='Which distribution'
+	['which codename']='Which distribution release'
+	['cry']='Print message on standard error'
+	['die']='Print error message and exit failure'
+	['bug']='Print bug message and exit failure'
+	['fin']='Print a message and exit successfully'
+)
+
+.usage() {
+	local cmd
+
+	ui.cry "Usage:    $0 commands ..."
+	ui.cry "Commands:"
+
+	# shellcheck disable=2154
+	for cmd in "${!help[@]}"; do
+		printf "\\t%-24s  %s\n" "$cmd" "${help[$cmd]}"
+	done | sort >&2
+}
+
+.help() {
+	if [[ $# -eq 0 ]]; then
+		.usage
+		ui.die 'E: Help topic required.'
+	fi
+
+	local subject=${help["${*}"]:-}
+
+	[[ -n ${subject:-} ]] || ui.die "E: No help found: ${*}."
+	ui.fin "$subject"
+}
+
+declare -Ag command=(
+	['array join']='array.join'
+	['deb update']='deb.update'
+	['deb install']='deb.install'
+	['bin']='file.bin'
+	['enter']='file.enter'
+	['is virtual']='is.virtual'
+	['is debian']='is.debian'
+	['is ubuntu']='is.ubuntu'
+	['self version']='self.version'
+	['self name']='self.name'
+	['self path']='self.path'
+	['which virtual']='which.virtual'
+	['which distribution']='which.distribution'
+	['which codename']='which.codename'
+	['cry']='ui.cry'
+	['die']='ui.die'
+	['bug']='ui.bug'
+	['fin']='ui.fin'
+)
+
+.dispatch() {
+	local -a args=("$@")
+
+	if [[ $# -eq 0 ]]; then
+		.usage
+		ui.die 'E: Command required.'
+	fi
+
+	if [[ $1 = help ]]; then
+		shift
+
+		.help "$@"
+		exit
+	fi
+
+	local -a try
+	while [[ $# -gt 0 ]]; do
+		try+=("$1")
+		shift
+
+		local key="${try[*]}"
+
+		local func
+		func=${command["$key"]:-}
+
+		if [[ -n $func ]]; then
+			"$func" "$@"
+			return $?
+		fi
+	done
+
+	ui.die "E: No command found: ${args[*]}."
+}
+
+.source() {
+	local self
+
+	self=$(self.path)
+
+	cat <<-'EOF'
+				# Strict options
+				set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
+
+	EOF
+
+	cat <<-EOF
+		declare -grx UNDERSCORE=$self
+
+	EOF
+
+	cat <<'EOF'
+_() {
+	_.die() {
+		"$UNDERSCORE" die "$@"; exit $?
+	}
+
+	_.fin() {
+		"$UNDERSCORE" fin "$@"; exit $?
+	}
+
+	_.bug() {
+		"$UNDERSCORE" fin "$@"; exit $?
+	}
+
+	_.enter() {
+		local dir
+
+		if dir=$("$UNDERSCORE" enter "$@") && [[ -n $dir ]]; then
+			pushd "$dir" &>/dev/null || exit
+		fi
+	}
+
+	_.leave() {
+		popd &>/dev/null || exit
+	}
+
+	local cmd=$1
+
+	case $cmd in
+	die|fin|bug|enter|leave) shift; _."$cmd" "$@" ;;
+	*)                       "$UNDERSCORE" "$@" ;;
+	esac
+}
+EOF
+}
+
+.sourced() {
+	if [[ $# -gt 0 ]]; then
+		[[ $1 = src ]] && return 0 # source explicitly specified
+	else
+		[[ -t 1 ]] || return 0     # backticked or piped without args
+	fi
+
+	return 1
+}
+
+main() {
+	if .sourced "$@"; then
+		.source "$@"
+	else
+		.dispatch "$@"
+	fi
+}
+
+[[ "${BASH_SOURCE[0]}" != "$0" ]] || main "$@"
