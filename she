@@ -1,12 +1,54 @@
 #!/usr/bin/env bash
 
-# Strict options
+# Standard prelude
+
+warn() { echo >&2 "$*"; }; abort() { warn "$@"; exit 1; }
+
+[ -n "${BASH_VERSION:-}"        ] || abort 'Bash required.'
+[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || abort 'Bash version 4 or higher required.'
+[[ -x /usr/bin/apt-get         ]] || abort 'Only Debian and derivatives supported.'
+
 set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
 
-# Package installation
-export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
+export LC_ALL=C.UTF-8 LANG=C.UTF-8 DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
-# array - Array functions
+# UI functions
+
+# cry: Print message on standard error
+ui.cry() {
+	echo "$@" >&2
+}
+
+# die: Print error message and exit failure
+ui.die() {
+	echo "$@" >&2
+	exit 1
+}
+
+# bug: Print bug message and exit failure
+ui.bug() {
+	echo "$@" >&2
+	exit 127
+}
+
+# fin: Print a message and exit successfully
+ui.fin() {
+	echo "$@" >&2
+	exit 0
+}
+
+# Meta functions
+
+meta.public_name() {
+	if [[ $1 =~ (^_|_$) ]]; then
+		ui.bug "BUG: Not a simple name: $1: "
+		exit 1
+	else
+		echo "$1"
+	fi
+}
+
+# Array functions
 
 # array.join: Join array with the given separator
 array.join() {
@@ -16,7 +58,70 @@ array.join() {
 	echo "$*"
 }
 
-# deb - Debian package management
+# Parse URL
+
+url.parse() {
+	# shellcheck disable=2178,2155
+	local -n variable=$(meta.public_name "$1")
+	shift
+
+	local protocol_
+	local url_
+
+	protocol_=
+	case $1 in
+	*://*)
+		protocol_=${1%%:*}
+		url_=${1#*://}
+		;;
+	/*|./*)
+		protocol_='file'
+		url_=$(readlink -m "$1")
+		;;
+	*)
+		url_=$1
+		;;
+	esac
+
+	if [[ $protocol_ == file ]]; then
+		variable=(
+			[protocol]=$protocol_
+			[path]=$url_
+		)
+		return 0
+	elif [[ -z $protocol_ ]]; then
+		protocol_=https
+	fi
+
+	local provider_ owner_ repo_ slug_
+
+	if ! IFS='/' read -r provider_ owner_ repo_ slug_ <<<"$url_"; then
+		ui.cry "Parse error at $1"
+		return 1
+	fi
+
+	[[ ${provider_:-} =~ (github.com|gitlab.com|bitbucket.com) ]] || ui.cry "Unsupported provider $provider_ at $1"
+	[[ -n ${owner_:-} ]] || ui.cry "Missing owner at $1"
+	[[ -n ${repo_:-} ]] || ui.cry "Missing repository at $1"
+
+	local auth_=
+	if [[ $protocol_ == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
+		auth_="${HTTPS_TOKEN}:x-oauth-basic"
+	fi
+
+	# shellcheck disable=2034
+	variable=(
+		[protocol]=$protocol_
+		[provider]=$provider_
+		[owner]=$owner_
+		[repo]=$repo_
+		[slug]=$slug_
+		[path]=$provider_/$owner_/$repo_
+		[auth]=$auth_
+	)
+}
+
+# Debian package management
 
 # deb.update: Update Debian package index
 deb.update() {
@@ -30,20 +135,64 @@ deb.install() {
 	[[ $# -eq 0 ]] || apt-get -y install --no-install-recommends "$@"
 }
 
-# file - File related operations
+# File related operations
 
 # bin: Install executable from URL
 file.bin() {
 	curl -fsSL -o "$2" "$1" && chmod +x "$2"
 }
 
-# enter: Get files from URL and chdir to directory
-file.enter() {
-	cd "$1" || exit
-	pwd
+# Create temporary directory
+file.tempdir() {
+	# shellcheck disable=2178,2155,2034
+	local -n variable_=$(meta.public_name "$1")
+
+	# shellcheck disable=2034
+	variable_=$(mktemp -d -p "$FROM_TMPDIR" she.XXXXXXXX) || ui.die "Fatal error: mktemp"
 }
 
-# is - Predications
+# enter: Get files from URL and chdir to directory
+file.enter() {
+	local source=$1
+
+	local -A url
+
+	url.parse url "$source"
+
+	local path
+	if [[ ${url[protocol]:-} == file ]] ||[[ -n ${FROM_TO:-} ]]; then
+		if [[ -n ${FROM_TO:-} ]]; then
+			path=$FROM_TO
+		else
+			path=${url[path]}
+		fi
+		[[ -d $path ]] || ui.die "No directory: $path"
+		cd "$path"     || ui.die "Chdir error: $path"
+	elif [[ -n ${url[protocol]:-} ]]; then
+		file.tempdir path
+
+		local addr=${url[path]}
+		[[ -z ${url[auth]:-} ]] || addr="${url[auth]}@${addr}"
+		addr="${url[protocol]}://${addr}"
+
+		cd "$path" || ui.die "Chdir error: $path"
+
+		file.get "$addr"
+	else
+		ui.die "No protocol found at:$1"
+	fi
+
+	if [[ -n ${url[slug]:-} ]]; then
+		local slug=${url[slug]}
+
+		[[ -d $slug ]] || ui.die "No directory: $slug"
+		cd "./$slug"   || ui.die "Chdir error: $slug"
+	fi
+
+	[[ -z ${tmpdir:-} ]] || echo "$tmpdir" >"${SHE_SHIBBOLETH:-.she}"
+}
+
+# System predications
 
 # is.virtual: Detect given virtualization
 is.virtual() {
@@ -77,7 +226,7 @@ is.ubuntu() {
 	fi
 }
 
-# self - Functions related to program itself
+# Functions related to program itself
 
 # self.version: Print self version
 self.version() {
@@ -112,7 +261,7 @@ self.usage() {
 	exit 1
 }
 
-# which - Show facts
+# Show facts
 
 # which.virtual: Which virtualization
 which.virtual() {
@@ -129,32 +278,11 @@ which.codename() {
 	lsb_release -sc
 }
 
-# ui -- UI functions
-
-# cry: Print message on standard error
-ui.cry() {
-	echo "$@" >&2
-}
-
-# die: Print error message and exit failure
-ui.die() {
-	echo "$@" >&2
-	exit 1
-}
-
-# bug: Print bug message and exit failure
-ui.bug() {
-	echo "$@" >&2
-	exit 127
-}
-
-# fin: Print a message and exit successfully
-ui.fin() {
-	echo "$@" >&2
-	exit 0
-}
-
 declare -Ag help=(
+	['cry']='Print message on standard error'
+	['die']='Print error message and exit failure'
+	['bug']='Print bug message and exit failure'
+	['fin']='Print a message and exit successfully'
 	['array join']='Join array with the given separator'
 	['deb update']='Update Debian package index'
 	['deb install']='Install Debian packages'
@@ -169,10 +297,6 @@ declare -Ag help=(
 	['which virtual']='Which virtualization'
 	['which distribution']='Which distribution'
 	['which codename']='Which distribution release'
-	['cry']='Print message on standard error'
-	['die']='Print error message and exit failure'
-	['bug']='Print bug message and exit failure'
-	['fin']='Print a message and exit successfully'
 )
 
 .usage() {
@@ -200,6 +324,10 @@ declare -Ag help=(
 }
 
 declare -Ag command=(
+	['cry']='ui.cry'
+	['die']='ui.die'
+	['bug']='ui.bug'
+	['fin']='ui.fin'
 	['array join']='array.join'
 	['deb update']='deb.update'
 	['deb install']='deb.install'
@@ -214,10 +342,6 @@ declare -Ag command=(
 	['which virtual']='which.virtual'
 	['which distribution']='which.distribution'
 	['which codename']='which.codename'
-	['cry']='ui.cry'
-	['die']='ui.die'
-	['bug']='ui.bug'
-	['fin']='ui.fin'
 )
 
 .dispatch() {
@@ -255,23 +379,30 @@ declare -Ag command=(
 }
 
 .source() {
-	local self
-
-	self=$(self.path)
-
-	cat <<-'EOF'
-				# Strict options
-				set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
-
-	EOF
-
-	cat <<-EOF
-		declare -grx UNDERSCORE=$self
-
-	EOF
-
+	echo "UNDERSCORE=$(self.path)"
+	echo
 	cat <<'EOF'
-_() {
+# Standard prelude
+
+warn() { echo >&2 "$*"; }; abort() { warn "$@"; exit 1; }
+
+[ -n "${BASH_VERSION:-}"        ] || abort 'Bash required.'
+[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || abort 'Bash version 4 or higher required.'
+[[ -x /usr/bin/apt-get         ]] || abort 'Only Debian and derivatives supported.'
+
+set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
+
+export LC_ALL=C.UTF-8 LANG=C.UTF-8 DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
+
+.() {
+	declare -grx UNDERSCORE=$UNDERSCORE
+
+	case ${1:-} in
+	-root)
+		[[ ${EUID:-} -eq 0 ]] || abort 'Root privileges required.'
+		;;
+	esac
+
 	_.die() {
 		"$UNDERSCORE" die "$@"; exit $?
 	}
@@ -296,6 +427,10 @@ _() {
 		popd &>/dev/null || exit
 	}
 
+	unset -f "${FUNCNAME[0]}"
+}
+
+_() {
 	local cmd=$1
 
 	case $cmd in
@@ -303,6 +438,8 @@ _() {
 	*)                       "$UNDERSCORE" "$@" ;;
 	esac
 }
+
+. "$@"
 EOF
 }
 

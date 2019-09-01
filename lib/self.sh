@@ -1,4 +1,4 @@
-# self - Functions related to program itself
+# Functions related to program itself
 
 # self.version: Print self version
 self.version() {

@@ -1,4 +1,4 @@
-# deb - Debian package management
+# Debian package management
 
 # deb.update: Update Debian package index
 deb.update() {

@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 
-#:lib/prelude.sh::strict options
+#:lib/prelude.sh
 
-#:lib/prelude.sh::package installation
+#:lib/ui.sh
+
+#:lib/meta.sh
 
 #:lib/array.sh
+
+#:lib/url.sh
 
 #:lib/deb.sh
 
@@ -15,8 +19,6 @@
 #:lib/self.sh
 
 #:lib/which.sh
-
-#:lib/ui.sh
 
 #/help/
 
@@ -81,22 +83,14 @@
 }
 
 .source() {
-	local self
-
-	self=$(self.path)
-
-	cat <<-'EOF'
-		#:lib/prelude.sh::strict options
-
-	EOF
-
-	cat <<-EOF
-		declare -grx UNDERSCORE=$self
-
-	EOF
-
+	echo "UNDERSCORE=$(self.path)"
+	echo
 	cat <<'EOF'
+#:lib/prelude.sh
+
 #:lib/_.sh
+
+. "$@"
 EOF
 }
 

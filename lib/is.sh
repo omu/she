@@ -1,4 +1,4 @@
-# is - Predications
+# System predications
 
 # is.virtual: Detect given virtualization
 is.virtual() {

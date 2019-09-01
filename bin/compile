@@ -61,7 +61,7 @@ class Source
     end
 
     def public
-      sig || fun
+      sig
     end
 
     def documented_lines
@@ -207,6 +207,7 @@ class Compiler
     sources.values.map(&:blocks).each do |blocks|
       blocks.each do |block|
         next unless block.type == :fun
+        next unless block.public
         next if !block.doc || block.doc.empty?
 
         command, fun, label = block.public.split('.').join(' '), block.fun, block.label

@@ -1,4 +1,4 @@
-# array - Array functions
+# Array functions
 
 # array.join: Join array with the given separator
 array.join() {

@@ -1,4 +1,4 @@
-# ui -- UI functions
+# UI functions
 
 # cry: Print message on standard error
 ui.cry() {

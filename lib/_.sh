@@ -1,4 +1,12 @@
-_() {
+.() {
+	declare -grx UNDERSCORE=$UNDERSCORE
+
+	case ${1:-} in
+	-root)
+		[[ ${EUID:-} -eq 0 ]] || abort 'Root privileges required.'
+		;;
+	esac
+
 	_.die() {
 		"$UNDERSCORE" die "$@"; exit $?
 	}
@@ -23,6 +31,10 @@ _() {
 		popd &>/dev/null || exit
 	}
 
+	unset -f "${FUNCNAME[0]}"
+}
+
+_() {
 	local cmd=$1
 
 	case $cmd in
