@@ -38,27 +38,23 @@ class Source
   attr_reader :path, :blocks, :rawlines
 
   def initialize(path)
-    @path     = path
-    @blocks   = Block.parse((@rawlines = File.readlines(path).map(&:chomp)).each)
+    @path   = path
+    @blocks = Block.parse((@rawlines = File.readlines(path).map(&:chomp)).each)
   end
 
   class Block
     using Fmt
 
-    attr_reader :lines, :type, :fun, :sig, :label
+    attr_reader :lines, :type, :fun, :pub, :label
     attr_writer :doc
 
     def initialize(lines, type)
       parser = "parse_#{@type = type}"
-      @lines = respond_to?(parser) ? send(parser, lines) : lines
+      @lines = respond_to?(parser, true) ? send(parser, lines) : lines
     end
 
     def doc
       type == :doc ? lines.join("\n").strip : @doc
-    end
-
-    def public
-      sig
     end
 
     def documented_lines
@@ -72,12 +68,12 @@ class Source
     end
 
     def convey_doc_block(other)
-      self.doc, self.label, self.sig = other.doc, other.label, other.sig
+      %i[doc label pub].each { |attribute| send("#{attribute}=", other.send(attribute)) }
     end
 
     private
 
-    attr_writer :fun, :sig, :label
+    attr_writer :fun, :pub, :label
 
     BLOCK_PATTERN = {
       fun: /
@@ -93,7 +89,7 @@ class Source
           \s+
         )
         (?:
-          (?<sig>[\w.:-]+)
+          (?<pub>[\w.:-]+)
           (
             :\s*
             |
@@ -114,11 +110,11 @@ class Source
 
     def parse_doc(lines)
       if (m = lines.first.match(BLOCK_PATTERN[:doc]))
-        self.sig   = m[:sig]
+        self.pub   = m[:pub]
         self.label = m[:label]
       end
 
-      sig ? [m[:pre] + label, *lines[1..-1]] : lines
+      pub ? [m[:pre] + label, *lines[1..-1]] : lines
     end
 
     class << self
@@ -198,20 +194,17 @@ class Compiler
     second_pass.join "\n"
   end
 
-  def export # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
+  def export # rubocop:disable Metrics/AbcSize
     symbols = []
 
     sources.values.map(&:blocks).each do |blocks|
       blocks.each do |block|
-        next unless block.type == :fun
-        next unless block.public
+        next unless block.type == :fun && block.pub
         next if !block.doc || block.doc.empty?
 
-        command, fun, label = block.public.split('.').join(' '), block.fun, block.label
+        next if block.fun.match?(/(_$|\b_)/)
 
-        next if fun.match?(/(_$|\b_)/)
-
-        symbols << { command: command, fun: fun, label: label }
+        symbols << { pub: block.pub, fun: block.fun, label: block.label }
       end
     end
 
@@ -312,12 +305,18 @@ end
 module Main
   using Fmt
 
-  private_class_method def self.bash_array_lines(exports, variable, key)
-    [
-      "declare -Ag #{variable}=(",
-      *exports.map { |h| "['#{h[:command]}']='#{h[key]}'" }.fmt(indent: 1),
-      ')'
-    ]
+  class << self
+    private
+
+    def public_name_to_command_name(pub)
+      pub.split('.').join(' ')
+    end
+
+    def bash_array_lines(exports, variable, key)
+      pairs = exports.map { |h| "['#{public_name_to_command_name(h[:pub])}']='#{h[key]}'" }
+
+      ["declare -Ag #{variable}=(", *pairs.fmt(indent: 1), ')']
+    end
   end
 
   SUBSTITUTIONS = {
