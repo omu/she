@@ -12,6 +12,60 @@ set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPA
 
 export LC_ALL=C.UTF-8 LANG=C.UTF-8 DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
+# Program name
+declare -grx PROGNAME=${0##*/}
+
+# Command must success
+must() {
+	"$@" || abort "Command failed: $*"
+}
+
+# Print bug and fail
+bug() {
+	warn "BUG: ${BASH_LINENO[0]}: $*"
+	exit 127
+}
+
+# Install at_exit callbacks
+core.at_exit() {
+	declare -ag _at_exit_callbacks_=()
+
+	declare -ag _at_exit_cleanups_=()
+
+	# Prevent using trap
+	trap() {
+		bug "Using trap is forbidden; please use at_exit".
+	}
+
+	at_exit() {
+		declare -fx "${_at_exit_callbacks_[@]}"
+
+		_at_exit_callbacks_=("$@" "${_at_exit_callbacks_[@]}")
+	}
+
+	_exit_() {
+		local err=$1
+
+		local callback
+		for callback in "${_at_exit_callbacks_[@]}"; do
+			"$callback" || warn "Exit callback: $callback"
+		done
+
+		return "$err"
+	}
+
+	# shellcheck disable=2154
+	builtin trap '_exit_ $?' EXIT HUP INT QUIT TERM
+
+	_at_exit_cleanup_() {
+		[[ ${#_at_exit_cleanups_[@]} -gt 0 ]] || return 0
+
+		rm -rf -- "${_at_exit_cleanups_[@]}"
+	}
+
+	at_exit _at_exit_cleanup_
+}
+
 # UI functions
 
 # cry: Print message on standard error
@@ -142,15 +196,6 @@ file.bin() {
 	curl -fsSL -o "$2" "$1" && chmod +x "$2"
 }
 
-# Create temporary directory
-file.tempdir() {
-	# shellcheck disable=2178,2155,2034
-	local -n variable_=$(meta.public_name "$1")
-
-	# shellcheck disable=2034
-	variable_=$(mktemp -d -p "$FROM_TMPDIR" she.XXXXXXXX) || ui.die "Fatal error: mktemp"
-}
-
 # enter: Get files from URL and chdir to directory
 file.enter() {
 	local source=$1
@@ -190,6 +235,16 @@ file.enter() {
 	fi
 
 	[[ -z ${tmpdir:-} ]] || echo "$tmpdir" >"${SHE_SHIBBOLETH:-.she}"
+}
+
+file.get() {
+	local source=$1
+
+	local -A url
+	url.parse url
+
+	local tempdir
+	file.tempdir tempdir
 }
 
 # System predications

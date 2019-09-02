@@ -49,11 +49,8 @@ class Source
     attr_writer :doc
 
     def initialize(lines, type)
-      @lines = case (@type = type)
-               when :fun then parse_fun(lines)
-               when :doc then parse_doc(lines)
-               else           lines
-               end
+      parser = "parse_#{@type = type}"
+      @lines = respond_to?(parser) ? send(parser, lines) : lines
     end
 
     def doc
@@ -75,51 +72,53 @@ class Source
     end
 
     def convey_doc_block(other)
-      self.doc   = other.doc
-      self.label = other.label
-      self.sig   = other.sig
+      self.doc, self.label, self.sig = other.doc, other.label, other.sig
     end
 
     private
 
     attr_writer :fun, :sig, :label
 
-    FUN_RE = /
-      ^
-      (?<fun>[^(]+)
-      [(]
-    /x.freeze
+    BLOCK_PATTERN = {
+      fun: /
+        ^
+        (?<fun>[^(]+)
+        [(]
+      /x,
+
+      doc: /
+        ^
+        (?<pre>
+          [#]
+          \s+
+        )
+        (?:
+          (?<sig>[\w.:-]+)
+          (
+            :\s*
+            |
+            \s+[-]{1,}\s+
+          )
+        )?
+        (?<label>.*)
+      /x
+    }.freeze
 
     def parse_fun(lines)
-      if (m = lines.first.match(FUN_RE))
+      if (m = lines.first.match(BLOCK_PATTERN[:fun]))
         self.fun = m[:fun] if m
       end
 
       lines
     end
 
-    DOC_RE = /
-      ^
-      [#]
-      \s+
-      (?:
-        (?<sig>[\w.:-]+)
-        (
-          :\s*
-          |
-          \s+[-]{1,}\s+
-        )
-      )?
-      (?<label>.*)
-    /x.freeze
-
     def parse_doc(lines)
-      if (m = lines.first.match(DOC_RE))
+      if (m = lines.first.match(BLOCK_PATTERN[:doc]))
         self.sig   = m[:sig]
         self.label = m[:label]
       end
 
-      sig ? [label, *lines[1..-1]] : lines
+      sig ? [m[:pre] + label, *lines[1..-1]] : lines
     end
 
     class << self
@@ -177,6 +176,8 @@ end
 class Compiler
   using Fmt
 
+  Error = Class.new StandardError
+
   attr_reader :inlines, :sources, :exports
 
   def initialize(inlines, substitutions: nil)
@@ -186,19 +187,15 @@ class Compiler
   end
 
   def compile
-    outlines = []
-    inlines.each do |line|
-      outlines += (m = line.match(INCLUDE_RE)) ? do_include(m) : [line]
-    end
+    first_pass = []
+    inlines.each { |line| first_pass += process(line, :include) }
 
     self.exports = export
 
-    result = []
-    outlines.each do |line|
-      result += (m = line.match(SUBSTITUTE_RE)) ? do_substitute(m) : [line]
-    end
+    second_pass = []
+    first_pass.each { |line| second_pass += process(line, :substitute) }
 
-    result.join "\n"
+    second_pass.join "\n"
   end
 
   def export # rubocop:disable Metrics/MethodLength, Metrics/AbcSize
@@ -212,7 +209,7 @@ class Compiler
 
         command, fun, label = block.public.split('.').join(' '), block.fun, block.label
 
-        next if fun =~ /(_$|\b_)/
+        next if fun.match?(/(_$|\b_)/)
 
         symbols << { command: command, fun: fun, label: label }
       end
@@ -226,35 +223,48 @@ class Compiler
   attr_reader :substitutions
   attr_writer :exports
 
-  INCLUDE_RE = /
-    ^
-    (?<lead>\s*)
-    \#:
-    (?<arg>.*)
-  /x.freeze
+  # rubocop:disable Layout/AlignHash
+  DIRECTIVE = {
+    include: /
+      ^
+      (?<lead>\s*)
+      \#:
+      (?<arg>.*)
+    /x,
 
-  def do_include(match)
-    path, by, key = match[:arg].split ':'
+    substitute: %r{
+      ^
+      (?<lead>\s*)
+      \#/
+      (?<substitution>\w+)
+      /
+      (?<arg>.*)
+    }x
+  }.freeze
+  # rubocop:enable Layout/AlignHash
 
-    lines = if !key || key.empty?
-              src(path).rawlines
-            else
-              query_blocks_for(src(path).blocks, key, by: by, prefix: match[:lead])
-            end
+  def process(line, directive)
+    return [line] unless (m = line.match(DIRECTIVE[directive]))
 
-    lines.fmt! prefix: match[:lead]
-
-    lines
+    send("do_#{directive}", m).fmt! prefix: m[:lead]
   end
 
-  SUBSTITUTE_RE = %r{
-    ^
-    (?<lead>\s*)
-    \#/
-    (?<substitution>\w+)
-    /
-    (?<arg>.*)
-  }x.freeze
+  def do_include(match)
+    return src(match[:arg]).rawlines unless (field = parse_include(match[:arg]))
+
+    query_blocks_for(src(field[:path]).blocks, field[:key], by: field[:by]).tap do |result|
+      raise Error, "No match for line: #{match}" if result.empty?
+    end
+  end
+
+  def parse_include(arg)
+    case (fields = arg.split ':').size
+    when 1 then nil
+    when 2 then { path: fields[0], by: fields[1], key: :label    }
+    when 3 then { path: fields[0], by: fields[1], key: fields[2] }
+    else        raise Error, "Malformed include directive: #{arg}"
+    end
+  end
 
   def do_substitute(match)
     unless (substituter = substitutions[substitution = match[:substitution]])
@@ -262,10 +272,7 @@ class Compiler
       return [line]
     end
 
-    lines = [*substituter.call(self, match[:arg])]
-    lines.fmt! prefix: match[:lead]
-
-    lines
+    [*substituter.call(self, match[:arg])]
   end
 
   def query_blocks_for(blocks, *strings, **args)
@@ -287,7 +294,7 @@ class Compiler
 
   def src(path)
     unless sources.key?(path)
-      raise "File not found: #{path}" unless File.exist?(path)
+      raise Error, "File not found: #{path}" unless File.exist?(path)
 
       sources[path] = Source.new path
     end
@@ -320,6 +327,8 @@ module Main
 
   def self.call
     puts Compiler.compile ARGF.readlines, substitutions: SUBSTITUTIONS
+  rescue Compiler::Error => e
+    abort 'E: ' + e.message
   end
 end
 

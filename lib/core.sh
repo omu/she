@@ -1,12 +1,13 @@
-# Print on stderr
-warn() {
-	echo >&2 "$*"
+# Program name
+declare -grx PROGNAME=${0##*/}
+
+# Command must success
+must() {
+	"$@" || abort "Command failed: $*"
 }
 
-# Warn and fail
-abort() {
-	warn "$@"
-	exit 1
+# Print bug and fail
+bug() {
+	warn "BUG: ${BASH_LINENO[0]}: $*"
+	exit 127
 }
-
-[ -n "${BASH_VERSION:-}" ] || abort 'Bash required.'

@@ -5,15 +5,6 @@ file.bin() {
 	curl -fsSL -o "$2" "$1" && chmod +x "$2"
 }
 
-# Create temporary directory
-file.tempdir() {
-	# shellcheck disable=2178,2155,2034
-	local -n variable_=$(meta.public_name "$1")
-
-	# shellcheck disable=2034
-	variable_=$(mktemp -d -p "$FROM_TMPDIR" she.XXXXXXXX) || ui.die "Fatal error: mktemp"
-}
-
 # enter: Get files from URL and chdir to directory
 file.enter() {
 	local source=$1
@@ -53,4 +44,14 @@ file.enter() {
 	fi
 
 	[[ -z ${tmpdir:-} ]] || echo "$tmpdir" >"${SHE_SHIBBOLETH:-.she}"
+}
+
+file.get() {
+	local source=$1
+
+	local -A url
+	url.parse url
+
+	local tempdir
+	file.tempdir tempdir
 }
