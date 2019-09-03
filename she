@@ -79,21 +79,23 @@ url.parse() {
 	local -n variable=$(meta.public_name "$1")
 	shift
 
+	local given_=$1
+
 	local protocol_
 	local url_
 
 	protocol_=
-	case $1 in
+	case $given_ in
 	*://*)
-		protocol_=${1%%:*}
-		url_=${1#*://}
+		protocol_=${given_%%:*}
+		url_=${given_#*://}
 		;;
 	/*|./*)
 		protocol_='file'
-		url_=$(readlink -m "$1")
+		url_=$(readlink -m "$given_")
 		;;
 	*)
-		url_=$1
+		url_=$given_
 		;;
 	esac
 
@@ -110,13 +112,13 @@ url.parse() {
 	local provider_ owner_ repo_ slug_
 
 	if ! IFS='/' read -r provider_ owner_ repo_ slug_ <<<"$url_"; then
-		ui.cry "Parse error at $1"
+		ui.cry "Parse error at $given_"
 		return 1
 	fi
 
-	[[ ${provider_:-} =~ (github.com|gitlab.com|bitbucket.com) ]] || ui.cry "Unsupported provider $provider_ at $1"
-	[[ -n ${owner_:-} ]] || ui.cry "Missing owner at $1"
-	[[ -n ${repo_:-}  ]] || ui.cry "Missing repository at $1"
+	[[ ${provider_:-} =~ (github.com|gitlab.com|bitbucket.com) ]] || ui.cry "Unsupported provider $provider_ at $given_"
+	[[ -n ${owner_:-} ]] || ui.cry "Missing owner at $given_"
+	[[ -n ${repo_:-}  ]] || ui.cry "Missing repository at $given_"
 
 	local auth_=
 	if [[ $protocol_ == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then

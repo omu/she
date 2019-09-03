@@ -1,38 +1,47 @@
 # Trap setup
 
-declare -ag _at_exit_callbacks_=()
+declare -ag _at_exit_hooks_=()
 
-declare -ag _at_exit_cleandirs_=()
+declare -ag _at_exit_dirs_=()
 
-# Prevent using trap
-trap() {
-	bug "Using trap is forbidden; please use at_exit".
+# Register hooks at exit
+at_exit() {
+	local arg
+	for arg; do
+		[[ $(type -t "$arg" || true) == function ]] || bug "Not a function: $arg"
+	done
+
+	_at_exit_hooks_=("$@" "${_at_exit_hooks_[@]}")
 }
 
-at_exit() {
-	declare -fx "${_at_exit_callbacks_[@]}"
-
-	_at_exit_callbacks_=("$@" "${_at_exit_callbacks_[@]}")
+# Register directories to clean up at exit
+at_exit_dirs() {
+	_at_exit_dirs_+=("$@")
 }
 
 _exit_() {
 	local err=$?
 
-	local callback
-	for callback in "${_at_exit_callbacks_[@]}"; do
-		"$callback" || warn "Exit callback failed: $callback"
+	local hook
+	for hook in "${_at_exit_hooks_[@]}"; do
+		"$hook" || warn "Exit hook failed: $hook"
 	done
 
 	return "$err"
 }
 
-# shellcheck disable=2154
+# shellcheck disable=2154,2218
 builtin trap '_exit_ $?' EXIT HUP INT QUIT TERM
 
-_at_exit_cleanup_() {
-	[[ ${#_at_exit_cleandirs_[@]} -gt 0 ]] || return 0
+# Prevent using trap
+trap() {
+	bug 'Using trap is forbidden; please use at_exit to register hooks.'
+}
 
-	rm -rf -- "${_at_exit_cleandirs_[@]}"
+_at_exit_cleanup_() {
+	[[ ${#_at_exit_dirs_[@]} -gt 0 ]] || return 0
+
+	rm -rf -- "${_at_exit_dirs_[@]}"
 }
 
 at_exit _at_exit_cleanup_
