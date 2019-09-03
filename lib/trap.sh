@@ -20,7 +20,7 @@ _exit_() {
 
 	local callback
 	for callback in "${_at_exit_callbacks_[@]}"; do
-		"$callback" || warn "Exit callback: $callback"
+		"$callback" || warn "Exit callback failed: $callback"
 	done
 
 	return "$err"

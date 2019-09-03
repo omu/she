@@ -45,21 +45,13 @@ class Source
   class Block
     using Fmt
 
-    attr_reader :lines, :type, :fun, :pub, :label
-    attr_writer :doc
+    attr_reader :lines, :doc, :label
 
-    def initialize(lines, type)
-      parser = "parse_#{@type = type}"
-      @lines = respond_to?(parser, true) ? send(parser, lines) : lines
-    end
-
-    def doc
-      type == :doc ? lines.join("\n").strip : @doc
+    def initialize(lines)
+      @lines = parse(lines)
     end
 
     def documented_lines
-      return doc if type == :doc
-
       [*doc, *lines]
     end
 
@@ -67,22 +59,48 @@ class Source
       (documented ? documented_lines : lines).fmt(**options)
     end
 
-    def convey_doc_block(other)
-      %i[doc label pub].each { |attribute| send("#{attribute}=", other.send(attribute)) }
+    def undocumented?
+      !doc || doc.empty?
     end
 
-    private
+    protected
 
-    attr_writer :fun, :pub, :label
+    def parse(lines)
+      lines
+    end
 
-    BLOCK_PATTERN = {
-      fun: /
+    class Fun < self
+      PATTERN = /
         ^
         (?<fun>[^(]+)
         [(]
-      /x,
+      /x.freeze
 
-      doc: /
+      attr_reader :fun, :pub, :label
+
+      def convey_from_doc_block(doc_block)
+        %i[doc label pub].each { |attribute| send("#{attribute}=", doc_block.send(attribute)) }
+      end
+
+      def private?
+        fun.match?(/(_$|\b_)/)
+      end
+
+      protected
+
+      attr_writer :doc, :fun, :pub, :label
+
+      def parse(lines)
+        if (m = lines.first.match(PATTERN))
+          self.fun = m[:fun] if m
+        end
+
+        lines
+      end
+    end
+
+    class Doc < self
+      PATTERN = /
         ^
         (?<pre>
           [#]
@@ -97,25 +115,34 @@ class Source
           )
         )?
         (?<label>.*)
-      /x
-    }.freeze
+      /x.freeze
 
-    def parse_fun(lines)
-      if (m = lines.first.match(BLOCK_PATTERN[:fun]))
-        self.fun = m[:fun] if m
+      attr_reader :pub, :label
+
+      def doc
+        lines.join("\n").strip
       end
 
-      lines
-    end
-
-    def parse_doc(lines)
-      if (m = lines.first.match(BLOCK_PATTERN[:doc]))
-        self.pub   = m[:pub]
-        self.label = m[:label]
+      def documented_lines
+        doc
       end
 
-      pub ? [m[:pre] + label, *lines[1..-1]] : lines
+      protected
+
+      attr_writer :pub, :label
+
+      def parse(lines)
+        if (m = lines.first.match(PATTERN))
+          self.pub   = m[:pub]
+          self.label = m[:label]
+        end
+
+        pub ? [m[:pre] + label, *lines[1..-1]] : lines
+      end
     end
+
+    Other  = Class.new self
+    Blank  = Class.new self
 
     class << self
       def parse(reader)
@@ -123,10 +150,10 @@ class Source
 
         loop do
           blocks << case reader.peek
-                    when /^#/     then new(read(reader, /^([^#]|$)/),               :doc)
-                    when /\{\s*$/ then new(read(reader, /\}\s*$/, inclusive: true), :fun)
-                    when /^\s*$/  then new(read(reader, /\S/),                      :blank)
-                    else               new([reader.next],                           :nonfun)
+                    when /^#/     then Doc.new   read(reader, /^([^#]|$)/)
+                    when /\{\s*$/ then Fun.new   read(reader, /\}\s*$/, inclusive: true) # TODO: one line functions
+                    when /^\s*$/  then Blank.new read(reader, /\S/)
+                    else               Other.new [reader.next]
                     end
         end
 
@@ -148,15 +175,14 @@ class Source
         lines
       end
 
-      def normalize(blocks) # rubocop:disable Metrics/MethodLength
-        result = []
+      def normalize(blocks)
+        result, it = [], blocks.each
 
-        it = blocks.each
         loop do
-          next if (current = it.next).type == :blank
+          next if (current = it.next).is_a? Blank
 
-          if current.type == :doc && (trailing = it.peek).type != :doc && trailing.type != :blank
-            trailing.convey_doc_block(current)
+          if current.is_a?(Doc) && (trailing = it.peek).is_a?(Fun)
+            trailing.convey_from_doc_block(current) # TODO: Other?
             next
           end
 
@@ -194,15 +220,13 @@ class Compiler
     second_pass.join "\n"
   end
 
-  def export # rubocop:disable Metrics/AbcSize
+  def export
     symbols = []
 
     sources.values.map(&:blocks).each do |blocks|
       blocks.each do |block|
-        next unless block.type == :fun && block.pub
-        next if !block.doc || block.doc.empty?
-
-        next if block.fun.match?(/(_$|\b_)/)
+        next unless block.is_a?(Source::Block::Fun) && block.pub
+        next if block.undocumented? || block.private?
 
         symbols << { pub: block.pub, fun: block.fun, label: block.label }
       end
@@ -216,25 +240,23 @@ class Compiler
   attr_reader :substitutions
   attr_writer :exports
 
-  # rubocop:disable Layout/AlignHash
   DIRECTIVE = {
-    include: /
-      ^
-      (?<lead>\s*)
-      \#:
-      (?<arg>.*)
-    /x,
+    include:    /
+                  ^
+                    (?<lead>\s*)
+                    \#:
+                    (?<arg>.*)
+                /x,
 
     substitute: %r{
-      ^
-      (?<lead>\s*)
-      \#/
-      (?<substitution>\w+)
-      /
-      (?<arg>.*)
-    }x
+                    ^
+                    (?<lead>\s*)
+                    \#/
+                    (?<substitution>\w+)
+                    /
+                    (?<arg>.*)
+                }x
   }.freeze
-  # rubocop:enable Layout/AlignHash
 
   def process(line, directive)
     return [line] unless (m = line.match(DIRECTIVE[directive]))

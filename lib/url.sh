@@ -42,7 +42,7 @@ url.parse() {
 
 	[[ ${provider_:-} =~ (github.com|gitlab.com|bitbucket.com) ]] || ui.cry "Unsupported provider $provider_ at $1"
 	[[ -n ${owner_:-} ]] || ui.cry "Missing owner at $1"
-	[[ -n ${repo_:-} ]] || ui.cry "Missing repository at $1"
+	[[ -n ${repo_:-}  ]] || ui.cry "Missing repository at $1"
 
 	local auth_=
 	if [[ $protocol_ == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
