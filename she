@@ -2,7 +2,7 @@
 
 # Standard prelude
 
-warn() { echo >&2 "$*"; }; abort() { warn "$@"; exit 1; }
+warn() { echo >&2 "$*"; }         ;; abort() { warn "$@"; exit 1; }
 
 [ -n "${BASH_VERSION:-}"        ] || abort 'Bash required.'
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || abort 'Bash version 4 or higher required.'
@@ -10,7 +10,7 @@ warn() { echo >&2 "$*"; }; abort() { warn "$@"; exit 1; }
 
 set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
 
-export LC_ALL=C.UTF-8 LANG=C.UTF-8 DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
+export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
 # Program name
 declare -grx PROGNAME=${0##*/}
@@ -24,46 +24,6 @@ must() {
 bug() {
 	warn "BUG: ${BASH_LINENO[0]}: $*"
 	exit 127
-}
-
-# Install at_exit callbacks
-core.at_exit() {
-	declare -ag _at_exit_callbacks_=()
-
-	declare -ag _at_exit_cleanups_=()
-
-	# Prevent using trap
-	trap() {
-		bug "Using trap is forbidden; please use at_exit".
-	}
-
-	at_exit() {
-		declare -fx "${_at_exit_callbacks_[@]}"
-
-		_at_exit_callbacks_=("$@" "${_at_exit_callbacks_[@]}")
-	}
-
-	_exit_() {
-		local err=$1
-
-		local callback
-		for callback in "${_at_exit_callbacks_[@]}"; do
-			"$callback" || warn "Exit callback: $callback"
-		done
-
-		return "$err"
-	}
-
-	# shellcheck disable=2154
-	builtin trap '_exit_ $?' EXIT HUP INT QUIT TERM
-
-	_at_exit_cleanup_() {
-		[[ ${#_at_exit_cleanups_[@]} -gt 0 ]] || return 0
-
-		rm -rf -- "${_at_exit_cleanups_[@]}"
-	}
-
-	at_exit _at_exit_cleanup_
 }
 
 # UI functions
@@ -156,7 +116,7 @@ url.parse() {
 
 	[[ ${provider_:-} =~ (github.com|gitlab.com|bitbucket.com) ]] || ui.cry "Unsupported provider $provider_ at $1"
 	[[ -n ${owner_:-} ]] || ui.cry "Missing owner at $1"
-	[[ -n ${repo_:-} ]] || ui.cry "Missing repository at $1"
+	[[ -n ${repo_:-}  ]] || ui.cry "Missing repository at $1"
 
 	local auth_=
 	if [[ $protocol_ == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
@@ -176,6 +136,8 @@ url.parse() {
 }
 
 # Debian package management
+
+export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
 # deb.update: Update Debian package index
 deb.update() {
@@ -439,7 +401,7 @@ declare -Ag command=(
 	cat <<'EOF'
 # Standard prelude
 
-warn() { echo >&2 "$*"; }; abort() { warn "$@"; exit 1; }
+warn() { echo >&2 "$*"; }         ;; abort() { warn "$@"; exit 1; }
 
 [ -n "${BASH_VERSION:-}"        ] || abort 'Bash required.'
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || abort 'Bash version 4 or higher required.'
@@ -447,7 +409,7 @@ warn() { echo >&2 "$*"; }; abort() { warn "$@"; exit 1; }
 
 set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
 
-export LC_ALL=C.UTF-8 LANG=C.UTF-8 DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
+export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
 .() {
 	declare -grx UNDERSCORE=$UNDERSCORE
