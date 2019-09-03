@@ -2,7 +2,14 @@
 
 # Standard prelude
 
-warn() { echo >&2 "$*"; }         ;; abort() { warn "$@"; exit 1; }
+warn() {
+        echo >&2 "$*"
+}
+
+abort() {
+        warn "$@"
+        exit 1
+}
 
 [ -n "${BASH_VERSION:-}"        ] || abort 'Bash required.'
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || abort 'Bash version 4 or higher required.'
@@ -20,46 +27,176 @@ must() {
 	"$@" || abort "Command failed: $*"
 }
 
+# Command may fail
+non_must() {
+	"$@" || warn "Exit code $? is suppressed: $*"
+}
+
 # Print bug and fail
 bug() {
 	warn "BUG: ${BASH_LINENO[0]}: $*"
 	exit 127
 }
 
-# UI functions
-
-# cry: Print message on standard error
-ui.cry() {
-	echo "$@" >&2
-}
-
-# die: Print error message and exit failure
-ui.die() {
-	echo "$@" >&2
-	exit 1
-}
-
-# bug: Print bug message and exit failure
-ui.bug() {
-	echo "$@" >&2
-	exit 127
-}
-
-# fin: Print a message and exit successfully
-ui.fin() {
-	echo "$@" >&2
-	exit 0
-}
-
 # Meta functions
 
-meta.public_name() {
+meta.public() {
 	if [[ $1 =~ (^_|_$) ]]; then
-		ui.bug "BUG: Not a simple name: $1: "
-		exit 1
+		bug "Not a simple name: $1"
 	else
 		echo "$1"
 	fi
+}
+
+# Trap setup
+
+declare -ag _at_exit_funcs_=()
+
+declare -ag _at_exit_files_=()
+
+# Register hooks at exit
+at_exit() {
+	local arg
+	for arg; do
+		[[ $(type -t "$arg" || true) == function ]] || bug "Not a function: $arg"
+	done
+
+	_at_exit_funcs_=("$@" "${_at_exit_funcs_[@]}")
+}
+
+# Register files/directories to clean up at exit
+at_exit_files() {
+	_at_exit_files_+=("$@")
+}
+
+_exit_() {
+	local err=$?
+
+	local func
+	for func in "${_at_exit_funcs_[@]}"; do
+		"$func" || warn "Exit hook failed: $func"
+	done
+
+	return "$err"
+}
+
+# Prevent using trap
+trap() {
+	bug 'Using trap is forbidden; please use at_exit to register hooks.'
+}
+
+_at_exit_cleanup_() {
+	[[ ${#_at_exit_files_[@]} -gt 0 ]] || return 0
+
+	rm -rf -- "${_at_exit_files_[@]}"
+}
+
+# shellcheck disable=2120
+trap.setup() {
+	local -a signals=(EXIT HUP INT QUIT TERM)
+	[[ $# -eq 0 ]] || signals=("$@")
+
+	# shellcheck disable=2154,2218
+	builtin trap _exit_ "${signals[@]}"
+
+	at_exit _at_exit_cleanup_
+}
+
+temp.file() {
+	# shellcheck disable=2155
+	local -n variable_=$(meta.public "$1")
+
+	local file_
+
+	file_=$(mktemp "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
+	at_exit_files "$file_"
+
+	# shellcheck disable=2034
+	variable_=$file_
+}
+
+temp.dir() {
+	# shellcheck disable=2155
+	local -n variable_=$(meta.public "$1")
+
+	local dir_
+
+	dir_=$(mktemp -d "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
+	at_exit_files "$dir_"
+
+	# shellcheck disable=2034
+	variable_=$dir_
+}
+
+# temp.inside: Execute command in temp dir and (optionally) move it elsewhere
+temp.inside() {
+	local outdir=
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+		-out|-outside|--out|--outside)
+			[[ -n ${2:-} ]] || ui.die "Argument required for flag: $1"
+			shift
+
+			file.moveable "$1"
+			outdir=$1
+			shift
+
+			break
+			;;
+		-*)
+			ui.die "Unrecognized flag: $1"
+			;;
+		*)
+			break
+			;;
+		esac
+
+		shift
+	done
+
+	local origdir=$PWD
+
+	local tempdir
+	temp.dir tempdir
+
+	must cd "$tempdir"
+	"$@"
+	must cd "$origdir"
+
+	[[ -z $outdir ]] || file.move "$tempdir" "$outdir"
+}
+
+# UI functions
+
+# cry: Print warning messages on standard error
+ui.cry() {
+	local message
+
+	for message; do
+		echo "W: $message"
+	done >&2
+}
+
+# die: Print error messages and exit failure
+ui.die() {
+	local message
+
+	for message; do
+		echo "E: $message"
+	done >&2
+
+	exit 1
+}
+
+# fin: Print messages and exit successfully
+ui.fin() {
+	local message
+
+	for message; do
+		echo "$message"
+	done >&2
+
+	exit 0
 }
 
 # Array functions
@@ -211,6 +348,14 @@ file.get() {
 	file.tempdir tempdir
 }
 
+file.moveable() {
+	:
+}
+
+file.move() {
+	mv -f "$@"
+}
+
 # System predications
 
 # is.virtual: Detect given virtualization
@@ -289,6 +434,7 @@ which.virtual() {
 
 # which.distribution: Which distribution
 which.distribution() {
+	# shellcheck disable=1091
 	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
 }
 
@@ -298,10 +444,10 @@ which.codename() {
 }
 
 declare -Ag help=(
-	['cry']='Print message on standard error'
-	['die']='Print error message and exit failure'
-	['bug']='Print bug message and exit failure'
-	['fin']='Print a message and exit successfully'
+	['temp inside']='Execute command in temp dir and (optionally) move it elsewhere'
+	['cry']='Print warning messages on standard error'
+	['die']='Print error messages and exit failure'
+	['fin']='Print messages and exit successfully'
 	['array join']='Join array with the given separator'
 	['deb update']='Update Debian package index'
 	['deb install']='Install Debian packages'
@@ -343,9 +489,9 @@ declare -Ag help=(
 }
 
 declare -Ag command=(
+	['temp inside']='temp.inside'
 	['cry']='ui.cry'
 	['die']='ui.die'
-	['bug']='ui.bug'
 	['fin']='ui.fin'
 	['array join']='array.join'
 	['deb update']='deb.update'
@@ -368,7 +514,7 @@ declare -Ag command=(
 
 	if [[ $# -eq 0 ]]; then
 		.usage
-		ui.die 'E: Command required.'
+		ui.die 'Command required.'
 	fi
 
 	if [[ $1 = help ]]; then
@@ -394,7 +540,7 @@ declare -Ag command=(
 		fi
 	done
 
-	ui.die "E: No command found: ${args[*]}."
+	ui.die "No command found: ${args[*]}."
 }
 
 .source() {
@@ -403,7 +549,14 @@ declare -Ag command=(
 	cat <<'EOF'
 # Standard prelude
 
-warn() { echo >&2 "$*"; }         ;; abort() { warn "$@"; exit 1; }
+warn() {
+        echo >&2 "$*"
+}
+
+abort() {
+        warn "$@"
+        exit 1
+}
 
 [ -n "${BASH_VERSION:-}"        ] || abort 'Bash required.'
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || abort 'Bash version 4 or higher required.'
@@ -472,10 +625,15 @@ EOF
 	return 1
 }
 
+.init() {
+	trap.setup
+}
+
 main() {
 	if .sourced "$@"; then
 		.source "$@"
 	else
+		.init
 		.dispatch "$@"
 	fi
 }

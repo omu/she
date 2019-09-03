@@ -55,3 +55,11 @@ file.get() {
 	local tempdir
 	file.tempdir tempdir
 }
+
+file.moveable() {
+	:
+}
+
+file.move() {
+	mv -f "$@"
+}

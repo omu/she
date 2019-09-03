@@ -1,8 +1,8 @@
 # Trap setup
 
-declare -ag _at_exit_hooks_=()
+declare -ag _at_exit_funcs_=()
 
-declare -ag _at_exit_dirs_=()
+declare -ag _at_exit_files_=()
 
 # Register hooks at exit
 at_exit() {
@@ -11,27 +11,24 @@ at_exit() {
 		[[ $(type -t "$arg" || true) == function ]] || bug "Not a function: $arg"
 	done
 
-	_at_exit_hooks_=("$@" "${_at_exit_hooks_[@]}")
+	_at_exit_funcs_=("$@" "${_at_exit_funcs_[@]}")
 }
 
-# Register directories to clean up at exit
-at_exit_dirs() {
-	_at_exit_dirs_+=("$@")
+# Register files/directories to clean up at exit
+at_exit_files() {
+	_at_exit_files_+=("$@")
 }
 
 _exit_() {
 	local err=$?
 
-	local hook
-	for hook in "${_at_exit_hooks_[@]}"; do
-		"$hook" || warn "Exit hook failed: $hook"
+	local func
+	for func in "${_at_exit_funcs_[@]}"; do
+		"$func" || warn "Exit hook failed: $func"
 	done
 
 	return "$err"
 }
-
-# shellcheck disable=2154,2218
-builtin trap '_exit_ $?' EXIT HUP INT QUIT TERM
 
 # Prevent using trap
 trap() {
@@ -39,9 +36,18 @@ trap() {
 }
 
 _at_exit_cleanup_() {
-	[[ ${#_at_exit_dirs_[@]} -gt 0 ]] || return 0
+	[[ ${#_at_exit_files_[@]} -gt 0 ]] || return 0
 
-	rm -rf -- "${_at_exit_dirs_[@]}"
+	rm -rf -- "${_at_exit_files_[@]}"
 }
 
-at_exit _at_exit_cleanup_
+# shellcheck disable=2120
+trap.setup() {
+	local -a signals=(EXIT HUP INT QUIT TERM)
+	[[ $# -eq 0 ]] || signals=("$@")
+
+	# shellcheck disable=2154,2218
+	builtin trap _exit_ "${signals[@]}"
+
+	at_exit _at_exit_cleanup_
+}

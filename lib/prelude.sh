@@ -1,6 +1,13 @@
 # Standard prelude
 
-warn() { echo >&2 "$*"; }         ;; abort() { warn "$@"; exit 1; }
+warn() {
+        echo >&2 "$*"
+}
+
+abort() {
+        warn "$@"
+        exit 1
+}
 
 [ -n "${BASH_VERSION:-}"        ] || abort 'Bash required.'
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || abort 'Bash version 4 or higher required.'

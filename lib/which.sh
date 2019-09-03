@@ -7,6 +7,7 @@ which.virtual() {
 
 # which.distribution: Which distribution
 which.distribution() {
+	# shellcheck disable=1091
 	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
 }
 

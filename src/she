@@ -4,9 +4,13 @@
 
 #:lib/core.sh
 
-#:lib/ui.sh
-
 #:lib/meta.sh
+
+#:lib/trap.sh
+
+#:lib/temp.sh
+
+#:lib/ui.sh
 
 #:lib/array.sh
 
@@ -55,7 +59,7 @@
 
 	if [[ $# -eq 0 ]]; then
 		.usage
-		ui.die 'E: Command required.'
+		ui.die 'Command required.'
 	fi
 
 	if [[ $1 = help ]]; then
@@ -81,7 +85,7 @@
 		fi
 	done
 
-	ui.die "E: No command found: ${args[*]}."
+	ui.die "No command found: ${args[*]}."
 }
 
 .source() {
@@ -106,10 +110,15 @@ EOF
 	return 1
 }
 
+.init() {
+	trap.setup
+}
+
 main() {
 	if .sourced "$@"; then
 		.source "$@"
 	else
+		.init
 		.dispatch "$@"
 	fi
 }
