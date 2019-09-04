@@ -212,6 +212,8 @@ temp.inside() {
 		[[ -z $parents ]] || must mkdir -p "$outdir"
 		cp -aT "$tempdir" "$outdir"
 	fi
+
+	rm -rf -- "$tempdir"
 }
 
 # UI functions
@@ -417,6 +419,8 @@ git.topdir() {
 }
 
 git.top() {
+	git.must_sane
+
 	must cd "$(git.topdir)"
 }
 
