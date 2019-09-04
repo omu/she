@@ -16,6 +16,8 @@
 
 #:lib/url.sh
 
+#:lib/git.sh
+
 #:lib/deb.sh
 
 #:lib/file.sh

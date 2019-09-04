@@ -1,3 +1,5 @@
+# Functions involving temporary directories or files
+
 temp.file() {
 	# shellcheck disable=2155
 	local -n variable_=$(meta.public "$1")
@@ -26,18 +28,19 @@ temp.dir() {
 
 # temp.inside: Execute command in temp dir and (optionally) move it elsewhere
 temp.inside() {
-	local outdir=
+	local outdir='' parents=''
 	while [[ $# -gt 0 ]]; do
 		case $1 in
-		-out|-outside|--out|--outside)
+		-o|-out|-outside|--out|--outside)
+			[[ $# -gt 1 ]] || ui.die "Argument required for flag: $1"
 			shift
-			[[ $# -gt 0 ]] || ui.die "Argument required for flag: $1"
 
 			outdir=$1
-			[[ -d $outdir ]] || ui.die "Outside directory not found: $outdir"
 			shift
-
-			break
+			;;
+		-p|-parents|--parents)
+			parents=true
+			shift
 			;;
 		-*)
 			ui.die "Unrecognized flag: $1"
@@ -46,9 +49,14 @@ temp.inside() {
 			break
 			;;
 		esac
-
-		shift
 	done
+
+	if [[ -n $parents ]]; then
+		[[ -n $outdir ]] || ui.die 'No outside directory specified'
+	else
+		[[ -d $outdir ]] || ui.die "Outside directory must exist: $outdir"
+		[[ -w $outdir ]] || ui.die "Outside directory must be writable: $outdir"
+	fi
 
 	local origdir=$PWD
 
@@ -59,5 +67,8 @@ temp.inside() {
 	"$@"
 	must cd "$origdir"
 
-	[[ -z $outdir ]] || cp -aT "$tempdir" "$outdir"
+	if [[ -n $outdir  ]]; then
+		[[ -z $parents ]] || must mkdir -p "$outdir"
+		cp -aT "$tempdir" "$outdir"
+	fi
 }

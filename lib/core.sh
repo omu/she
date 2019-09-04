@@ -16,3 +16,15 @@ bug() {
 	warn "BUG: ${BASH_LINENO[0]}: $*"
 	exit 127
 }
+
+# Invoke command inside the given directory
+inside() {
+	local targetdir=$1
+	shift
+
+	local origdir=$PWD
+
+	must cd "$targetdir"
+	"$@"
+	must cd "$origdir"
+}

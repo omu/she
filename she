@@ -38,6 +38,18 @@ bug() {
 	exit 127
 }
 
+# Invoke command inside the given directory
+inside() {
+	local targetdir=$1
+	shift
+
+	local origdir=$PWD
+
+	must cd "$targetdir"
+	"$@"
+	must cd "$origdir"
+}
+
 # Meta functions
 
 meta.public() {
@@ -46,6 +58,31 @@ meta.public() {
 	else
 		echo "$1"
 	fi
+}
+
+meta.print() {
+	while [[ $# -gt 0 ]]; do
+		# shellcheck disable=2178,2155
+		local -n variable_=$(meta.public "$1")
+
+		echo "${!variable_}"
+
+		local key_
+		for key_ in "${!variable_[@]}"; do
+			printf '  %-16s  %s\n' "${key_}" "${variable_[$key_]}"
+		done | sort
+		echo
+
+		shift
+	done
+}
+
+meta.narg() {
+	local lower=$1 upper=$2
+	shift 2
+
+	[[ $# -ge $lower                                 ]] || bug "Too few arguments: $*"
+	[[ -n $upper && $upper != - && $upper -le $upper ]] || bug "Too many arguments: $*"
 }
 
 # Trap setup
@@ -102,6 +139,8 @@ trap.setup() {
 	at_exit _at_exit_cleanup_
 }
 
+# Functions involving temporary directories or files
+
 temp.file() {
 	# shellcheck disable=2155
 	local -n variable_=$(meta.public "$1")
@@ -130,18 +169,19 @@ temp.dir() {
 
 # temp.inside: Execute command in temp dir and (optionally) move it elsewhere
 temp.inside() {
-	local outdir=
+	local outdir='' parents=''
 	while [[ $# -gt 0 ]]; do
 		case $1 in
-		-out|-outside|--out|--outside)
+		-o|-out|-outside|--out|--outside)
+			[[ $# -gt 1 ]] || ui.die "Argument required for flag: $1"
 			shift
-			[[ $# -gt 0 ]] || ui.die "Argument required for flag: $1"
 
 			outdir=$1
-			[[ -d $outdir ]] || ui.die "Outside directory not found: $outdir"
 			shift
-
-			break
+			;;
+		-p|-parents|--parents)
+			parents=true
+			shift
 			;;
 		-*)
 			ui.die "Unrecognized flag: $1"
@@ -150,9 +190,14 @@ temp.inside() {
 			break
 			;;
 		esac
-
-		shift
 	done
+
+	if [[ -n $parents ]]; then
+		[[ -n $outdir ]] || ui.die 'No outside directory specified'
+	else
+		[[ -d $outdir ]] || ui.die "Outside directory must exist: $outdir"
+		[[ -w $outdir ]] || ui.die "Outside directory must be writable: $outdir"
+	fi
 
 	local origdir=$PWD
 
@@ -163,7 +208,10 @@ temp.inside() {
 	"$@"
 	must cd "$origdir"
 
-	[[ -z $outdir ]] || cp -aT "$tempdir" "$outdir"
+	if [[ -n $outdir  ]]; then
+		[[ -z $parents ]] || must mkdir -p "$outdir"
+		cp -aT "$tempdir" "$outdir"
+	fi
 }
 
 # UI functions
@@ -212,14 +260,38 @@ array.join() {
 # Parse URL
 
 url.parse() {
-	# shellcheck disable=2178,2155
-	local -n variable=$(meta.public_name "$1")
-	shift
+	local prefix_=.
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+		-prefix|--prefix)
+			[[ $# -gt 1 ]] || ui.die "Argument required for flag: $1"
+			shift
+
+			prefix_=$1
+			shift
+			;;
+		-*)
+			ui.die "Unrecognized flag: $1"
+			;;
+		*)
+			break
+			;;
+		esac
+	done
+
+	meta.narg 2 3 "$@"
 
 	local given_=$1
+	shift
 
-	local protocol_
-	local url_
+	# shellcheck disable=2178,2155
+	local -n remote_=$(meta.public "$1")
+	shift
+
+	# shellcheck disable=2178,2155
+	[[ $# -eq 0 ]] || local -n local_=$(meta.public "$1")
+
+	local protocol_ url_
 
 	protocol_=
 	case $given_ in
@@ -237,7 +309,7 @@ url.parse() {
 	esac
 
 	if [[ $protocol_ == file ]]; then
-		variable=(
+		remote_=(
 			[protocol]=$protocol_
 			[path]=$url_
 		)
@@ -253,7 +325,6 @@ url.parse() {
 		return 1
 	fi
 
-	[[ ${provider_:-} =~ (github.com|gitlab.com|bitbucket.com) ]] || ui.cry "Unsupported provider $provider_ at $given_"
 	[[ -n ${owner_:-} ]] || ui.cry "Missing owner at $given_"
 	[[ -n ${repo_:-}  ]] || ui.cry "Missing repository at $given_"
 
@@ -262,16 +333,142 @@ url.parse() {
 		auth_="${HTTPS_TOKEN}:x-oauth-basic"
 	fi
 
+	local base_
+	if [[ -z $auth_ ]]; then
+		base_=$protocol_://$provider_/$owner_
+	else
+		base_=$protocol_://$auth_@$provider_/$owner_
+	fi
+
+	local git_=$base_/$repo_.git
+	[[ ${provider_:-} =~ (github.com|gitlab.com|bitbucket.com) ]] || git_=
+
 	# shellcheck disable=2034
-	variable=(
+	remote_=(
+		[auth]=$auth_
+		[base]=$base_
+		[canonic]=$base_/$repo_/$slug_
+		[git]=$git_
+		[namespace]=$provider_/$owner_
+		[owner]=$owner_
+		[path]=$provider_/$owner_/$repo_
 		[protocol]=$protocol_
 		[provider]=$provider_
-		[owner]=$owner_
 		[repo]=$repo_
 		[slug]=$slug_
-		[path]=$provider_/$owner_/$repo_
-		[auth]=$auth_
 	)
+
+	# shellcheck disable=2034
+	[[ $# -eq 0 ]] || local_=(
+		[path]=$prefix_/$provider_/$owner_/$repo_
+		[prefix]=$prefix_
+		[namespace]=$prefix_/$provider_/$owner_
+	)
+}
+
+url.is_git() {
+	# shellcheck disable=2178,2155
+	local -n remote_=$(meta.public "$1")
+
+	[[ -n ${remote_[git]:-} ]]
+}
+#
+# url.test() {
+# 	# shellcheck disable=2034
+# 	local -A there here
+#
+# 	url.parse -prefix /usr/local/src "$@" there here
+#
+# 	meta.print there
+# 	meta.print here
+#
+# 	if url.is_git there; then
+# 		echo OK
+# 	else
+# 		echo NOTOK
+# 	fi
+# }
+#
+# url.test "$@"
+# exit
+
+# Git functions
+
+git.must_sane() {
+	git rev-parse --is-inside-work-tree &>/dev/null || ui.die "Must be inside a git work tree: $PWD"
+	git rev-parse --verify HEAD >/dev/null          || ui.die "Unverified git HEAD: $PWD"
+}
+
+git.is_clean() {
+	git rev-parse --verify HEAD >/dev/null &&
+	git update-index -q --ignore-submodules --refresh &&
+	git diff-files --quiet --ignore-submodules &&
+	git diff-index --cached --quiet --ignore-submodules HEAD --
+}
+
+git.must_clean() {
+	git.is_clean || ui.die "Must be a clean git work tree: $PWD"
+}
+
+git.topdir() {
+	local dir
+
+	dir=$(git rev-parse --git-dir) && dir=$(cd "$dir" && pwd)/ && echo "${dir%%/.git/*}"
+}
+
+git.top() {
+	must cd "$(git.topdir)"
+}
+
+# git.clone: Clone Git repository
+git.clone() {
+	local prefix=${GIT_ROOT:-} branch='' shallow=''
+
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+		-prefix|--prefix)
+			[[ $# -gt 1 ]] || ui.die "Argument required for flag: $1"
+			shift
+
+			prefix=$1
+			[[ -d $prefix ]] || ui.die "Prefix directory not found: $prefix"
+			shift
+			;;
+		-branch|--branch)
+			[[ $# -gt 1 ]] || ui.die "Argument required for flag: $1"
+			shift
+
+			branch=$1
+			shift
+			;;
+		-shallow|--shallow)
+			;;
+		-*)
+			ui.die "Unrecognized flag: $1"
+			;;
+		*)
+			break
+			;;
+		esac
+	done
+
+	meta.narg 1 1 "$@"
+
+	# shellcheck disable=2034
+	local -A remote local
+	url.parse -prefix "${prefix:-.}" "$1" remote local
+
+	local -a args=(git clone --quiet)
+
+	[[ -z $branch  ]] || args+=(--branch "$branch")
+	[[ -z $shallow ]] || args+=(--depth 1)
+
+	args+=("${remote[git]}")
+
+	local -a flags
+	[[ -z $prefix ]] || flags=(-outside "${local[namespace]}" -parents)
+
+	temp.inside "${flags[@]}" "${args[@]}"
 }
 
 # Debian package management
@@ -449,6 +646,7 @@ declare -Ag help=(
 	['die']='Print error messages and exit failure'
 	['fin']='Print messages and exit successfully'
 	['array join']='Join array with the given separator'
+	['git clone']='Clone Git repository'
 	['deb update']='Update Debian package index'
 	['deb install']='Install Debian packages'
 	['bin']='Install executable from URL'
@@ -494,6 +692,7 @@ declare -Ag command=(
 	['die']='ui.die'
 	['fin']='ui.fin'
 	['array join']='array.join'
+	['git clone']='git.clone'
 	['deb update']='deb.update'
 	['deb install']='deb.install'
 	['bin']='file.bin'
