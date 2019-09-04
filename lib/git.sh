@@ -23,6 +23,8 @@ git.topdir() {
 }
 
 git.top() {
+	git.must_sane
+
 	must cd "$(git.topdir)"
 }
 

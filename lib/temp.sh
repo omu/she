@@ -71,4 +71,6 @@ temp.inside() {
 		[[ -z $parents ]] || must mkdir -p "$outdir"
 		cp -aT "$tempdir" "$outdir"
 	fi
+
+	rm -rf -- "$tempdir"
 }
