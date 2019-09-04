@@ -30,11 +30,11 @@ temp.inside() {
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-out|-outside|--out|--outside)
-			[[ -n ${2:-} ]] || ui.die "Argument required for flag: $1"
 			shift
+			[[ $# -gt 0 ]] || ui.die "Argument required for flag: $1"
 
-			file.moveable "$1"
 			outdir=$1
+			[[ -d $outdir ]] || ui.die "Outside directory not found: $outdir"
 			shift
 
 			break
@@ -59,5 +59,5 @@ temp.inside() {
 	"$@"
 	must cd "$origdir"
 
-	[[ -z $outdir ]] || file.move "$tempdir" "$outdir"
+	[[ -z $outdir ]] || cp -aT "$tempdir" "$outdir"
 }
