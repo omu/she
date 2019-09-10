@@ -2,34 +2,25 @@
 
 # Standard prelude
 
-warn() {
-        echo >&2 "$*"
-}
-
-abort() {
-        warn "$@"
-        exit 1
-}
-
-[ -n "${BASH_VERSION:-}"        ] || abort 'Bash required.'
-[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || abort 'Bash version 4 or higher required.'
-[[ -x /usr/bin/apt-get         ]] || abort 'Only Debian and derivatives supported.'
+[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                         exit 1; }
+[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
+[[ -x /usr/bin/apt-get         ]] || { echo >&2 'Only Debian and derivatives supported.'; exit 1; }
 
 set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
 
 export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-# Program name
-declare -grx PROGNAME=${0##*/}
+# Kernel
 
-# Command must success
-must() {
-	"$@" || abort "Command failed: $*"
+# Just warn on stderr
+warn() {
+        echo >&2 "$*"
 }
 
-# Command may fail
-non_must() {
-	"$@" || warn "Exit code $? is suppressed: $*"
+# Warn and fail
+abort() {
+        warn "$@"
+        exit 1
 }
 
 # Print bug and fail
@@ -38,17 +29,103 @@ bug() {
 	exit 127
 }
 
-# Invoke command inside the given directory
-inside() {
-	local targetdir=$1
+# Warn and exit normally
+fin() {
+        warn "$@"
+        exit 0
+}
+
+# Command must success
+must() {
+	"$@" || abort "Command failed: $*"
+}
+
+# Command may fail
+might() {
+	"$@" || warn "Exit code $? is suppressed: $*"
+}
+
+# Announce constant (readonly) environment variable
+const() {
+	local export=true
+
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+		-l|-local|--local)
+			export=
+			shift
+			;;
+		-*)
+			abort "Unrecognized flag: $1"
+			;;
+		*)
+			break
+			;;
+		esac
+	done
+
+	local -n variable_=$1
 	shift
 
-	local origdir=$PWD
+	local value_
+	for value_; do
+		if [[ -n $value_ ]]; then
+			# shellcheck disable=2034
+			variable_=$value_
 
-	must cd "$targetdir"
-	"$@"
-	must cd "$origdir"
+			declare -gr "${!variable_}"
+			[[ -n ${export:-} ]] || export "${!variable_}"
+
+			break
+		fi
+	done
 }
+
+# Ensure that the directory pointed by given environment variable exists
+ensured() {
+	local -n variable_=$1
+
+	[[ -n ${!variable_} ]] || abort "Blank environment value found: $variable_"
+	must mkdir -p "${!variable_}"
+}
+
+init() {
+	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || abort 'Bash version 4 or higher required.'
+	[[ -x /usr/bin/apt-get         ]] || abort 'Only Debian and derivatives supported.'
+
+	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
+
+	export LC_ALL=C.UTF-8 LANG=C.UTF-8
+
+	# Program name
+	const PROGNAME "${0##*/}"
+
+	# Core environment
+	if [[ ${EUID:-} -eq 0 ]]; then
+		local etc=/usr/local/etc/_
+		[[ ! $PROGNAME =~ /usr/bin ]] || etc=/etc/_
+
+		const _SRC_DIR        "${UNDERSCORE_SRC_DIR:-}"   "${SRCDIR:-}"   /run/_/src
+		const _TMP_DIR        "${UNDERSCORE_TMP_DIR:-}"   "${TMPDIR:-}"   /run/_/tmp
+		const _ETC_DIR        "${UNDERSCORE_ETC_DIR:-}"   "${ETCDIR:-}"   "$etc"
+		const _CACHE_DIR      "${UNDERSCORE_CACHE_DIR:-}" "${CACHEDIR:-}" /run/_/cache
+		const _VAR_DIR        "${UNDERSCORE_VAR_DIR:-}"   "${VARDIR:-}"   /run/_/var
+	else
+		const XDG_RUNTIME_DIR "${XDG_RUNTIME_DIR:-}"      /run/"$EUID"
+		const XDG_CONFIG_HOME "${XDG_CONFIG_HOME:-}"      "$HOME"/.config
+		const XDG_CACHE_HOME  "${XDG_CACHE_HOME:-}"       "$HOME"/.cache
+
+		const _SRC_DIR        "${UNDERSCORE_SRC_DIR:-}"   "${SRCDIR:-}"   "$HOME"/.local/src
+		const _TMP_DIR        "${UNDERSCORE_TMP_DIR:-}"   "${TMPDIR:-}"   "$XDG_RUNTIME_DIR"/_/tmp
+		const _ETC_DIR        "${UNDERSCORE_ETC_DIR:-}"   "${ETCDIR:-}"   "$XDG_CONFIG_HOME"/_
+		const _CACHE_DIR      "${UNDERSCORE_CACHE_DIR:-}" "${CACHEDIR:-}" "$XDG_CACHE_HOME"/_
+		const _VAR_DIR        "${UNDERSCORE_VAR_DIR:-}"   "${VARDIR:-}"   "$XDG_RUNTIME_DIR"/_/var
+	fi
+
+	unset -f "${FUNCNAME[0]}"
+}
+
+init
 
 # Meta functions
 
@@ -145,9 +222,11 @@ temp.file() {
 	# shellcheck disable=2155
 	local -n variable_=$(meta.public "$1")
 
+	ensured _TMP_DIR
+
 	local file_
 
-	file_=$(mktemp "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
+	file_=$(mktemp -p "$_TMP_DIR" "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
 	at_exit_files "$file_"
 
 	# shellcheck disable=2034
@@ -158,9 +237,10 @@ temp.dir() {
 	# shellcheck disable=2155
 	local -n variable_=$(meta.public "$1")
 
-	local dir_
+	ensured _TMP_DIR
 
-	dir_=$(mktemp -d "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
+	local dir_
+	dir_=$(mktemp -p "$_TMP_DIR" -d "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
 	at_exit_files "$dir_"
 
 	# shellcheck disable=2034
@@ -172,8 +252,8 @@ temp.inside() {
 	local outdir='' parents=''
 	while [[ $# -gt 0 ]]; do
 		case $1 in
-		-o|-out|-outside|--out|--outside)
-			[[ $# -gt 1 ]] || ui.die "Argument required for flag: $1"
+		-outside|-out|-o|--outside|--out)
+			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
 			shift
 
 			outdir=$1
@@ -184,7 +264,7 @@ temp.inside() {
 			shift
 			;;
 		-*)
-			ui.die "Unrecognized flag: $1"
+			abort "Unrecognized flag: $1"
 			;;
 		*)
 			break
@@ -192,11 +272,13 @@ temp.inside() {
 		esac
 	done
 
-	if [[ -n $parents ]]; then
-		[[ -n $outdir ]] || ui.die 'No outside directory specified'
+	meta.narg 1 - "$@"
+
+	if [[ -z $parents ]]; then
+		[[ -d $outdir ]] || abort "Outside directory must exist: $outdir"
+		[[ -w $outdir ]] || abort "Outside directory must be writable: $outdir"
 	else
-		[[ -d $outdir ]] || ui.die "Outside directory must exist: $outdir"
-		[[ -w $outdir ]] || ui.die "Outside directory must be writable: $outdir"
+		[[ -n $outdir ]] || abort 'No outside directory specified'
 	fi
 
 	local origdir=$PWD
@@ -266,14 +348,14 @@ url.parse() {
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-prefix|--prefix)
-			[[ $# -gt 1 ]] || ui.die "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
 			shift
 
 			prefix_=$1
 			shift
 			;;
 		-*)
-			ui.die "Unrecognized flag: $1"
+			abort "Unrecognized flag: $1"
 			;;
 		*)
 			break
@@ -323,12 +405,12 @@ url.parse() {
 	local provider_ owner_ repo_ slug_
 
 	if ! IFS='/' read -r provider_ owner_ repo_ slug_ <<<"$url_"; then
-		ui.cry "Parse error at $given_"
+		warn "Parse error at $given_"
 		return 1
 	fi
 
-	[[ -n ${owner_:-} ]] || ui.cry "Missing owner at $given_"
-	[[ -n ${repo_:-}  ]] || ui.cry "Missing repository at $given_"
+	[[ -n ${owner_:-} ]] || warn "Missing owner at $given_"
+	[[ -n ${repo_:-}  ]] || warn "Missing repository at $given_"
 
 	local auth_=
 	if [[ $protocol_ == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
@@ -397,8 +479,8 @@ url.is_git() {
 # Git functions
 
 git.must_sane() {
-	git rev-parse --is-inside-work-tree &>/dev/null || ui.die "Must be inside a git work tree: $PWD"
-	git rev-parse --verify HEAD >/dev/null          || ui.die "Unverified git HEAD: $PWD"
+	git rev-parse --is-inside-work-tree &>/dev/null || abort "Must be inside a git work tree: $PWD"
+	git rev-parse --verify HEAD >/dev/null          || abort "Unverified git HEAD: $PWD"
 }
 
 git.is_clean() {
@@ -409,7 +491,7 @@ git.is_clean() {
 }
 
 git.must_clean() {
-	git.is_clean || ui.die "Must be a clean git work tree: $PWD"
+	git.is_clean || abort "Must be a clean git work tree: $PWD"
 }
 
 git.topdir() {
@@ -424,31 +506,32 @@ git.top() {
 	must cd "$(git.topdir)"
 }
 
-# git.clone: Clone Git repository
-git.clone() {
-	local prefix=${GIT_ROOT:-} branch='' shallow=''
+# git.get: Get (clone or update) Git repository
+git.get() {
+	local prefix=${_SRC_DIR:-} branch='' shallow=''
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-prefix|--prefix)
-			[[ $# -gt 1 ]] || ui.die "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
 			shift
 
 			prefix=$1
-			[[ -d $prefix ]] || ui.die "Prefix directory not found: $prefix"
+			[[ -d $prefix ]] || abort "Prefix directory not found: $prefix"
 			shift
 			;;
 		-branch|--branch)
-			[[ $# -gt 1 ]] || ui.die "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
 			shift
 
 			branch=$1
 			shift
 			;;
 		-shallow|--shallow)
+			shallow=true
 			;;
 		-*)
-			ui.die "Unrecognized flag: $1"
+			abort "Unrecognized flag: $1"
 			;;
 		*)
 			break
@@ -462,17 +545,29 @@ git.clone() {
 	local -A remote local
 	url.parse -prefix "${prefix:-.}" "$1" remote local
 
-	local -a args=(git clone --quiet)
+	local repo=${local[path]}
 
-	[[ -z $branch  ]] || args+=(--branch "$branch")
-	[[ -z $shallow ]] || args+=(--depth 1)
+	if [[ ! -d $repo ]]; then
+		local -a args=(git clone --quiet)
 
-	args+=("${remote[git]}")
+		[[ -z $branch  ]] || args+=(--branch "$branch")
+		[[ -z $shallow ]] || args+=(--depth 1)
 
-	local -a flags
-	[[ -z $prefix ]] || flags=(-outside "${local[namespace]}" -parents)
+		args+=("${remote[git]}")
 
-	temp.inside "${flags[@]}" "${args[@]}"
+		local -a flags
+		[[ -z $prefix ]] || flags=(-outside "${local[namespace]}" -parents)
+
+		temp.inside "${flags[@]}" "${args[@]}"
+
+		must cd "$repo"
+	else
+		must cd "$repo"
+
+		git.must_clean
+		git checkout "${branch:-master}"
+		git pull origin "${branch:-master}"
+	fi
 }
 
 # Debian package management
@@ -513,8 +608,8 @@ file.enter() {
 		else
 			path=${url[path]}
 		fi
-		[[ -d $path ]] || ui.die "No directory: $path"
-		cd "$path"     || ui.die "Chdir error: $path"
+		[[ -d $path ]] || abort "No directory: $path"
+		cd "$path"     || abort "Chdir error: $path"
 	elif [[ -n ${url[protocol]:-} ]]; then
 		file.tempdir path
 
@@ -522,18 +617,18 @@ file.enter() {
 		[[ -z ${url[auth]:-} ]] || addr="${url[auth]}@${addr}"
 		addr="${url[protocol]}://${addr}"
 
-		cd "$path" || ui.die "Chdir error: $path"
+		cd "$path" || abort "Chdir error: $path"
 
 		file.get "$addr"
 	else
-		ui.die "No protocol found at:$1"
+		abort "No protocol found at:$1"
 	fi
 
 	if [[ -n ${url[slug]:-} ]]; then
 		local slug=${url[slug]}
 
-		[[ -d $slug ]] || ui.die "No directory: $slug"
-		cd "./$slug"   || ui.die "Chdir error: $slug"
+		[[ -d $slug ]] || abort "No directory: $slug"
+		cd "./$slug"   || abort "Chdir error: $slug"
 	fi
 
 	[[ -z ${tmpdir:-} ]] || echo "$tmpdir" >"${SHE_SHIBBOLETH:-.she}"
@@ -650,7 +745,7 @@ declare -Ag help=(
 	['die']='Print error messages and exit failure'
 	['fin']='Print messages and exit successfully'
 	['array join']='Join array with the given separator'
-	['git clone']='Clone Git repository'
+	['git get']='Get (clone or update) Git repository'
 	['deb update']='Update Debian package index'
 	['deb install']='Install Debian packages'
 	['bin']='Install executable from URL'
@@ -696,7 +791,7 @@ declare -Ag command=(
 	['die']='ui.die'
 	['fin']='ui.fin'
 	['array join']='array.join'
-	['git clone']='git.clone'
+	['git get']='git.get'
 	['deb update']='deb.update'
 	['deb install']='deb.install'
 	['bin']='file.bin'
@@ -750,31 +845,23 @@ declare -Ag command=(
 	echo "UNDERSCORE=$(self.path)"
 	echo
 	cat <<'EOF'
-# Standard prelude
-
-warn() {
-        echo >&2 "$*"
-}
-
-abort() {
-        warn "$@"
-        exit 1
-}
-
-[ -n "${BASH_VERSION:-}"        ] || abort 'Bash required.'
-[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || abort 'Bash version 4 or higher required.'
-[[ -x /usr/bin/apt-get         ]] || abort 'Only Debian and derivatives supported.'
-
-set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
-
-export LC_ALL=C.UTF-8 LANG=C.UTF-8
-
 .() {
+	# Standard prelude
+	
+	[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                         exit 1; }
+	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
+	[[ -x /usr/bin/apt-get         ]] || { echo >&2 'Only Debian and derivatives supported.'; exit 1; }
+	
+	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
+	
+	export LC_ALL=C.UTF-8 LANG=C.UTF-8
+
 	declare -grx UNDERSCORE=$UNDERSCORE
 
 	case ${1:-} in
 	-root)
-		[[ ${EUID:-} -eq 0 ]] || abort 'Root privileges required.'
+		[[ ${EUID:-} -eq 0 ]] || { echo >&2 'Root privileges required.'; exit 1; }
+		shift
 		;;
 	esac
 
@@ -810,9 +897,10 @@ _() {
 
 	case $cmd in
 	die|fin|bug|enter|leave) shift; _."$cmd" "$@" ;;
-	*)                       "$UNDERSCORE" "$@" ;;
+	*)                       "$UNDERSCORE" "$@"   ;;
 	esac
 }
+
 
 . "$@"
 EOF

@@ -1,12 +1,24 @@
 Betikleme araç seti
 ===================
 
-kernel
-        ui.*
-        src.*
-        text.*
-        etc.*
-        file.*
+Ortam
+-----
+
+| Tür                 | İç değişken  | Baskın değişken        | Geçerli değişken | Öntanımlı kullanıcı dizini | Öntanımlı sistem dizinleri
+| ------------------- | ------------ | ---------------------- | ---------------- | -------------------------- | ---------------------------
+| İndirilen kaynaklar | `_SRC_DIR`   | `UNDERSCORE_SRC_DIR`   | `SRCDIR`         | `$HOME/.local/src`         | `/run/_/src`
+| Geçici dosyalar     | `_TMP_DIR`   | `UNDERSCORE_TMP_DIR`   | `TMPDIR`         | `$XDG_RUNTIME_DIR/_/tmp`   | `/run/_/tmp`
+| Yapılandırmalar     | `_ETC_DIR`   | `UNDERSCORE_ETC_DIR`   | `ETCDIR`         | `$XDG_CONFIG_HOME/_`       | `/usr/local/etc/_` `/etc/_`
+| Önbellek            | `_CACHE_DIR` | `UNDERSCORE_CACHE_DIR` | `CACHEDIR`       | `$XDG_CACHE_HOME/_`        | `/run/_/cache`
+| Değişken dosyalar   | `_VAR_DIR`   | `UNDERSCORE_VAR_DIR`   | `VARDIR`         | `$XDG_RUNTIME_DIR/_/var`   | `/run/_/var`
+
+Kullanıcı için `XDG_*` ortam değişkenleri için öntanımlı değerler
+
+| Değişken            | Öntanımlı              |
+| ------------------- | ---------------------- |
+| `$XDG_RUNTIME_DIR`  | `/run/$EUID/_`         |
+| `$XDG_CONFIG_HOME`  | `$HOME/.config/_`      |
+| `$XDG_CACHE_HOME`   | `$HOME/.cache/_`       |
 
 Standard
 ---------

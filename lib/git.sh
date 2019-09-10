@@ -1,8 +1,8 @@
 # Git functions
 
 git.must_sane() {
-	git rev-parse --is-inside-work-tree &>/dev/null || ui.die "Must be inside a git work tree: $PWD"
-	git rev-parse --verify HEAD >/dev/null          || ui.die "Unverified git HEAD: $PWD"
+	git rev-parse --is-inside-work-tree &>/dev/null || abort "Must be inside a git work tree: $PWD"
+	git rev-parse --verify HEAD >/dev/null          || abort "Unverified git HEAD: $PWD"
 }
 
 git.is_clean() {
@@ -13,7 +13,7 @@ git.is_clean() {
 }
 
 git.must_clean() {
-	git.is_clean || ui.die "Must be a clean git work tree: $PWD"
+	git.is_clean || abort "Must be a clean git work tree: $PWD"
 }
 
 git.topdir() {
@@ -28,31 +28,32 @@ git.top() {
 	must cd "$(git.topdir)"
 }
 
-# git.clone: Clone Git repository
-git.clone() {
-	local prefix=${GIT_ROOT:-} branch='' shallow=''
+# git.get: Get (clone or update) Git repository
+git.get() {
+	local prefix=${_SRC_DIR:-} branch='' shallow=''
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-prefix|--prefix)
-			[[ $# -gt 1 ]] || ui.die "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
 			shift
 
 			prefix=$1
-			[[ -d $prefix ]] || ui.die "Prefix directory not found: $prefix"
+			[[ -d $prefix ]] || abort "Prefix directory not found: $prefix"
 			shift
 			;;
 		-branch|--branch)
-			[[ $# -gt 1 ]] || ui.die "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
 			shift
 
 			branch=$1
 			shift
 			;;
 		-shallow|--shallow)
+			shallow=true
 			;;
 		-*)
-			ui.die "Unrecognized flag: $1"
+			abort "Unrecognized flag: $1"
 			;;
 		*)
 			break
@@ -66,15 +67,27 @@ git.clone() {
 	local -A remote local
 	url.parse -prefix "${prefix:-.}" "$1" remote local
 
-	local -a args=(git clone --quiet)
+	local repo=${local[path]}
 
-	[[ -z $branch  ]] || args+=(--branch "$branch")
-	[[ -z $shallow ]] || args+=(--depth 1)
+	if [[ ! -d $repo ]]; then
+		local -a args=(git clone --quiet)
 
-	args+=("${remote[git]}")
+		[[ -z $branch  ]] || args+=(--branch "$branch")
+		[[ -z $shallow ]] || args+=(--depth 1)
 
-	local -a flags
-	[[ -z $prefix ]] || flags=(-outside "${local[namespace]}" -parents)
+		args+=("${remote[git]}")
 
-	temp.inside "${flags[@]}" "${args[@]}"
+		local -a flags
+		[[ -z $prefix ]] || flags=(-outside "${local[namespace]}" -parents)
+
+		temp.inside "${flags[@]}" "${args[@]}"
+
+		must cd "$repo"
+	else
+		must cd "$repo"
+
+		git.must_clean
+		git checkout "${branch:-master}"
+		git pull origin "${branch:-master}"
+	fi
 }

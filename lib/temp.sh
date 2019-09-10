@@ -4,9 +4,11 @@ temp.file() {
 	# shellcheck disable=2155
 	local -n variable_=$(meta.public "$1")
 
+	ensured _TMP_DIR
+
 	local file_
 
-	file_=$(mktemp "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
+	file_=$(mktemp -p "$_TMP_DIR" "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
 	at_exit_files "$file_"
 
 	# shellcheck disable=2034
@@ -17,9 +19,10 @@ temp.dir() {
 	# shellcheck disable=2155
 	local -n variable_=$(meta.public "$1")
 
-	local dir_
+	ensured _TMP_DIR
 
-	dir_=$(mktemp -d "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
+	local dir_
+	dir_=$(mktemp -p "$_TMP_DIR" -d "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
 	at_exit_files "$dir_"
 
 	# shellcheck disable=2034
@@ -31,8 +34,8 @@ temp.inside() {
 	local outdir='' parents=''
 	while [[ $# -gt 0 ]]; do
 		case $1 in
-		-o|-out|-outside|--out|--outside)
-			[[ $# -gt 1 ]] || ui.die "Argument required for flag: $1"
+		-outside|-out|-o|--outside|--out)
+			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
 			shift
 
 			outdir=$1
@@ -43,7 +46,7 @@ temp.inside() {
 			shift
 			;;
 		-*)
-			ui.die "Unrecognized flag: $1"
+			abort "Unrecognized flag: $1"
 			;;
 		*)
 			break
@@ -51,11 +54,13 @@ temp.inside() {
 		esac
 	done
 
-	if [[ -n $parents ]]; then
-		[[ -n $outdir ]] || ui.die 'No outside directory specified'
+	meta.narg 1 - "$@"
+
+	if [[ -z $parents ]]; then
+		[[ -d $outdir ]] || abort "Outside directory must exist: $outdir"
+		[[ -w $outdir ]] || abort "Outside directory must be writable: $outdir"
 	else
-		[[ -d $outdir ]] || ui.die "Outside directory must exist: $outdir"
-		[[ -w $outdir ]] || ui.die "Outside directory must be writable: $outdir"
+		[[ -n $outdir ]] || abort 'No outside directory specified'
 	fi
 
 	local origdir=$PWD
