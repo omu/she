@@ -49,11 +49,11 @@ might() {
 
 # Announce constant (readonly) environment variable
 const() {
-	local export=true
+	local export=
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
-		-l|-local|--local)
+		-x|-export|--export)
 			export=
 			shift
 			;;
@@ -76,7 +76,7 @@ const() {
 			variable_=$value_
 
 			declare -gr "${!variable_}"
-			[[ -n ${export:-} ]] || export "${!variable_}"
+			[[ -z ${export:-} ]] || export "${!variable_}"
 
 			break
 		fi
@@ -92,6 +92,7 @@ ensured() {
 }
 
 init() {
+	[ -n "${BASH_VERSION:-}"        ] || die 'Bash required.'
 	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || die 'Bash version 4 or higher required.'
 	[[ -x /usr/bin/apt-get         ]] || die 'Only Debian and derivatives supported.'
 
