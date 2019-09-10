@@ -24,7 +24,7 @@ _exit_() {
 
 	local func
 	for func in "${_at_exit_funcs_[@]}"; do
-		"$func" || warn "Exit hook failed: $func"
+		"$func" || cry "Exit hook failed: $func"
 	done
 
 	return "$err"

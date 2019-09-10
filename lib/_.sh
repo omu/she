@@ -1,36 +1,50 @@
 # Kernel
 
-# Just warn on stderr
-warn() {
-        echo >&2 "$*"
+# cry: Print warning messages on standard error
+cry() {
+	local message
+
+	for message; do
+		echo >&2 "$message"
+	done
 }
 
-# Warn and fail
-abort() {
-        warn "$@"
+# die: Print error messages and exit failure
+die() {
+	local message
+
+	for message; do
+		echo >&2 "E: $message"
+	done
+
         exit 1
 }
 
-# Print bug and fail
+# bug: Report bug and exit failure
 bug() {
-	warn "BUG: ${BASH_LINENO[0]}: $*"
+	local message
+
+	for message; do
+		echo >&2 "B: ${BASH_LINENO[0]}: $message"
+	done
+
 	exit 127
 }
 
-# Warn and exit normally
+# fin: Print messages and exit successfully
 fin() {
-        warn "$@"
-        exit 0
+	cry "$@"
+	exit 0
 }
 
 # Command must success
 must() {
-	"$@" || abort "Command failed: $*"
+	"$@" || die "Command failed: $*"
 }
 
 # Command may fail
 might() {
-	"$@" || warn "Exit code $? is suppressed: $*"
+	"$@" || cry "Exit code $? is suppressed: $*"
 }
 
 # Announce constant (readonly) environment variable
@@ -44,7 +58,7 @@ const() {
 			shift
 			;;
 		-*)
-			abort "Unrecognized flag: $1"
+			die "Unrecognized flag: $1"
 			;;
 		*)
 			break
@@ -73,13 +87,13 @@ const() {
 ensured() {
 	local -n variable_=$1
 
-	[[ -n ${!variable_} ]] || abort "Blank environment value found: $variable_"
+	[[ -n ${!variable_} ]] || die "Blank environment value found: $variable_"
 	must mkdir -p "${!variable_}"
 }
 
 init() {
-	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || abort 'Bash version 4 or higher required.'
-	[[ -x /usr/bin/apt-get         ]] || abort 'Only Debian and derivatives supported.'
+	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || die 'Bash version 4 or higher required.'
+	[[ -x /usr/bin/apt-get         ]] || die 'Only Debian and derivatives supported.'
 
 	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
 

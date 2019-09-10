@@ -10,8 +10,6 @@
 
 #:lib/temp.sh
 
-#:lib/ui.sh
-
 #:lib/array.sh
 
 #:lib/url.sh

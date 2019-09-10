@@ -8,7 +8,7 @@ temp.file() {
 
 	local file_
 
-	file_=$(mktemp -p "$_TMP_DIR" "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
+	file_=$(mktemp -p "$_TMP_DIR" "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
 	at_exit_files "$file_"
 
 	# shellcheck disable=2034
@@ -22,7 +22,7 @@ temp.dir() {
 	ensured _TMP_DIR
 
 	local dir_
-	dir_=$(mktemp -p "$_TMP_DIR" -d "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
+	dir_=$(mktemp -p "$_TMP_DIR" -d "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
 	at_exit_files "$dir_"
 
 	# shellcheck disable=2034
@@ -35,7 +35,7 @@ temp.inside() {
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-outside|-out|-o|--outside|--out)
-			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
 			shift
 
 			outdir=$1
@@ -46,7 +46,7 @@ temp.inside() {
 			shift
 			;;
 		-*)
-			abort "Unrecognized flag: $1"
+			die "Unrecognized flag: $1"
 			;;
 		*)
 			break
@@ -57,10 +57,10 @@ temp.inside() {
 	meta.narg 1 - "$@"
 
 	if [[ -z $parents ]]; then
-		[[ -d $outdir ]] || abort "Outside directory must exist: $outdir"
-		[[ -w $outdir ]] || abort "Outside directory must be writable: $outdir"
+		[[ -d $outdir ]] || die "Outside directory must exist: $outdir"
+		[[ -w $outdir ]] || die "Outside directory must be writable: $outdir"
 	else
-		[[ -n $outdir ]] || abort 'No outside directory specified'
+		[[ -n $outdir ]] || die 'No outside directory specified'
 	fi
 
 	local origdir=$PWD

@@ -5,14 +5,14 @@ url.parse() {
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-prefix|--prefix)
-			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
 			shift
 
 			prefix_=$1
 			shift
 			;;
 		-*)
-			abort "Unrecognized flag: $1"
+			die "Unrecognized flag: $1"
 			;;
 		*)
 			break
@@ -62,12 +62,12 @@ url.parse() {
 	local provider_ owner_ repo_ slug_
 
 	if ! IFS='/' read -r provider_ owner_ repo_ slug_ <<<"$url_"; then
-		warn "Parse error at $given_"
+		cry "Parse error at $given_"
 		return 1
 	fi
 
-	[[ -n ${owner_:-} ]] || warn "Missing owner at $given_"
-	[[ -n ${repo_:-}  ]] || warn "Missing repository at $given_"
+	[[ -n ${owner_:-} ]] || cry "Missing owner at $given_"
+	[[ -n ${repo_:-}  ]] || cry "Missing repository at $given_"
 
 	local auth_=
 	if [[ $protocol_ == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then

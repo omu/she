@@ -20,8 +20,8 @@ file.enter() {
 		else
 			path=${url[path]}
 		fi
-		[[ -d $path ]] || abort "No directory: $path"
-		cd "$path"     || abort "Chdir error: $path"
+		[[ -d $path ]] || die "No directory: $path"
+		cd "$path"     || die "Chdir error: $path"
 	elif [[ -n ${url[protocol]:-} ]]; then
 		file.tempdir path
 
@@ -29,18 +29,18 @@ file.enter() {
 		[[ -z ${url[auth]:-} ]] || addr="${url[auth]}@${addr}"
 		addr="${url[protocol]}://${addr}"
 
-		cd "$path" || abort "Chdir error: $path"
+		cd "$path" || die "Chdir error: $path"
 
 		file.get "$addr"
 	else
-		abort "No protocol found at:$1"
+		die "No protocol found at:$1"
 	fi
 
 	if [[ -n ${url[slug]:-} ]]; then
 		local slug=${url[slug]}
 
-		[[ -d $slug ]] || abort "No directory: $slug"
-		cd "./$slug"   || abort "Chdir error: $slug"
+		[[ -d $slug ]] || die "No directory: $slug"
+		cd "./$slug"   || die "Chdir error: $slug"
 	fi
 
 	[[ -z ${tmpdir:-} ]] || echo "$tmpdir" >"${SHE_SHIBBOLETH:-.she}"

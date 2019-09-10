@@ -1,8 +1,8 @@
 # Git functions
 
 git.must_sane() {
-	git rev-parse --is-inside-work-tree &>/dev/null || abort "Must be inside a git work tree: $PWD"
-	git rev-parse --verify HEAD >/dev/null          || abort "Unverified git HEAD: $PWD"
+	git rev-parse --is-inside-work-tree &>/dev/null || die "Must be inside a git work tree: $PWD"
+	git rev-parse --verify HEAD >/dev/null          || die "Unverified git HEAD: $PWD"
 }
 
 git.is_clean() {
@@ -13,7 +13,7 @@ git.is_clean() {
 }
 
 git.must_clean() {
-	git.is_clean || abort "Must be a clean git work tree: $PWD"
+	git.is_clean || die "Must be a clean git work tree: $PWD"
 }
 
 git.topdir() {
@@ -35,15 +35,15 @@ git.get() {
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-prefix|--prefix)
-			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
 			shift
 
 			prefix=$1
-			[[ -d $prefix ]] || abort "Prefix directory not found: $prefix"
+			[[ -d $prefix ]] || die "Prefix directory not found: $prefix"
 			shift
 			;;
 		-branch|--branch)
-			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
 			shift
 
 			branch=$1
@@ -53,7 +53,7 @@ git.get() {
 			shallow=true
 			;;
 		-*)
-			abort "Unrecognized flag: $1"
+			die "Unrecognized flag: $1"
 			;;
 		*)
 			break

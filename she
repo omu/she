@@ -12,37 +12,51 @@ export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
 # Kernel
 
-# Just warn on stderr
-warn() {
-        echo >&2 "$*"
+# cry: Print warning messages on standard error
+cry() {
+	local message
+
+	for message; do
+		echo >&2 "$message"
+	done
 }
 
-# Warn and fail
-abort() {
-        warn "$@"
+# die: Print error messages and exit failure
+die() {
+	local message
+
+	for message; do
+		echo >&2 "E: $message"
+	done
+
         exit 1
 }
 
-# Print bug and fail
+# bug: Report bug and exit failure
 bug() {
-	warn "BUG: ${BASH_LINENO[0]}: $*"
+	local message
+
+	for message; do
+		echo >&2 "B: ${BASH_LINENO[0]}: $message"
+	done
+
 	exit 127
 }
 
-# Warn and exit normally
+# fin: Print messages and exit successfully
 fin() {
-        warn "$@"
-        exit 0
+	cry "$@"
+	exit 0
 }
 
 # Command must success
 must() {
-	"$@" || abort "Command failed: $*"
+	"$@" || die "Command failed: $*"
 }
 
 # Command may fail
 might() {
-	"$@" || warn "Exit code $? is suppressed: $*"
+	"$@" || cry "Exit code $? is suppressed: $*"
 }
 
 # Announce constant (readonly) environment variable
@@ -56,7 +70,7 @@ const() {
 			shift
 			;;
 		-*)
-			abort "Unrecognized flag: $1"
+			die "Unrecognized flag: $1"
 			;;
 		*)
 			break
@@ -85,13 +99,13 @@ const() {
 ensured() {
 	local -n variable_=$1
 
-	[[ -n ${!variable_} ]] || abort "Blank environment value found: $variable_"
+	[[ -n ${!variable_} ]] || die "Blank environment value found: $variable_"
 	must mkdir -p "${!variable_}"
 }
 
 init() {
-	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || abort 'Bash version 4 or higher required.'
-	[[ -x /usr/bin/apt-get         ]] || abort 'Only Debian and derivatives supported.'
+	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || die 'Bash version 4 or higher required.'
+	[[ -x /usr/bin/apt-get         ]] || die 'Only Debian and derivatives supported.'
 
 	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
 
@@ -188,7 +202,7 @@ _exit_() {
 
 	local func
 	for func in "${_at_exit_funcs_[@]}"; do
-		"$func" || warn "Exit hook failed: $func"
+		"$func" || cry "Exit hook failed: $func"
 	done
 
 	return "$err"
@@ -226,7 +240,7 @@ temp.file() {
 
 	local file_
 
-	file_=$(mktemp -p "$_TMP_DIR" "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
+	file_=$(mktemp -p "$_TMP_DIR" "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
 	at_exit_files "$file_"
 
 	# shellcheck disable=2034
@@ -240,7 +254,7 @@ temp.dir() {
 	ensured _TMP_DIR
 
 	local dir_
-	dir_=$(mktemp -p "$_TMP_DIR" -d "$PROGNAME".XXXXXXXX) || abort 'Fatal error: mktemp'
+	dir_=$(mktemp -p "$_TMP_DIR" -d "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
 	at_exit_files "$dir_"
 
 	# shellcheck disable=2034
@@ -253,7 +267,7 @@ temp.inside() {
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-outside|-out|-o|--outside|--out)
-			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
 			shift
 
 			outdir=$1
@@ -264,7 +278,7 @@ temp.inside() {
 			shift
 			;;
 		-*)
-			abort "Unrecognized flag: $1"
+			die "Unrecognized flag: $1"
 			;;
 		*)
 			break
@@ -275,10 +289,10 @@ temp.inside() {
 	meta.narg 1 - "$@"
 
 	if [[ -z $parents ]]; then
-		[[ -d $outdir ]] || abort "Outside directory must exist: $outdir"
-		[[ -w $outdir ]] || abort "Outside directory must be writable: $outdir"
+		[[ -d $outdir ]] || die "Outside directory must exist: $outdir"
+		[[ -w $outdir ]] || die "Outside directory must be writable: $outdir"
 	else
-		[[ -n $outdir ]] || abort 'No outside directory specified'
+		[[ -n $outdir ]] || die 'No outside directory specified'
 	fi
 
 	local origdir=$PWD
@@ -298,39 +312,6 @@ temp.inside() {
 	rm -rf -- "$tempdir"
 }
 
-# UI functions
-
-# cry: Print warning messages on standard error
-ui.cry() {
-	local message
-
-	for message; do
-		echo "W: $message"
-	done >&2
-}
-
-# die: Print error messages and exit failure
-ui.die() {
-	local message
-
-	for message; do
-		echo "E: $message"
-	done >&2
-
-	exit 1
-}
-
-# fin: Print messages and exit successfully
-ui.fin() {
-	local message
-
-	for message; do
-		echo "$message"
-	done >&2
-
-	exit 0
-}
-
 # Array functions
 
 # array.join: Join array with the given separator
@@ -348,14 +329,14 @@ url.parse() {
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-prefix|--prefix)
-			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
 			shift
 
 			prefix_=$1
 			shift
 			;;
 		-*)
-			abort "Unrecognized flag: $1"
+			die "Unrecognized flag: $1"
 			;;
 		*)
 			break
@@ -405,12 +386,12 @@ url.parse() {
 	local provider_ owner_ repo_ slug_
 
 	if ! IFS='/' read -r provider_ owner_ repo_ slug_ <<<"$url_"; then
-		warn "Parse error at $given_"
+		cry "Parse error at $given_"
 		return 1
 	fi
 
-	[[ -n ${owner_:-} ]] || warn "Missing owner at $given_"
-	[[ -n ${repo_:-}  ]] || warn "Missing repository at $given_"
+	[[ -n ${owner_:-} ]] || cry "Missing owner at $given_"
+	[[ -n ${repo_:-}  ]] || cry "Missing repository at $given_"
 
 	local auth_=
 	if [[ $protocol_ == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
@@ -479,8 +460,8 @@ url.is_git() {
 # Git functions
 
 git.must_sane() {
-	git rev-parse --is-inside-work-tree &>/dev/null || abort "Must be inside a git work tree: $PWD"
-	git rev-parse --verify HEAD >/dev/null          || abort "Unverified git HEAD: $PWD"
+	git rev-parse --is-inside-work-tree &>/dev/null || die "Must be inside a git work tree: $PWD"
+	git rev-parse --verify HEAD >/dev/null          || die "Unverified git HEAD: $PWD"
 }
 
 git.is_clean() {
@@ -491,7 +472,7 @@ git.is_clean() {
 }
 
 git.must_clean() {
-	git.is_clean || abort "Must be a clean git work tree: $PWD"
+	git.is_clean || die "Must be a clean git work tree: $PWD"
 }
 
 git.topdir() {
@@ -513,15 +494,15 @@ git.get() {
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-prefix|--prefix)
-			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
 			shift
 
 			prefix=$1
-			[[ -d $prefix ]] || abort "Prefix directory not found: $prefix"
+			[[ -d $prefix ]] || die "Prefix directory not found: $prefix"
 			shift
 			;;
 		-branch|--branch)
-			[[ $# -gt 1 ]] || abort "Argument required for flag: $1"
+			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
 			shift
 
 			branch=$1
@@ -531,7 +512,7 @@ git.get() {
 			shallow=true
 			;;
 		-*)
-			abort "Unrecognized flag: $1"
+			die "Unrecognized flag: $1"
 			;;
 		*)
 			break
@@ -608,8 +589,8 @@ file.enter() {
 		else
 			path=${url[path]}
 		fi
-		[[ -d $path ]] || abort "No directory: $path"
-		cd "$path"     || abort "Chdir error: $path"
+		[[ -d $path ]] || die "No directory: $path"
+		cd "$path"     || die "Chdir error: $path"
 	elif [[ -n ${url[protocol]:-} ]]; then
 		file.tempdir path
 
@@ -617,18 +598,18 @@ file.enter() {
 		[[ -z ${url[auth]:-} ]] || addr="${url[auth]}@${addr}"
 		addr="${url[protocol]}://${addr}"
 
-		cd "$path" || abort "Chdir error: $path"
+		cd "$path" || die "Chdir error: $path"
 
 		file.get "$addr"
 	else
-		abort "No protocol found at:$1"
+		die "No protocol found at:$1"
 	fi
 
 	if [[ -n ${url[slug]:-} ]]; then
 		local slug=${url[slug]}
 
-		[[ -d $slug ]] || abort "No directory: $slug"
-		cd "./$slug"   || abort "Chdir error: $slug"
+		[[ -d $slug ]] || die "No directory: $slug"
+		cd "./$slug"   || die "Chdir error: $slug"
 	fi
 
 	[[ -z ${tmpdir:-} ]] || echo "$tmpdir" >"${SHE_SHIBBOLETH:-.she}"
@@ -740,10 +721,11 @@ which.codename() {
 }
 
 declare -Ag help=(
-	['temp inside']='Execute command in temp dir and (optionally) move it elsewhere'
 	['cry']='Print warning messages on standard error'
 	['die']='Print error messages and exit failure'
+	['bug']='Report bug and exit failure'
 	['fin']='Print messages and exit successfully'
+	['temp inside']='Execute command in temp dir and (optionally) move it elsewhere'
 	['array join']='Join array with the given separator'
 	['git get']='Get (clone or update) Git repository'
 	['deb update']='Update Debian package index'
@@ -786,10 +768,11 @@ declare -Ag help=(
 }
 
 declare -Ag command=(
+	['cry']='cry'
+	['die']='die'
+	['bug']='bug'
+	['fin']='fin'
 	['temp inside']='temp.inside'
-	['cry']='ui.cry'
-	['die']='ui.die'
-	['fin']='ui.fin'
 	['array join']='array.join'
 	['git get']='git.get'
 	['deb update']='deb.update'
