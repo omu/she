@@ -32,6 +32,7 @@ temp.dir() {
 # temp.inside: Execute command in temp dir and (optionally) move it elsewhere
 temp.inside() {
 	local outdir='' parents=''
+
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-outside|-out|-o|--outside|--out)

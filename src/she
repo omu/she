@@ -2,7 +2,11 @@
 
 #:lib/prelude.sh
 
+#:lib/core.sh
+
 #:lib/_.sh
+
+#:lib/self.sh
 
 #:lib/meta.sh
 
@@ -21,8 +25,6 @@
 #:lib/file.sh
 
 #:lib/is.sh
-
-#:lib/self.sh
 
 #:lib/which.sh
 

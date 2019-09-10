@@ -7,6 +7,7 @@ declare -ag _at_exit_files_=()
 # Register hooks at exit
 at_exit() {
 	local arg
+
 	for arg; do
 		[[ $(type -t "$arg" || true) == function ]] || bug "Not a function: $arg"
 	done
@@ -44,6 +45,7 @@ _at_exit_cleanup_() {
 # shellcheck disable=2120
 trap.setup() {
 	local -a signals=(EXIT HUP INT QUIT TERM)
+
 	[[ $# -eq 0 ]] || signals=("$@")
 
 	# shellcheck disable=2154,2218

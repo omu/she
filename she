@@ -10,7 +10,7 @@ set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPA
 
 export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-# Kernel
+# Core functions
 
 # cry: Print warning messages on standard error
 cry() {
@@ -103,15 +103,9 @@ ensured() {
 	must mkdir -p "${!variable_}"
 }
 
-init() {
-	[ -n "${BASH_VERSION:-}"        ] || die 'Bash required.'
-	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || die 'Bash version 4 or higher required.'
-	[[ -x /usr/bin/apt-get         ]] || die 'Only Debian and derivatives supported.'
+# Initialize underscore system
 
-	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
-
-	export LC_ALL=C.UTF-8 LANG=C.UTF-8
-
+.() {
 	# Program name
 	const PROGNAME "${0##*/}"
 
@@ -140,7 +134,42 @@ init() {
 	unset -f "${FUNCNAME[0]}"
 }
 
-init
+. # init
+
+# Functions related to program itself
+
+# self.version: Print self version
+self.version() {
+	echo 0.0
+}
+
+# self.name: Print self name
+self.name() {
+	echo she
+}
+
+# self.path: Print self path
+self.path() {
+	local self
+
+	self=${BASH_SOURCE[0]}
+	case $self in
+	./*) readlink -f "$self" ;;
+	/*)  echo "$self" ;;
+	*)   readlink -f "$(command -v "$self")" ;;
+	esac
+}
+
+self.usage() {
+	local message
+
+	for message;  do
+		echo >&2 "$message"
+	done
+
+	echo >&2 "Usage: $(self.path) CMD [ARGS]..."
+	exit 1
+}
 
 # Meta functions
 
@@ -186,6 +215,7 @@ declare -ag _at_exit_files_=()
 # Register hooks at exit
 at_exit() {
 	local arg
+
 	for arg; do
 		[[ $(type -t "$arg" || true) == function ]] || bug "Not a function: $arg"
 	done
@@ -223,6 +253,7 @@ _at_exit_cleanup_() {
 # shellcheck disable=2120
 trap.setup() {
 	local -a signals=(EXIT HUP INT QUIT TERM)
+
 	[[ $# -eq 0 ]] || signals=("$@")
 
 	# shellcheck disable=2154,2218
@@ -265,6 +296,7 @@ temp.dir() {
 # temp.inside: Execute command in temp dir and (optionally) move it elsewhere
 temp.inside() {
 	local outdir='' parents=''
+
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 		-outside|-out|-o|--outside|--out)
@@ -668,41 +700,6 @@ is.ubuntu() {
 	fi
 }
 
-# Functions related to program itself
-
-# self.version: Print self version
-self.version() {
-	echo 0.0
-}
-
-# self.name: Print self name
-self.name() {
-	echo she
-}
-
-# self.path: Print self path
-self.path() {
-	local self
-
-	self=${BASH_SOURCE[0]}
-	case $self in
-	./*) readlink -f "$self" ;;
-	/*)  echo "$self" ;;
-	*)   readlink -f "$(command -v "$self")" ;;
-	esac
-}
-
-self.usage() {
-	local message
-
-	for message;  do
-		echo >&2 "$message"
-	done
-
-	echo >&2 "Usage: $(self.path) CMD [ARGS]..."
-	exit 1
-}
-
 # Show facts
 
 # which.virtual: Which virtualization
@@ -726,6 +723,9 @@ declare -Ag help=(
 	['die']='Print error messages and exit failure'
 	['bug']='Report bug and exit failure'
 	['fin']='Print messages and exit successfully'
+	['self version']='Print self version'
+	['self name']='Print self name'
+	['self path']='Print self path'
 	['temp inside']='Execute command in temp dir and (optionally) move it elsewhere'
 	['array join']='Join array with the given separator'
 	['git get']='Get (clone or update) Git repository'
@@ -736,9 +736,6 @@ declare -Ag help=(
 	['is virtual']='Detect given virtualization'
 	['is debian']='Detect Debian or its given release'
 	['is ubuntu']='Detect Ubuntu or its given release'
-	['self version']='Print self version'
-	['self name']='Print self name'
-	['self path']='Print self path'
 	['which virtual']='Which virtualization'
 	['which distribution']='Which distribution'
 	['which codename']='Which distribution release'
@@ -773,6 +770,9 @@ declare -Ag command=(
 	['die']='die'
 	['bug']='bug'
 	['fin']='fin'
+	['self version']='self.version'
+	['self name']='self.name'
+	['self path']='self.path'
 	['temp inside']='temp.inside'
 	['array join']='array.join'
 	['git get']='git.get'
@@ -783,9 +783,6 @@ declare -Ag command=(
 	['is virtual']='is.virtual'
 	['is debian']='is.debian'
 	['is ubuntu']='is.ubuntu'
-	['self version']='self.version'
-	['self name']='self.name'
-	['self path']='self.path'
 	['which virtual']='which.virtual'
 	['which distribution']='which.distribution'
 	['which codename']='which.codename'
