@@ -61,7 +61,7 @@ git.get() {
 		esac
 	done
 
-	meta.narg 1 1 "$@"
+	narg 1 1 "$@"
 
 	# shellcheck disable=2034
 	local -A remote local

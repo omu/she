@@ -2,7 +2,7 @@
 
 temp.file() {
 	# shellcheck disable=2155
-	local -n variable_=$(meta.public "$1")
+	local -n variable_=$(public "$1")
 
 	ensured _TMP_DIR
 
@@ -17,7 +17,7 @@ temp.file() {
 
 temp.dir() {
 	# shellcheck disable=2155
-	local -n variable_=$(meta.public "$1")
+	local -n variable_=$(public "$1")
 
 	ensured _TMP_DIR
 
@@ -55,7 +55,7 @@ temp.inside() {
 		esac
 	done
 
-	meta.narg 1 - "$@"
+	narg 1 - "$@"
 
 	if [[ -z $parents ]]; then
 		[[ -d $outdir ]] || die "Outside directory must exist: $outdir"

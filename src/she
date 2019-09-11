@@ -2,13 +2,11 @@
 
 #:lib/prelude.sh
 
-#:lib/core.sh
+#:lib/kernel.sh
 
-#:lib/_.sh
+#:lib/debug.sh
 
 #:lib/self.sh
-
-#:lib/meta.sh
 
 #:lib/trap.sh
 
@@ -33,8 +31,8 @@
 .usage() {
 	local cmd
 
-	ui.cry "Usage:    $0 commands ..."
-	ui.cry "Commands:"
+	cry "Usage:    $0 commands ..."
+	cry "Commands:"
 
 	# shellcheck disable=2154
 	for cmd in "${!help[@]}"; do
@@ -45,13 +43,13 @@
 .help() {
 	if [[ $# -eq 0 ]]; then
 		.usage
-		ui.die 'E: Help topic required.'
+		die 'Help topic required.'
 	fi
 
 	local subject=${help["${*}"]:-}
 
-	[[ -n ${subject:-} ]] || ui.die "E: No help found: ${*}."
-	ui.fin "$subject"
+	[[ -n ${subject:-} ]] || die "E: No help found: ${*}."
+	fin "$subject"
 }
 
 #/command/
@@ -61,7 +59,7 @@
 
 	if [[ $# -eq 0 ]]; then
 		.usage
-		ui.die 'Command required.'
+		die 'Command required.'
 	fi
 
 	if [[ $1 = help ]]; then
@@ -87,7 +85,7 @@
 		fi
 	done
 
-	ui.die "No command found: ${args[*]}."
+	die "No command found: ${args[*]}."
 }
 
 .source() {

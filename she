@@ -10,7 +10,7 @@ set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPA
 
 export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-# Core functions
+# Kernel
 
 # cry: Print warning messages on standard error
 cry() {
@@ -103,6 +103,24 @@ ensured() {
 	must mkdir -p "${!variable_}"
 }
 
+# Ensure a public a variable name
+public() {
+	if [[ $1 =~ (^_|_$) ]]; then
+		bug "Not a simple name: $1"
+	else
+		echo "$1"
+	fi
+}
+
+# Ensure proper number of arguments given
+narg() {
+	local lower=$1 upper=$2
+	shift 2
+
+	[[ $# -ge $lower                                 ]] || bug "Too few arguments: $*"
+	[[ -n $upper && $upper != - && $upper -le $upper ]] || bug "Too many arguments: $*"
+}
+
 # Initialize underscore system
 
 .() {
@@ -133,8 +151,27 @@ ensured() {
 
 	unset -f "${FUNCNAME[0]}"
 }
-
 . # init
+
+# Debug functions
+
+# Dump an array variable
+debug.dump() {
+	while [[ $# -gt 0 ]]; do
+		# shellcheck disable=2178,2155
+		local -n variable_=$(public "$1")
+
+		echo "${!variable_}"
+
+		local key_
+		for key_ in "${!variable_[@]}"; do
+			printf '  %-16s  %s\n' "${key_}" "${variable_[$key_]}"
+		done | sort
+		echo
+
+		shift
+	done
+}
 
 # Functions related to program itself
 
@@ -169,41 +206,6 @@ self.usage() {
 
 	echo >&2 "Usage: $(self.path) CMD [ARGS]..."
 	exit 1
-}
-
-# Meta functions
-
-meta.public() {
-	if [[ $1 =~ (^_|_$) ]]; then
-		bug "Not a simple name: $1"
-	else
-		echo "$1"
-	fi
-}
-
-meta.print() {
-	while [[ $# -gt 0 ]]; do
-		# shellcheck disable=2178,2155
-		local -n variable_=$(meta.public "$1")
-
-		echo "${!variable_}"
-
-		local key_
-		for key_ in "${!variable_[@]}"; do
-			printf '  %-16s  %s\n' "${key_}" "${variable_[$key_]}"
-		done | sort
-		echo
-
-		shift
-	done
-}
-
-meta.narg() {
-	local lower=$1 upper=$2
-	shift 2
-
-	[[ $# -ge $lower                                 ]] || bug "Too few arguments: $*"
-	[[ -n $upper && $upper != - && $upper -le $upper ]] || bug "Too many arguments: $*"
 }
 
 # Trap setup
@@ -266,7 +268,7 @@ trap.setup() {
 
 temp.file() {
 	# shellcheck disable=2155
-	local -n variable_=$(meta.public "$1")
+	local -n variable_=$(public "$1")
 
 	ensured _TMP_DIR
 
@@ -281,7 +283,7 @@ temp.file() {
 
 temp.dir() {
 	# shellcheck disable=2155
-	local -n variable_=$(meta.public "$1")
+	local -n variable_=$(public "$1")
 
 	ensured _TMP_DIR
 
@@ -319,7 +321,7 @@ temp.inside() {
 		esac
 	done
 
-	meta.narg 1 - "$@"
+	narg 1 - "$@"
 
 	if [[ -z $parents ]]; then
 		[[ -d $outdir ]] || die "Outside directory must exist: $outdir"
@@ -377,17 +379,17 @@ url.parse() {
 		esac
 	done
 
-	meta.narg 2 3 "$@"
+	narg 2 3 "$@"
 
 	local given_=$1
 	shift
 
 	# shellcheck disable=2178,2155
-	local -n remote_=$(meta.public "$1")
+	local -n remote_=$(public "$1")
 	shift
 
 	# shellcheck disable=2178,2155
-	[[ $# -eq 0 ]] || local -n local_=$(meta.public "$1")
+	[[ $# -eq 0 ]] || local -n local_=$(public "$1")
 
 	local protocol_ url_
 
@@ -466,7 +468,7 @@ url.parse() {
 
 url.is_git() {
 	# shellcheck disable=2178,2155
-	local -n remote_=$(meta.public "$1")
+	local -n remote_=$(public "$1")
 
 	[[ -n ${remote_[git]:-} ]]
 }
@@ -477,8 +479,8 @@ url.is_git() {
 #
 # 	url.parse -prefix /usr/local/src "$@" there here
 #
-# 	meta.print there
-# 	meta.print here
+# 	debug.dump there
+# 	debug.dump here
 #
 # 	if url.is_git there; then
 # 		echo OK
@@ -553,7 +555,7 @@ git.get() {
 		esac
 	done
 
-	meta.narg 1 1 "$@"
+	narg 1 1 "$@"
 
 	# shellcheck disable=2034
 	local -A remote local
@@ -744,8 +746,8 @@ declare -Ag help=(
 .usage() {
 	local cmd
 
-	ui.cry "Usage:    $0 commands ..."
-	ui.cry "Commands:"
+	cry "Usage:    $0 commands ..."
+	cry "Commands:"
 
 	# shellcheck disable=2154
 	for cmd in "${!help[@]}"; do
@@ -756,13 +758,13 @@ declare -Ag help=(
 .help() {
 	if [[ $# -eq 0 ]]; then
 		.usage
-		ui.die 'E: Help topic required.'
+		die 'Help topic required.'
 	fi
 
 	local subject=${help["${*}"]:-}
 
-	[[ -n ${subject:-} ]] || ui.die "E: No help found: ${*}."
-	ui.fin "$subject"
+	[[ -n ${subject:-} ]] || die "E: No help found: ${*}."
+	fin "$subject"
 }
 
 declare -Ag command=(
@@ -793,7 +795,7 @@ declare -Ag command=(
 
 	if [[ $# -eq 0 ]]; then
 		.usage
-		ui.die 'Command required.'
+		die 'Command required.'
 	fi
 
 	if [[ $1 = help ]]; then
@@ -819,7 +821,7 @@ declare -Ag command=(
 		fi
 	done
 
-	ui.die "No command found: ${args[*]}."
+	die "No command found: ${args[*]}."
 }
 
 .source() {

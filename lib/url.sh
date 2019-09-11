@@ -20,17 +20,17 @@ url.parse() {
 		esac
 	done
 
-	meta.narg 2 3 "$@"
+	narg 2 3 "$@"
 
 	local given_=$1
 	shift
 
 	# shellcheck disable=2178,2155
-	local -n remote_=$(meta.public "$1")
+	local -n remote_=$(public "$1")
 	shift
 
 	# shellcheck disable=2178,2155
-	[[ $# -eq 0 ]] || local -n local_=$(meta.public "$1")
+	[[ $# -eq 0 ]] || local -n local_=$(public "$1")
 
 	local protocol_ url_
 
@@ -109,7 +109,7 @@ url.parse() {
 
 url.is_git() {
 	# shellcheck disable=2178,2155
-	local -n remote_=$(meta.public "$1")
+	local -n remote_=$(public "$1")
 
 	[[ -n ${remote_[git]:-} ]]
 }
@@ -120,8 +120,8 @@ url.is_git() {
 #
 # 	url.parse -prefix /usr/local/src "$@" there here
 #
-# 	meta.print there
-# 	meta.print here
+# 	debug.dump there
+# 	debug.dump here
 #
 # 	if url.is_git there; then
 # 		echo OK
