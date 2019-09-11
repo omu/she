@@ -8,7 +8,7 @@
 
 module Fmt
   DEFAULT_FMT_OPTIONS = {
-    space: "\t", indent: 0, prefix: nil, suffix: nil
+    space: "\t", indent: 0, prefix: nil, suffix: nil, trim: true
   }.freeze
 
   refine String do
@@ -19,6 +19,7 @@ module Fmt
       out.gsub!(/^/m, options[:space] * options[:indent]) if options[:indent].positive?
       out.gsub!(/^/m, options[:prefix]) if options[:prefix]
       out.gsub!(/$/m, options[:suffix]) if options[:suffix]
+      out.gsub!(/^\s+$/m, '') if options[:trim]
       out
     end
   end

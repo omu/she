@@ -87,8 +87,23 @@ const() {
 ensured() {
 	local -n variable_=$1
 
-	[[ -n ${!variable_} ]] || die "Blank environment value found: $variable_"
-	must mkdir -p "${!variable_}"
+	[[ -n $variable_ ]] || die "Blank environment value found: $variable_"
+	[[ -d $variable_ ]] || must mkdir -p "$variable_"
+}
+
+# Check timestamp of reference files against given expiry
+expired() {
+	local expiry=$1
+	shift
+
+	local file
+	for file; do
+		if [[ -e $file ]] && [[ $(( $(date +%s) - $(stat -c %Y "$file") )) -le $expiry ]]; then
+			return 1
+		fi
+	done
+
+	return 0
 }
 
 # Ensure a public a variable name
@@ -105,8 +120,8 @@ narg() {
 	local lower=$1 upper=$2
 	shift 2
 
-	[[ $# -ge $lower                                 ]] || bug "Too few arguments: $*"
-	[[ -n $upper && $upper != - && $upper -le $upper ]] || bug "Too many arguments: $*"
+	[[ $lower = - || $# -ge $lower               ]] || bug "Too few arguments: $*"
+	[[ -z $upper  || $upper = - || $# -le $upper ]] || bug "Too many arguments: $*"
 }
 
 # Initialize underscore system

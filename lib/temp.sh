@@ -75,7 +75,8 @@ temp.inside() {
 
 	if [[ -n $outdir  ]]; then
 		[[ -z $parents ]] || must mkdir -p "$outdir"
-		cp -aT "$tempdir" "$outdir"
+		must cp -aT "$tempdir" "$outdir"
+		must chmod 755 "$outdir"
 	fi
 
 	rm -rf -- "$tempdir"

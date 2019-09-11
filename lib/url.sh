@@ -1,4 +1,4 @@
-# Parse URL
+# URL processing
 
 url.parse() {
 	local prefix_=.
@@ -113,22 +113,3 @@ url.is_git() {
 
 	[[ -n ${remote_[git]:-} ]]
 }
-#
-# url.test() {
-# 	# shellcheck disable=2034
-# 	local -A there here
-#
-# 	url.parse -prefix /usr/local/src "$@" there here
-#
-# 	debug.dump there
-# 	debug.dump here
-#
-# 	if url.is_git there; then
-# 		echo OK
-# 	else
-# 		echo NOTOK
-# 	fi
-# }
-#
-# url.test "$@"
-# exit

@@ -1,5 +1,11 @@
 # Git functions
 
+declare -Ag _git=(
+	[lazy_expiry]=3600
+	[eager_expiry]=180
+	[shibboleth]=_
+)
+
 git.must_sane() {
 	git rev-parse --is-inside-work-tree &>/dev/null || die "Must be inside a git work tree: $PWD"
 	git rev-parse --verify HEAD >/dev/null          || die "Unverified git HEAD: $PWD"
@@ -28,9 +34,64 @@ git.top() {
 	must cd "$(git.topdir)"
 }
 
+# shellcheck disable=2120
+git.refresh() {
+	local branch=master expiry=180
+
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+		-expiry|--expiry)
+			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
+			shift
+
+			expiry=$1
+			shift
+			;;
+		-branch|--branch)
+			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
+			shift
+
+			branch=$1
+			shift
+			;;
+		-*)
+			die "Unrecognized flag: $1"
+			;;
+		*)
+			break
+			;;
+		esac
+	done
+
+	narg 0 0 "$@"
+
+	if expired "$expiry" .git/"${_git[shibboleth]}" .git/FETCH_HEAD; then
+		git.must_clean
+		git checkout --quiet "$branch"
+		git pull --quiet origin "$branch"
+
+		must touch .git/"${_git[shibboleth]}"
+	fi
+}
+
+# shellcheck disable=2120
+git.always_refresh() {
+	git.refresh -branch "${1:-master}" -expiry 0
+}
+
+# shellcheck disable=2120
+git.lazy_refresh() {
+	git.refresh -branch "${1:-master}" -expiry "${_git[lazy_expiry]}"
+}
+
+# shellcheck disable=2120
+git.eager_refresh() {
+	git.refresh -branch "${1:-master}" -expiry "${_git[eager_expiry]}"
+}
+
 # git.get: Get (clone or update) Git repository
 git.get() {
-	local prefix=${_SRC_DIR:-} branch='' shallow=''
+	local prefix=${_SRC_DIR:-} branch='' shallow='' cached=''
 
 	while [[ $# -gt 0 ]]; do
 		case $1 in
@@ -51,6 +112,11 @@ git.get() {
 			;;
 		-shallow|--shallow)
 			shallow=true
+			shift
+			;;
+		-cached|--cached)
+			cached=true
+			shift
 			;;
 		-*)
 			die "Unrecognized flag: $1"
@@ -83,11 +149,16 @@ git.get() {
 		temp.inside "${flags[@]}" "${args[@]}"
 
 		must cd "$repo"
+		must touch .git/"${_git[shibboleth]}"
 	else
 		must cd "$repo"
 
-		git.must_clean
-		git checkout "${branch:-master}"
-		git pull origin "${branch:-master}"
+		if [[ -n ${cached:-} ]]; then
+			# shellcheck disable=2119
+			git.lazy_refresh
+		else
+			# shellcheck disable=2119
+			git.eager_refresh
+		fi
 	fi
 }
