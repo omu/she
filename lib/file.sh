@@ -8,12 +8,11 @@ file.install() {
 		[-mode]=
 		[-owner]=
 		[-prefix]=
-		[-smart]=
 	)
 
 	flag.parse "$@"
 
-	local url=${_[1]?missing value for: url}
+	local url=${_[1]?missing value at [1]: url}
 
 	_[url]=$url
 	_[dst]=${_[2]:-${url##*/}}
@@ -46,7 +45,7 @@ file.chogm() {
 
 	flag.parse "$@"
 
-	local file=${1?missing argument: file}
+	local file=${1?missing 1th argument: file}
 
 	file.chogm_ "$file"
 }
@@ -54,7 +53,7 @@ file.chogm() {
 # file.sh - Protected function
 
 file.ln() {
-	local src=${1?missing argument: src} dst=${2?missing argument: dst}
+	local src=${1?missing 1th argument: src} dst=${2?missing 2nd argument: dst}
 
 	src=$(realpath -m --relative-base "${dst%/*}" "$src")
 	must ln -sf "$src" "$dst"
@@ -63,7 +62,7 @@ file.ln() {
 # file.sh - Private functions
 
 file._do_args_() {
-	local func=${1?missing argument: func}
+	local func=${1?missing 1th argument: func}
 	shift
 
 	# shellcheck disable=2192
@@ -72,18 +71,17 @@ file._do_args_() {
 		[-mode]=
 		[-owner]=
 		[-prefix]=
-		[-smart]=
 	)
 
 	flag.parse "$@"
 
-	_[src]=${_[1]?missing value: src} _[dst]=${_[2]?missing value: dst}
+	_[src]=${_[1]?missing value at [1]: src} _[dst]=${_[2]?missing value at [2]: dst}
 
 	file._do_ "$func"
 }
 
 file._do_() {
-	local func=${1?missing value: func}
+	local func=${1?missing 1th argument: func}
 	shift
 
 	[[ -e ${_[src]} ]] || die "Source not found: ${_[src]}"
@@ -91,7 +89,6 @@ file._do_() {
 	[[ -z ${_[-prefix]:-} ]] || _[dst]=${_[-prefix]}/${_[dst]}
 
 	local dstdir
-
 	if string.has_suffix_deleted dst /; then
 		dstdir=${_[dst]}
 	else
@@ -100,22 +97,22 @@ file._do_() {
 
 	must mkdir -p "$dstdir"
 
-	_[dstdir]=$dstdir
-
 	"$func"
 
 	file.chogm_ "${_[dst]}"
 }
 
 file.install_() {
-	local url=${_[url]?missing value for: url} tempfile
+	local url=${_[url]?missing value: url} tempfile
 
-	if [[ ! $url =~ ^[.]*/ ]]; then
+	local tempfile
+
+	if [[ $url =~ ^[.]*/ ]]; then
+		_[src]=$url
+	else
 		temp.file tempfile
 		http.get "$url" >"$tempfile"
 		_[src]=$tempfile
-	else
-		_[src]=$url
 	fi
 
 	file._do_ file.copy_
@@ -124,11 +121,7 @@ file.install_() {
 }
 
 file.copy_() {
-	if flag.true smart && path.is_volatile "${_[dstdir]}"; then
-		file.ln "${_[src]}" "${_[dst]}"
-	else
-		must cp -a "${_[src]}" "${_[dst]}"
-	fi
+	must cp -a "${_[src]}" "${_[dst]}"
 }
 
 file.move_() {
@@ -140,7 +133,7 @@ file.link_() {
 }
 
 file.chogm_() {
-	local file=${1?missing argument: file}
+	local file=${1?missing 1th argument: file}
 
 	[[ -z ${_[-mode]:-}  ]] || must chmod "${_[-mode]}"  "$file"
 	[[ -z ${_[-owner]:-} ]] || must chown "${_[-owner]}" "$file"

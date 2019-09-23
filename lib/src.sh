@@ -22,27 +22,27 @@ src.use() {
 src.enter() {
 	src.use "$@"
 
-	[[ -n ${_[-dir]:-} ]] || return 0
+	[[ -n ${_[dir]:-} ]] || return 0
 
-	[[ -e ${_[-dir]} ]] || die "No path found: ${_[-name]}: ${_[-dir]}"
+	[[ -e ${_[dir]} ]] || die "No path found: ${_[name]}: ${_[dir]}"
 
-	if [[ -d ${_[-dir]} ]]; then
-		must cd "${_[-dir]}"
-	elif [[ -f ${_[-dir]} ]]; then
-		must cd "${_[-dir]%/*}"
+	if [[ -d ${_[dir]} ]]; then
+		must cd "${_[dir]}"
+	elif [[ -f ${_[dir]} ]]; then
+		must cd "${_[dir]%/*}"
 	else
-		die "No path found: ${_[-name]}: ${_[-dir]}"
+		die "No path found: ${_[name]}: ${_[dir]}"
 	fi
 }
 
 src.is_managed_path() {
-	local path=${1?missing argument: path}
+	local path=${1?missing 1th argument: path}
 
 	git.is_git "$path" && git -C "$path" config underscore.name &>/dev/null
 }
 
 src.install_() {
-	local url=${_[1]?missing argument: url}
+	local url=${_[1]?missing value at [1]: url}
 
 	url.parse "$url" || die "Error parsing URL: ${_[error]}: $url"
 
@@ -71,20 +71,20 @@ src._plan_() {
 	fi
 
 	if [[ $path =~ @.*$ ]]; then
-		_[-branch]=${path#*@}; path=${path%@*}
+		_[branch]=${path#*@}; path=${path%@*}
 		_[path]=$path
 	fi
 
 	owner=${path%%/*}; path=${path#*/}
 
-	_[-dir]=
+	_[dir]=
 	if [[ $path = */* ]]; then
-		_[-dir]=${path#*/}; path=${path%%/*}
+		_[dir]=${path#*/}; path=${path%%/*}
 	fi
 
 	repo=${path%.git}
 
-	_[-name]=${_[host]}/$owner/$repo
+	_[name]=${_[host]}/$owner/$repo
 
 	if [[ ${_[proto]} == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
 		auth="${HTTPS_TOKEN}:x-oauth-basic"
@@ -93,10 +93,10 @@ src._plan_() {
 	fi
 
 	if [[ -n ${auth:-} ]]; then
-		_[url]=${_[proto]}://$auth@${_[-name]}.git
+		_[url]=${_[proto]}://$auth@${_[name]}.git
 	else
-		_[url]=${_[proto]}://${_[-name]}.git
+		_[url]=${_[proto]}://${_[name]}.git
 	fi
 
-	_[dst]=${_[-prefix]}/${_[-name]}
+	_[dst]=${_[-prefix]}/${_[name]}
 }

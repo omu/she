@@ -85,7 +85,7 @@ const() {
 
 # Ensure that the directory pointed by given environment variable exists
 ensured() {
-	local -n ensured_reference_=${1?missing argument: name reference}
+	local -n ensured_reference_=${1?missing 1th argument: name reference}
 
 	[[ -n $ensured_reference_ ]] || die "Blank environment value found: $ensured_reference_"
 	[[ -d $ensured_reference_ ]] || must mkdir -p "$ensured_reference_"
@@ -93,7 +93,7 @@ ensured() {
 
 # Check timestamp of reference files against given expiry in minutes
 expired() {
-	local expiry=${1?missing argument: expiry} # minutes
+	local expiry=${1?missing 1th argument: expiry} # minutes
 	shift
 
 	local file

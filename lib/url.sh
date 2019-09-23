@@ -6,10 +6,10 @@ url.parse() {
 	local -n url_parse_=_
 	if [[ ${1:-} = -A ]]; then
 		shift
-		url_parse_=${1?missing argument: hash reference}
+		url_parse_=${1?missing 1th argument: hash reference}
 	fi
 
-	local url=${1?missing argument: url}
+	local url=${1?missing 1th argument: url}
 
 	# shellcheck disable=1007
 	local proto= userinfo= host= port= path= frag=

@@ -23,7 +23,7 @@ _.dump() {
 }
 
 meta.apply() {
-	local func=${1?missing argument: func}
+	local func=${1?missing 1th argument: func}
 	shift
 
 	local -A meta_apply_
