@@ -50,8 +50,6 @@ file.chogm() {
 	file.chogm_ "$file"
 }
 
-# file.sh - Protected function
-
 file.ln() {
 	local src=${1?missing 1th argument: src} dst=${2?missing 2nd argument: dst}
 

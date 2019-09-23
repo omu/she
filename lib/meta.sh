@@ -22,27 +22,6 @@ _.dump() {
 	meta.dump _
 }
 
-meta.apply() {
-	local func=${1?missing 1th argument: func}
-	shift
-
-	local -A meta_apply_
-
-	while [[ $# -gt 0 ]]; do
-		local -n meta_apply_overwrite_=$1
-
-		local key
-		for key in "${!meta_apply_overwrite_[@]}"; do
-			# shellcheck disable=2034
-			meta_apply_[$key]=${meta_apply_overwrite_[$key]}
-		done
-
-		shift
-	done
-
-	"$func" meta_apply_
-}
-
 meta.bool() {
 	local value=${1:-}
 

@@ -24,8 +24,6 @@ src.enter() {
 
 	[[ -n ${_[dir]:-} ]] || return 0
 
-	[[ -e ${_[dir]} ]] || die "No path found: ${_[name]}: ${_[dir]}"
-
 	if [[ -d ${_[dir]} ]]; then
 		must cd "${_[dir]}"
 	elif [[ -f ${_[dir]} ]]; then
@@ -46,7 +44,7 @@ src.install_() {
 
 	url.parse "$url" || die "Error parsing URL: ${_[error]}: $url"
 
-	src._plan_ || die "Error planning for Git URL: ${_[error]}: $url"
+	src._plan_ || die "Error planning URL: ${_[error]}: $url"
 
 	if [[ ! -d ${_[dst]} ]]; then
 		git.clone_
