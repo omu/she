@@ -18,6 +18,10 @@ meta.dump() {
 	done
 }
 
+_.dump() {
+	meta.dump _
+}
+
 meta.apply() {
 	local func=${1?missing argument: func}
 	shift

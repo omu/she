@@ -168,6 +168,10 @@ meta.dump() {
 	done
 }
 
+_.dump() {
+	meta.dump _
+}
+
 meta.apply() {
 	local func=${1?missing argument: func}
 	shift
@@ -234,7 +238,7 @@ flag.false() {
 }
 
 flag.dump() {
-	meta.dump _
+	_.dump
 }
 
 flag.overlay() {
@@ -552,6 +556,7 @@ array.dup() {
 # uel.sh - URL processing
 
 # Parse URL
+# shellcheck disable=2034
 url.parse() {
 	local -n url_parse_=_
 	if [[ ${1:-} = -A ]]; then
@@ -562,18 +567,16 @@ url.parse() {
 	local url=${1?missing argument: url}
 
 	# shellcheck disable=1007
-	local proto= userinfo= host= port= path= tag= fragment=
+	local proto= userinfo= host= port= path= frag=
 
 	if [[ $url =~ ^(/|./|file://) ]]; then
 		proto='file';  url=${url#*://}
 		tag=${url#*@}; url=${url%@*}
 		path=$url
 
-		url_parse_=(
-			[proto]=file
-			[path]=$path
-			[tag]=$tag
-		)
+		# shellcheck disable=2209
+		url_parse_[proto]=file
+		url_parse_[path]=$path
 
 		return 0
 	fi
@@ -618,36 +621,24 @@ url.parse() {
 		proto=https
 	fi
 
-	if [[ $url =~ @.*$ ]]; then
-		tag=${url#*@}; url=${url%@*}
-	fi
-
 	if [[ $url =~ [#].*$ ]]; then
-		fragment=${url#*#}; url=${url%#*}
+		frag=${url#*#}; url=${url%#*}
 	fi
 
 	path=$url
 
-	# shellcheck disable=2034
-	url_parse_=(
-		[fragment]=$fragment
-		[host]=$host
-		[path]=$path
-		[port]=$port
-		[proto]=$proto
-		[tag]=$tag
-		[userinfo]=$userinfo
-	)
+	url_parse_[frag]=$frag
+	url_parse_[host]=$host
+	url_parse_[path]=$path
+	url_parse_[port]=$port
+	url_parse_[proto]=$proto
+	url_parse_[userinfo]=$userinfo
 }
 
 # url.dump: TODO
 url.dump() {
-	# shellcheck disable=2034
-	local -A url_dump_
-
-	url.parse "$1" url_dump_
-
-	debug.dump url_dump_
+	url.parse "$1"
+	_.dump
 }
 
 # git.sh - Git functions

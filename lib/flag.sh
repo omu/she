@@ -28,7 +28,7 @@ flag.false() {
 }
 
 flag.dump() {
-	meta.dump _
+	_.dump
 }
 
 flag.overlay() {

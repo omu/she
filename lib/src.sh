@@ -1,10 +1,10 @@
 # src.sh - Source management
 
-# src.install: Install (clone or update) Git repository to a known location
+# src.install: Install to a known location
 src.install() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_ROOT"/src
+		[-prefix]="$_USR"/src
 		[-shallow]=
 	)
 
@@ -13,9 +13,14 @@ src.install() {
 	src.install_
 }
 
+# src.use: Install src into the runtime tree
+src.use() {
+	src.install -prefix="$_RUN"/src "$@"
+}
+
 # enter: Get files from URL and chdir to directory
 src.enter() {
-	src.install "$@"
+	src.use "$@"
 
 	[[ -n ${_[-dir]:-} ]] || return 0
 
@@ -54,7 +59,6 @@ src._plan_() {
 	local owner repo auth path
 
 	if [[ ! ${_[host]} =~ ^(github.com|gitlab.com|bitbucket.com)$ ]]; then
-		# shellcheck disable=2154
 		_[error]='unsupported provider'
 		return 1
 	fi
@@ -64,6 +68,11 @@ src._plan_() {
 	if [[ ! $path =~ [^/]+/[^/]+ ]]; then
 		_[error]='incomplete url'
 		return 1
+	fi
+
+	if [[ $path =~ @.*$ ]]; then
+		_[-branch]=${path#*@}; path=${path%@*}
+		_[path]=$path
 	fi
 
 	owner=${path%%/*}; path=${path#*/}
@@ -76,7 +85,6 @@ src._plan_() {
 	repo=${path%.git}
 
 	_[-name]=${_[host]}/$owner/$repo
-	_[-branch]=${_[tag]:-}
 
 	if [[ ${_[proto]} == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
 		auth="${HTTPS_TOKEN}:x-oauth-basic"
@@ -92,4 +100,3 @@ src._plan_() {
 
 	_[dst]=${_[-prefix]}/${_[-name]}
 }
-
