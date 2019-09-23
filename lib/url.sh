@@ -1,115 +1,100 @@
-# URL processing
+# uel.sh - URL processing
 
+# Parse URL
 url.parse() {
-	local prefix_=.
-	while [[ $# -gt 0 ]]; do
-		case $1 in
-		-prefix|--prefix)
-			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
-			shift
+	local -n url_parse_=_
+	if [[ ${1:-} = -A ]]; then
+		shift
+		url_parse_=${1?missing argument: hash reference}
+	fi
 
-			prefix_=$1
-			shift
-			;;
-		-*)
-			die "Unrecognized flag: $1"
-			;;
-		*)
-			break
-			;;
-		esac
-	done
+	local url=${1?missing argument: url}
 
-	narg 2 3 "$@"
+	# shellcheck disable=1007
+	local proto= userinfo= host= port= path= tag= fragment=
 
-	local given_=$1
-	shift
+	if [[ $url =~ ^(/|./|file://) ]]; then
+		proto='file';  url=${url#*://}
+		tag=${url#*@}; url=${url%@*}
+		path=$url
 
-	# shellcheck disable=2178,2155
-	local -n remote_=$(public "$1")
-	shift
-
-	# shellcheck disable=2178,2155
-	[[ $# -eq 0 ]] || local -n local_=$(public "$1")
-
-	local protocol_ url_
-
-	protocol_=
-	case $given_ in
-	*://*)
-		protocol_=${given_%%:*}
-		url_=${given_#*://}
-		;;
-	/*|./*)
-		protocol_='file'
-		url_=$(readlink -m "$given_")
-		;;
-	*)
-		url_=$given_
-		;;
-	esac
-
-	if [[ $protocol_ == file ]]; then
-		remote_=(
-			[protocol]=$protocol_
-			[path]=$url_
+		url_parse_=(
+			[proto]=file
+			[path]=$path
+			[tag]=$tag
 		)
+
 		return 0
-	elif [[ -z $protocol_ ]]; then
-		protocol_=https
 	fi
 
-	local provider_ owner_ repo_ slug_
-
-	if ! IFS='/' read -r provider_ owner_ repo_ slug_ <<<"$url_"; then
-		cry "Parse error at $given_"
-		return 1
+	if [[ $url =~ ^.+:// ]]; then
+		proto=${url%%://*}; url=${url#*://}
 	fi
 
-	[[ -n ${owner_:-} ]] || cry "Missing owner at $given_"
-	[[ -n ${repo_:-}  ]] || cry "Missing repository at $given_"
-
-	local auth_=
-	if [[ $protocol_ == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
-		auth_="${HTTPS_TOKEN}:x-oauth-basic"
+	if [[ $url =~ ^[^@/]+@[^/:]+ ]]; then
+		userinfo=${url%%@*}; url=${url#*@}
 	fi
 
-	local base_
-	if [[ -z $auth_ ]]; then
-		base_=$protocol_://$provider_/$owner_
+	if [[ $url =~ ^[^:]+:[0-9]+ ]]; then
+		host=${url%%:*};      url=${url#$host:}
+		port=${url%%[^0-9]*}; url=${url#$port}
 	else
-		base_=$protocol_://$auth_@$provider_/$owner_
+		host=${url%%[/:]*};   url=${url#*[/:]}
 	fi
 
-	local git_=$base_/$repo_.git
-	[[ ${provider_:-} =~ (github.com|gitlab.com|bitbucket.com) ]] || git_=
+	if [[ $url =~ ^: ]]; then
+		url=${url#*:}
+
+		if [[ -n $proto ]]; then
+			if [[ $proto != ssh ]]; then
+				# shellcheck disable=2154
+				url_parse_[error]='protocol mismatch'
+				return 1
+			fi
+		else
+			proto=ssh
+		fi
+	else
+		url=${url#/}
+
+		if [[ -n $proto && $proto = ssh ]]; then
+			url_parse_[error]='invalid SSH url'
+			return 1
+		fi
+	fi
+
+	if [[ -z $proto ]]; then
+		proto=https
+	fi
+
+	if [[ $url =~ @.*$ ]]; then
+		tag=${url#*@}; url=${url%@*}
+	fi
+
+	if [[ $url =~ [#].*$ ]]; then
+		fragment=${url#*#}; url=${url%#*}
+	fi
+
+	path=$url
 
 	# shellcheck disable=2034
-	remote_=(
-		[auth]=$auth_
-		[base]=$base_
-		[canonic]=$base_/$repo_/$slug_
-		[git]=$git_
-		[namespace]=$provider_/$owner_
-		[owner]=$owner_
-		[path]=$provider_/$owner_/$repo_
-		[protocol]=$protocol_
-		[provider]=$provider_
-		[repo]=$repo_
-		[slug]=$slug_
-	)
-
-	# shellcheck disable=2034
-	[[ $# -eq 0 ]] || local_=(
-		[path]=$prefix_/$provider_/$owner_/$repo_
-		[prefix]=$prefix_
-		[namespace]=$prefix_/$provider_/$owner_
+	url_parse_=(
+		[fragment]=$fragment
+		[host]=$host
+		[path]=$path
+		[port]=$port
+		[proto]=$proto
+		[tag]=$tag
+		[userinfo]=$userinfo
 	)
 }
 
-url.is_git() {
-	# shellcheck disable=2178,2155
-	local -n remote_=$(public "$1")
+# url.dump: TODO
+url.dump() {
+	# shellcheck disable=2034
+	local -A url_dump_
 
-	[[ -n ${remote_[git]:-} ]]
+	url.parse "$1" url_dump_
+
+	debug.dump url_dump_
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Standard prelude
+# prelude.sh - Standard prelude
 
 [ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                         exit 1; }
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
@@ -10,7 +10,7 @@ set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPA
 
 export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-# Kernel
+# kernel.sh - Core functions
 
 # cry: Print warning messages on standard error
 cry() {
@@ -43,8 +43,8 @@ bug() {
 	exit 127
 }
 
-# fin: Print messages and exit successfully
-fin() {
+# bye: Print messages and exit successfully
+bye() {
 	cry "$@"
 	exit 0
 }
@@ -78,17 +78,17 @@ const() {
 		esac
 	done
 
-	local -n variable_=$1
+	local -n const_reference_=$1
 	shift
 
-	local value_
-	for value_; do
-		if [[ -n $value_ ]]; then
+	local value
+	for value; do
+		if [[ -n $value ]]; then
 			# shellcheck disable=2034
-			variable_=$value_
+			const_reference_=$value
 
-			declare -gr "${!variable_}"
-			[[ -z ${export:-} ]] || export "${!variable_}"
+			declare -gr "${!const_reference_}"
+			[[ -z ${export:-} ]] || export "${!const_reference_}"
 
 			break
 		fi
@@ -97,43 +97,25 @@ const() {
 
 # Ensure that the directory pointed by given environment variable exists
 ensured() {
-	local -n variable_=$1
+	local -n ensured_reference_=${1?missing argument: name reference}
 
-	[[ -n $variable_ ]] || die "Blank environment value found: $variable_"
-	[[ -d $variable_ ]] || must mkdir -p "$variable_"
+	[[ -n $ensured_reference_ ]] || die "Blank environment value found: $ensured_reference_"
+	[[ -d $ensured_reference_ ]] || must mkdir -p "$ensured_reference_"
 }
 
-# Check timestamp of reference files against given expiry
+# Check timestamp of reference files against given expiry in minutes
 expired() {
-	local expiry=$1
+	local expiry=${1?missing argument: expiry} # minutes
 	shift
 
 	local file
 	for file; do
-		if [[ -e $file ]] && [[ $(( $(date +%s) - $(stat -c %Y "$file") )) -le $expiry ]]; then
+		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
 			return 1
 		fi
 	done
 
 	return 0
-}
-
-# Ensure a public a variable name
-public() {
-	if [[ $1 =~ (^_|_$) ]]; then
-		bug "Not a simple name: $1"
-	else
-		echo "$1"
-	fi
-}
-
-# Ensure proper number of arguments given
-narg() {
-	local lower=$1 upper=$2
-	shift 2
-
-	[[ $lower = - || $# -ge $lower               ]] || bug "Too few arguments: $*"
-	[[ -z $upper  || $upper = - || $# -le $upper ]] || bug "Too many arguments: $*"
 }
 
 # Initialize underscore system
@@ -144,43 +126,41 @@ narg() {
 
 	# Core environment
 	if [[ ${EUID:-} -eq 0 ]]; then
-		local etc=/usr/local/etc/_
-		[[ ! $PROGNAME =~ /usr/bin ]] || etc=/etc/_
-
-		const _SRC_DIR        "${UNDERSCORE_SRC_DIR:-}"   "${SRCDIR:-}"   /run/_/src
-		const _TMP_DIR        "${UNDERSCORE_TMP_DIR:-}"   "${TMPDIR:-}"   /run/_/tmp
-		const _ETC_DIR        "${UNDERSCORE_ETC_DIR:-}"   "${ETCDIR:-}"   "$etc"
-		const _CACHE_DIR      "${UNDERSCORE_CACHE_DIR:-}" "${CACHEDIR:-}" /run/_/cache
-		const _VAR_DIR        "${UNDERSCORE_VAR_DIR:-}"   "${VARDIR:-}"   /run/_/var
+		const _RUN "${UNDERSCORE_VOLATILE_PREFIX:-}"   /run/_
+		const _USR "${UNDERSCORE_PERSISTENT_PREFIX:-}" /usr/local
+		const _ETC  /etc/_:"$_USR"/etc/_:"$_RUN"/etc
 	else
-		const XDG_RUNTIME_DIR "${XDG_RUNTIME_DIR:-}"      /run/"$EUID"
-		const XDG_CONFIG_HOME "${XDG_CONFIG_HOME:-}"      "$HOME"/.config
-		const XDG_CACHE_HOME  "${XDG_CACHE_HOME:-}"       "$HOME"/.cache
+		const XDG_RUNTIME_DIR "${XDG_RUNTIME_DIR:-}" /run/"$EUID"
+		const XDG_CONFIG_HOME "${XDG_CONFIG_HOME:-}" "$HOME"/.config
+		const XDG_CACHE_HOME  "${XDG_CACHE_HOME:-}"  "$HOME"/.cache
 
-		const _SRC_DIR        "${UNDERSCORE_SRC_DIR:-}"   "${SRCDIR:-}"   "$HOME"/.local/src
-		const _TMP_DIR        "${UNDERSCORE_TMP_DIR:-}"   "${TMPDIR:-}"   "$XDG_RUNTIME_DIR"/_/tmp
-		const _ETC_DIR        "${UNDERSCORE_ETC_DIR:-}"   "${ETCDIR:-}"   "$XDG_CONFIG_HOME"/_
-		const _CACHE_DIR      "${UNDERSCORE_CACHE_DIR:-}" "${CACHEDIR:-}" "$XDG_CACHE_HOME"/_
-		const _VAR_DIR        "${UNDERSCORE_VAR_DIR:-}"   "${VARDIR:-}"   "$XDG_RUNTIME_DIR"/_/var
+		const _RUN "${UNDERSCORE_VOLATILE_PREFIX:-}"   "$XDG_RUNTIME_DIR"/_
+		const _USR "${UNDERSCORE_PERSISTENT_PREFIX:-}" "$HOME"/.local
+		const _ETC  /etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc
 	fi
+
+	export PATH="$_RUN"/bin:"$PATH"
+	export _ROOT=$_RUN
 
 	unset -f "${FUNCNAME[0]}"
 }
-. # init
 
-# Debug functions
+# init
+.
+
+# meta.sh - Meta functions
 
 # Dump an array variable
-debug.dump() {
+meta.dump() {
 	while [[ $# -gt 0 ]]; do
 		# shellcheck disable=2178,2155
-		local -n variable_=$(public "$1")
+		local -n meta_dump_=$1
 
-		echo "${!variable_}"
+		echo "${!meta_dump_}"
 
-		local key_
-		for key_ in "${!variable_[@]}"; do
-			printf '  %-16s  %s\n' "${key_}" "${variable_[$key_]}"
+		local key
+		for key in "${!meta_dump_[@]}"; do
+			printf '  %-16s  %s\n' "${key}" "${meta_dump_[$key]}"
 		done | sort
 		echo
 
@@ -188,7 +168,232 @@ debug.dump() {
 	done
 }
 
-# Functions related to program itself
+meta.apply() {
+	local func=${1?missing argument: func}
+	shift
+
+	local -A meta_apply_
+
+	while [[ $# -gt 0 ]]; do
+		local -n meta_apply_overwrite_=$1
+
+		local key
+		for key in "${!meta_apply_overwrite_[@]}"; do
+			# shellcheck disable=2034
+			meta_apply_[$key]=${meta_apply_overwrite_[$key]}
+		done
+
+		shift
+	done
+
+	"$func" meta_apply_
+}
+
+meta.bool() {
+	local value=${1:-}
+
+	case $value in
+	true|on|yes|1)
+		return 0
+		;;
+	false|off|no|0|"")
+		return 1
+		;;
+	*)
+		bug "Invalid boolean: $value"
+	esac
+}
+
+# flag.sh - Flag handling
+
+flag.parse() {
+	if [[ ${#_[@]} -gt 1 ]]; then
+		flag.parse_strict_ "$@"
+	else
+		flag.parse_loose_ "$@"
+	fi
+}
+
+flag.args() {
+	local -n flag_args_=$1
+
+	local -i i
+	for i in {1..9}; do
+		if [[ -v _[$i] ]]; then
+			flag_args_+=("${_[$i]}")
+		fi
+	done
+}
+
+flag.true() {
+	meta.bool "${_[-$1]:-}"
+}
+
+flag.false() {
+	! flag.true "$@"
+}
+
+flag.dump() {
+	meta.dump _
+}
+
+flag.overlay() {
+	local -i i=1
+
+	while [[ $# -gt 0 ]]; do
+		local key value
+
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+			key=${1%%=*}; value=${1#*=}
+			_["$key"]=$value
+		elif [[ $1 == '--' ]]; then
+			shift
+			break
+		else
+			# shellcheck disable=2154
+			_[error]="Non flag or key: $1"
+			return 1
+		fi
+
+		shift
+	done
+}
+
+flag.underlay() {
+	local -i i=1
+
+	while [[ $# -gt 0 ]]; do
+		local key value
+
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+			key=${1%%=*}; value=${1#*=}
+			[[ -v _[$key] ]] || _["$key"]=$value
+		elif [[ $1 == '--' ]]; then
+			shift
+			break
+		else
+			_[error]="Non flag or key: $1"
+			return 1
+		fi
+
+		shift
+	done
+}
+
+flag.parse_strict_() {
+	local -i i=1
+
+	while [[ $# -gt 0 ]]; do
+		local key value
+
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+			key=${1%%=*}; value=${1#*=}
+			if [[ $key =~ ^-.+$ ]] && [[ ! -v _[$key] ]]; then
+				_[error]="Unrecognized flag: $key"
+
+				return 1
+			fi
+		elif [[ $1 == '--' ]]; then
+			shift
+			break
+		else
+			key=$((i++)); value=$1
+		fi
+
+		_["$key"]=$value
+
+		shift
+	done
+}
+
+flag.parse_loose_() {
+	local -i i=1
+
+	while [[ $# -gt 0 ]]; do
+		local key value
+
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+			key=${1%%=*}; value=${1#*=}
+		elif [[ $1 == '--' ]]; then
+			shift
+			break
+		else
+			key=$((i++)); value=$1
+		fi
+
+		_["$key"]=$value
+
+		shift
+	done
+}
+
+# string.sh - String manipulation
+
+string.has_prefix_deleted() {
+	local -n string_has_prefix_deleted_=$1
+	local prefix=$2
+
+	if [[ $string_has_prefix_deleted_ =~ ^$prefix ]]; then
+		string_has_prefix_deleted_=${string_has_prefix_deleted_#$prefix}
+
+		return 0
+	fi
+
+	return 1
+}
+
+string.delete_prefix() {
+	string.has_prefix_deleted "$@" || :
+}
+
+string.has_suffix_deleted() {
+	local -n string_has_suffix_deleted_=$1
+	local suffix=$2
+
+	if [[ $string_has_suffix_deleted_ =~ $suffix$ ]]; then
+		string_has_suffix_deleted_=${string_has_suffix_deleted_%$suffix}
+
+		return 0
+	fi
+
+	return 1
+}
+
+string.delete_suffix() {
+	string.has_suffix_deleted "$@" || :
+}
+
+# path.sh - Path management
+
+path.is_volatile() {
+	df -t tmpfs "$1" &>/dev/null
+}
+
+path.is_equal() {
+	[[ $(realpath -m "$1") = $(realpath -m "$2") ]]
+}
+
+path.is_inside() {
+	local given=$1 path=$2
+
+	local relative
+	relative=$(realpath --relative-to "$given" "$path" 2>/dev/null) || return
+
+	[[ ! $relative =~ ^[.] ]]
+}
+
+# https.sh - HTTP functions
+
+# http.get: Get URL
+http.get() {
+	local url=$1
+
+	[[ $url =~ ^.*:// ]] || url=https://$url
+
+	curl -fsSL "$url"
+}
+
+# self.sh - Functions related to program itself
 
 # self.version: Print self version
 self.version() {
@@ -223,7 +428,7 @@ self.usage() {
 	exit 1
 }
 
-# Trap setup
+# trap.sh - Trap setup
 
 declare -ag _at_exit_funcs_=()
 
@@ -279,223 +484,179 @@ trap.setup() {
 	at_exit _at_exit_cleanup_
 }
 
-# Functions involving temporary directories or files
+# temp.sh - Functions involving temporary directories or files
 
 temp.file() {
 	# shellcheck disable=2155
-	local -n variable_=$(public "$1")
+	local -n temp_file_=${1?missing argument: name reference}
 
-	ensured _TMP_DIR
+	local file
 
-	local file_
-
-	file_=$(mktemp -p "$_TMP_DIR" "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
-	at_exit_files "$file_"
+	file=$(mktemp -p "${TMPDIR:-/tmp}" "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
+	at_exit_files "$file"
 
 	# shellcheck disable=2034
-	variable_=$file_
+	temp_file_=$file
 }
 
 temp.dir() {
 	# shellcheck disable=2155
-	local -n variable_=$(public "$1")
+	local -n temp_dir_=${1?missing argument: name reference}
 
-	ensured _TMP_DIR
-
-	local dir_
-	dir_=$(mktemp -p "$_TMP_DIR" -d "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
-	at_exit_files "$dir_"
+	local dir
+	dir=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
+	at_exit_files "$dir"
 
 	# shellcheck disable=2034
-	variable_=$dir_
+	temp_dir_=$dir
 }
 
 # temp.inside: Execute command in temp dir and (optionally) move it elsewhere
 temp.inside() {
-	local outdir='' parents=''
+	local temp_dir orig_dir=$PWD
+	temp.dir temp_dir
 
-	while [[ $# -gt 0 ]]; do
-		case $1 in
-		-outside|-out|-o|--outside|--out)
-			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
-			shift
-
-			outdir=$1
-			shift
-			;;
-		-p|-parents|--parents)
-			parents=true
-			shift
-			;;
-		-*)
-			die "Unrecognized flag: $1"
-			;;
-		*)
-			break
-			;;
-		esac
-	done
-
-	narg 1 - "$@"
-
-	if [[ -z $parents ]]; then
-		[[ -d $outdir ]] || die "Outside directory must exist: $outdir"
-		[[ -w $outdir ]] || die "Outside directory must be writable: $outdir"
-	else
-		[[ -n $outdir ]] || die 'No outside directory specified'
-	fi
-
-	local origdir=$PWD
-
-	local tempdir
-	temp.dir tempdir
-
-	must cd "$tempdir"
+	must cd "$temp_dir"
 	"$@"
-	must cd "$origdir"
+	must cd "$orig_dir"
 
-	if [[ -n $outdir  ]]; then
-		[[ -z $parents ]] || must mkdir -p "$outdir"
-		must cp -aT "$tempdir" "$outdir"
-		must chmod 755 "$outdir"
-	fi
-
-	rm -rf -- "$tempdir"
+	rm -rf -- "$temp_dir"
 }
 
-# Array functions
+temp.clean() {
+	local -n temp_clean_=${1?missing argument: name reference}
 
-# array.join: Join array with the given separator
+	[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
+}
+
+# array.sh - Array functions
+
+# Join array with the given separator
 array.join() {
 	local IFS=$1
 	shift
 
 	echo "$*"
 }
+# Duplicate array
+array.dup() {
+	local -n array_dup_lhs_=$1 array_dup_rhs_=$2
 
-# URL processing
-
-url.parse() {
-	local prefix_=.
-	while [[ $# -gt 0 ]]; do
-		case $1 in
-		-prefix|--prefix)
-			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
-			shift
-
-			prefix_=$1
-			shift
-			;;
-		-*)
-			die "Unrecognized flag: $1"
-			;;
-		*)
-			break
-			;;
-		esac
+	local key
+	for key in "${!array_dup_rhs_[@]}"; do
+		# shellcheck disable=2034
+		array_dup_lhs_[$key]=${array_dup_rhs_[$key]}
 	done
+}
 
-	narg 2 3 "$@"
+# uel.sh - URL processing
 
-	local given_=$1
-	shift
+# Parse URL
+url.parse() {
+	local -n url_parse_=_
+	if [[ ${1:-} = -A ]]; then
+		shift
+		url_parse_=${1?missing argument: hash reference}
+	fi
 
-	# shellcheck disable=2178,2155
-	local -n remote_=$(public "$1")
-	shift
+	local url=${1?missing argument: url}
 
-	# shellcheck disable=2178,2155
-	[[ $# -eq 0 ]] || local -n local_=$(public "$1")
+	# shellcheck disable=1007
+	local proto= userinfo= host= port= path= tag= fragment=
 
-	local protocol_ url_
+	if [[ $url =~ ^(/|./|file://) ]]; then
+		proto='file';  url=${url#*://}
+		tag=${url#*@}; url=${url%@*}
+		path=$url
 
-	protocol_=
-	case $given_ in
-	*://*)
-		protocol_=${given_%%:*}
-		url_=${given_#*://}
-		;;
-	/*|./*)
-		protocol_='file'
-		url_=$(readlink -m "$given_")
-		;;
-	*)
-		url_=$given_
-		;;
-	esac
-
-	if [[ $protocol_ == file ]]; then
-		remote_=(
-			[protocol]=$protocol_
-			[path]=$url_
+		url_parse_=(
+			[proto]=file
+			[path]=$path
+			[tag]=$tag
 		)
+
 		return 0
-	elif [[ -z $protocol_ ]]; then
-		protocol_=https
 	fi
 
-	local provider_ owner_ repo_ slug_
-
-	if ! IFS='/' read -r provider_ owner_ repo_ slug_ <<<"$url_"; then
-		cry "Parse error at $given_"
-		return 1
+	if [[ $url =~ ^.+:// ]]; then
+		proto=${url%%://*}; url=${url#*://}
 	fi
 
-	[[ -n ${owner_:-} ]] || cry "Missing owner at $given_"
-	[[ -n ${repo_:-}  ]] || cry "Missing repository at $given_"
-
-	local auth_=
-	if [[ $protocol_ == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
-		auth_="${HTTPS_TOKEN}:x-oauth-basic"
+	if [[ $url =~ ^[^@/]+@[^/:]+ ]]; then
+		userinfo=${url%%@*}; url=${url#*@}
 	fi
 
-	local base_
-	if [[ -z $auth_ ]]; then
-		base_=$protocol_://$provider_/$owner_
+	if [[ $url =~ ^[^:]+:[0-9]+ ]]; then
+		host=${url%%:*};      url=${url#$host:}
+		port=${url%%[^0-9]*}; url=${url#$port}
 	else
-		base_=$protocol_://$auth_@$provider_/$owner_
+		host=${url%%[/:]*};   url=${url#*[/:]}
 	fi
 
-	local git_=$base_/$repo_.git
-	[[ ${provider_:-} =~ (github.com|gitlab.com|bitbucket.com) ]] || git_=
+	if [[ $url =~ ^: ]]; then
+		url=${url#*:}
+
+		if [[ -n $proto ]]; then
+			if [[ $proto != ssh ]]; then
+				# shellcheck disable=2154
+				url_parse_[error]='protocol mismatch'
+				return 1
+			fi
+		else
+			proto=ssh
+		fi
+	else
+		url=${url#/}
+
+		if [[ -n $proto && $proto = ssh ]]; then
+			url_parse_[error]='invalid SSH url'
+			return 1
+		fi
+	fi
+
+	if [[ -z $proto ]]; then
+		proto=https
+	fi
+
+	if [[ $url =~ @.*$ ]]; then
+		tag=${url#*@}; url=${url%@*}
+	fi
+
+	if [[ $url =~ [#].*$ ]]; then
+		fragment=${url#*#}; url=${url%#*}
+	fi
+
+	path=$url
 
 	# shellcheck disable=2034
-	remote_=(
-		[auth]=$auth_
-		[base]=$base_
-		[canonic]=$base_/$repo_/$slug_
-		[git]=$git_
-		[namespace]=$provider_/$owner_
-		[owner]=$owner_
-		[path]=$provider_/$owner_/$repo_
-		[protocol]=$protocol_
-		[provider]=$provider_
-		[repo]=$repo_
-		[slug]=$slug_
-	)
-
-	# shellcheck disable=2034
-	[[ $# -eq 0 ]] || local_=(
-		[path]=$prefix_/$provider_/$owner_/$repo_
-		[prefix]=$prefix_
-		[namespace]=$prefix_/$provider_/$owner_
+	url_parse_=(
+		[fragment]=$fragment
+		[host]=$host
+		[path]=$path
+		[port]=$port
+		[proto]=$proto
+		[tag]=$tag
+		[userinfo]=$userinfo
 	)
 }
 
-url.is_git() {
-	# shellcheck disable=2178,2155
-	local -n remote_=$(public "$1")
+# url.dump: TODO
+url.dump() {
+	# shellcheck disable=2034
+	local -A url_dump_
 
-	[[ -n ${remote_[git]:-} ]]
+	url.parse "$1" url_dump_
+
+	debug.dump url_dump_
 }
 
-# Git functions
+# git.sh - Git functions
 
-declare -Ag _git=(
-	[lazy_expiry]=3600
-	[eager_expiry]=180
-	[shibboleth]=_
-)
+git.is_git() {
+	local path=$1
+
+	[[ -d $path/.git ]] && git rev-parse --resolve-git-dir "$path/.git" &>/dev/null
+}
 
 git.must_sane() {
 	git rev-parse --is-inside-work-tree &>/dev/null || die "Must be inside a git work tree: $PWD"
@@ -525,142 +686,69 @@ git.top() {
 	must cd "$(git.topdir)"
 }
 
-# shellcheck disable=2120
+git.default_branch() {
+	git.must_sane
+
+	git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'
+}
+
+git.switch() {
+	local branch=${1:-}
+
+	[[ -n $branch ]] || branch=$(git.default_branch)
+
+	git checkout --quiet "$branch"
+}
+
 git.refresh() {
-	local branch=master expiry=180
+	local -A _=(
+		[-expiry]=${_git[eager_expiry]}
+	)
 
-	while [[ $# -gt 0 ]]; do
-		case $1 in
-		-expiry|--expiry)
-			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
-			shift
+	flag.parse "$@"
 
-			expiry=$1
-			shift
-			;;
-		-branch|--branch)
-			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
-			shift
-
-			branch=$1
-			shift
-			;;
-		-*)
-			die "Unrecognized flag: $1"
-			;;
-		*)
-			break
-			;;
-		esac
-	done
-
-	narg 0 0 "$@"
-
-	if expired "$expiry" .git/"${_git[shibboleth]}" .git/FETCH_HEAD; then
+	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
 		git.must_clean
-		git checkout --quiet "$branch"
-		git pull --quiet origin "$branch"
-
-		must touch .git/"${_git[shibboleth]}"
+		git pull --quiet origin
 	fi
 }
 
-# shellcheck disable=2120
-git.always_refresh() {
-	git.refresh -branch "${1:-master}" -expiry 0
+git.clone_() {
+	local -a opt=(--quiet)
+
+	[[ -z ${_[-branch]:-}  ]] || opt+=(--branch "${_[branch]}")
+	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
+
+	temp.inside git clone "${opt[@]}" "${_[url]}"
+
+	_[src]=.
+	_[dst]=${_[-prefix]:-.}/${_[-name]}
+
+	file.copy_by_flag
+
+	temp.clean
+
+	must cd "${_[-dir]}"
 }
 
-# shellcheck disable=2120
-git.lazy_refresh() {
-	git.refresh -branch "${1:-master}" -expiry "${_git[lazy_expiry]}"
-}
+git.refresh_() {
+	must cd "${_[dst]}"
 
-# shellcheck disable=2120
-git.eager_refresh() {
-	git.refresh -branch "${1:-master}" -expiry "${_git[eager_expiry]}"
-}
+	git.switch "${_[-branch]:-}"
 
-# git.get: Get (clone or update) Git repository
-git.get() {
-	local prefix=${_SRC_DIR:-} branch='' shallow='' cached=''
-
-	while [[ $# -gt 0 ]]; do
-		case $1 in
-		-prefix|--prefix)
-			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
-			shift
-
-			prefix=$1
-			[[ -d $prefix ]] || die "Prefix directory not found: $prefix"
-			shift
-			;;
-		-branch|--branch)
-			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
-			shift
-
-			branch=$1
-			shift
-			;;
-		-shallow|--shallow)
-			shallow=true
-			shift
-			;;
-		-cached|--cached)
-			cached=true
-			shift
-			;;
-		-*)
-			die "Unrecognized flag: $1"
-			;;
-		*)
-			break
-			;;
-		esac
-	done
-
-	narg 1 1 "$@"
-
-	# shellcheck disable=2034
-	local -A remote local
-	url.parse -prefix "${prefix:-.}" "$1" remote local
-
-	local repo=${local[path]}
-
-	if [[ ! -d $repo ]]; then
-		local -a args=(git clone --quiet)
-
-		[[ -z $branch  ]] || args+=(--branch "$branch")
-		[[ -z $shallow ]] || args+=(--depth 1)
-
-		args+=("${remote[git]}")
-
-		local -a flags
-		[[ -z $prefix ]] || flags=(-outside "${local[namespace]}" -parents)
-
-		temp.inside "${flags[@]}" "${args[@]}"
-
-		must cd "$repo"
-		must touch .git/"${_git[shibboleth]}"
-	else
-		must cd "$repo"
-
-		if [[ -n ${cached:-} ]]; then
-			# shellcheck disable=2119
-			git.lazy_refresh
-		else
-			# shellcheck disable=2119
-			git.eager_refresh
-		fi
+	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
+		git.must_clean
+		git pull --quiet origin
 	fi
 }
 
-# Debian package management
+# deb.sh - Debian package management
 
 export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
 # deb.update: Update Debian package index
 deb.update() {
-	[[ -n $(find /var/cache/apt/pkgcache.bin -mmin -60 2>/dev/null) ]] || apt-get update
+	expired 60 /var/cache/apt/pkgcache.bin || apt-get update
 }
 
 # deb.install: Install Debian packages
@@ -670,73 +758,156 @@ deb.install() {
 	[[ $# -eq 0 ]] || apt-get -y install --no-install-recommends "$@"
 }
 
-# File related operations
+# file.sh - File related operations
 
-# bin: Install executable from URL
-file.bin() {
-	curl -fsSL -o "$2" "$1" && chmod +x "$2"
+# file.install: Install file from URL
+file.install() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-group]=
+		[-mode]=
+		[-owner]=
+		[-prefix]=
+		[-smart]=
+	)
+
+	flag.parse "$@"
+
+	local url=${_[1]?missing value for: url}
+
+	_[url]=$url
+	_[dst]=${_[2]:-${url##*/}}
+
+	file.install_
 }
 
-# enter: Get files from URL and chdir to directory
-file.enter() {
-	local source=$1
-
-	local -A url
-
-	url.parse url "$source"
-
-	local path
-	if [[ ${url[protocol]:-} == file ]] ||[[ -n ${FROM_TO:-} ]]; then
-		if [[ -n ${FROM_TO:-} ]]; then
-			path=$FROM_TO
-		else
-			path=${url[path]}
-		fi
-		[[ -d $path ]] || die "No directory: $path"
-		cd "$path"     || die "Chdir error: $path"
-	elif [[ -n ${url[protocol]:-} ]]; then
-		file.tempdir path
-
-		local addr=${url[path]}
-		[[ -z ${url[auth]:-} ]] || addr="${url[auth]}@${addr}"
-		addr="${url[protocol]}://${addr}"
-
-		cd "$path" || die "Chdir error: $path"
-
-		file.get "$addr"
-	else
-		die "No protocol found at:$1"
-	fi
-
-	if [[ -n ${url[slug]:-} ]]; then
-		local slug=${url[slug]}
-
-		[[ -d $slug ]] || die "No directory: $slug"
-		cd "./$slug"   || die "Chdir error: $slug"
-	fi
-
-	[[ -z ${tmpdir:-} ]] || echo "$tmpdir" >"${SHE_SHIBBOLETH:-.she}"
+# Copy file/directory to dstination creating all parents if necessary
+file.copy() {
+	file._do_args_ file.copy_ "$@"
 }
 
-file.get() {
-	local source=$1
-
-	local -A url
-	url.parse url
-
-	local tempdir
-	file.tempdir tempdir
-}
-
-file.moveable() {
-	:
-}
-
+# Move file/directory to destination creating all parents if necessary
 file.move() {
-	mv -f "$@"
+	file._do_args_ file.move_ "$@"
 }
 
-# System predications
+# Link file/directory to dstination creating all parents if necessary
+file.link() {
+	file._do_args_ file.link_ "$@"
+}
+
+file.chogm() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-group]=
+		[-mode]=
+		[-owner]=
+	)
+
+	flag.parse "$@"
+
+	local file=${1?missing argument: file}
+
+	file.chogm_ "$file"
+}
+
+# file.sh - Protected function
+
+file.ln() {
+	local src=${1?missing argument: src} dst=${2?missing argument: dst}
+
+	src=$(realpath -m --relative-base "${dst%/*}" "$src")
+	must ln -sf "$src" "$dst"
+}
+
+# file.sh - Private functions
+
+file._do_args_() {
+	local func=${1?missing argument: func}
+	shift
+
+	# shellcheck disable=2192
+	local -A _=(
+		[-group]=
+		[-mode]=
+		[-owner]=
+		[-prefix]=
+		[-smart]=
+	)
+
+	flag.parse "$@"
+
+	_[src]=${_[1]?missing value: src} _[dst]=${_[2]?missing value: dst}
+
+	file._do_ "$func"
+}
+
+file._do_() {
+	local func=${1?missing value: func}
+	shift
+
+	[[ -e ${_[src]} ]] || die "Source not found: ${_[src]}"
+
+	[[ -z ${_[-prefix]:-} ]] || _[dst]=${_[-prefix]}/${_[dst]}
+
+	local dstdir
+
+	if string.has_suffix_deleted dst /; then
+		dstdir=${_[dst]}
+	else
+		dstdir=${_[dst]%/*}
+	fi
+
+	must mkdir -p "$dstdir"
+
+	_[dstdir]=$dstdir
+
+	"$func"
+
+	file.chogm_ "${_[dst]}"
+}
+
+file.install_() {
+	local url=${_[url]?missing value for: url} tempfile
+
+	if [[ ! $url =~ ^[.]*/ ]]; then
+		temp.file tempfile
+		http.get "$url" >"$tempfile"
+		_[src]=$tempfile
+	else
+		_[src]=$url
+	fi
+
+	file._do_ file.copy_
+
+	temp.clean tempfile
+}
+
+file.copy_() {
+	if flag.true smart && path.is_volatile "${_[dstdir]}"; then
+		file.ln "${_[src]}" "${_[dst]}"
+	else
+		must cp -a "${_[src]}" "${_[dst]}"
+	fi
+}
+
+file.move_() {
+	must mv -f "${_[src]}" "${_[dst]}"
+}
+
+file.link_() {
+	file.ln "${_[src]}" "${_[dst]}"
+}
+
+file.chogm_() {
+	local file=${1?missing argument: file}
+
+	[[ -z ${_[-mode]:-}  ]] || must chmod "${_[-mode]}"  "$file"
+	[[ -z ${_[-owner]:-} ]] || must chown "${_[-owner]}" "$file"
+	[[ -z ${_[-group]:-} ]] || must chgrp "${_[-group]}" "$file"
+}
+
+# is.sh - System predications
 
 # is.virtual: Detect given virtualization
 is.virtual() {
@@ -770,7 +941,7 @@ is.ubuntu() {
 	fi
 }
 
-# Show facts
+# which.sh - Show facts
 
 # which.virtual: Which virtualization
 which.virtual() {
@@ -792,17 +963,16 @@ declare -Ag help=(
 	['cry']='Print warning messages on standard error'
 	['die']='Print error messages and exit failure'
 	['bug']='Report bug and exit failure'
-	['fin']='Print messages and exit successfully'
+	['bye']='Print messages and exit successfully'
+	['http get']='Get URL'
 	['self version']='Print self version'
 	['self name']='Print self name'
 	['self path']='Print self path'
 	['temp inside']='Execute command in temp dir and (optionally) move it elsewhere'
-	['array join']='Join array with the given separator'
-	['git get']='Get (clone or update) Git repository'
+	['url dump']='TODO'
 	['deb update']='Update Debian package index'
 	['deb install']='Install Debian packages'
-	['bin']='Install executable from URL'
-	['enter']='Get files from URL and chdir to directory'
+	['file install']='Install file from URL'
 	['is virtual']='Detect given virtualization'
 	['is debian']='Detect Debian or its given release'
 	['is ubuntu']='Detect Ubuntu or its given release'
@@ -832,24 +1002,23 @@ declare -Ag help=(
 	local subject=${help["${*}"]:-}
 
 	[[ -n ${subject:-} ]] || die "E: No help found: ${*}."
-	fin "$subject"
+	bye "$subject"
 }
 
 declare -Ag command=(
 	['cry']='cry'
 	['die']='die'
 	['bug']='bug'
-	['fin']='fin'
+	['bye']='bye'
+	['http get']='http.get'
 	['self version']='self.version'
 	['self name']='self.name'
 	['self path']='self.path'
 	['temp inside']='temp.inside'
-	['array join']='array.join'
-	['git get']='git.get'
+	['url dump']='url.dump'
 	['deb update']='deb.update'
 	['deb install']='deb.install'
-	['bin']='file.bin'
-	['enter']='file.enter'
+	['file install']='file.install'
 	['is virtual']='is.virtual'
 	['is debian']='is.debian'
 	['is ubuntu']='is.ubuntu'
@@ -897,7 +1066,7 @@ declare -Ag command=(
 	echo
 	cat <<'EOF'
 .() {
-	# Standard prelude
+	# prelude.sh - Standard prelude
 
 	[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                         exit 1; }
 	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
@@ -920,12 +1089,12 @@ declare -Ag command=(
 		"$UNDERSCORE" die "$@"; exit $?
 	}
 
-	_.fin() {
-		"$UNDERSCORE" fin "$@"; exit $?
+	_.bye() {
+		"$UNDERSCORE" bye "$@"; exit $?
 	}
 
 	_.bug() {
-		"$UNDERSCORE" fin "$@"; exit $?
+		"$UNDERSCORE" bug "$@"; exit $?
 	}
 
 	_.enter() {
@@ -947,7 +1116,7 @@ _() {
 	local cmd=$1
 
 	case $cmd in
-	die|fin|bug|enter|leave) shift; _."$cmd" "$@" ;;
+	die|bye|bug|enter|leave) shift; _."$cmd" "$@" ;;
 	*)                       "$UNDERSCORE" "$@"   ;;
 	esac
 }

@@ -1,10 +1,10 @@
-# Debian package management
+# deb.sh - Debian package management
 
 export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
 # deb.update: Update Debian package index
 deb.update() {
-	[[ -n $(find /var/cache/apt/pkgcache.bin -mmin -60 2>/dev/null) ]] || apt-get update
+	expired 60 /var/cache/apt/pkgcache.bin || apt-get update
 }
 
 # deb.install: Install Debian packages

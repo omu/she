@@ -1,4 +1,4 @@
-# Trap setup
+# trap.sh - Trap setup
 
 declare -ag _at_exit_funcs_=()
 

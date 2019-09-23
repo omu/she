@@ -1,4 +1,4 @@
-# Show facts
+# which.sh - Show facts
 
 # which.virtual: Which virtualization
 which.virtual() {

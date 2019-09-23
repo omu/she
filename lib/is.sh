@@ -1,4 +1,4 @@
-# System predications
+# is.sh - System predications
 
 # is.virtual: Detect given virtualization
 is.virtual() {

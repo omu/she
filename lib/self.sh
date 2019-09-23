@@ -1,4 +1,4 @@
-# Functions related to program itself
+# self.sh - Functions related to program itself
 
 # self.version: Print self version
 self.version() {

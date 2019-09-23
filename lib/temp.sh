@@ -1,83 +1,44 @@
-# Functions involving temporary directories or files
+# temp.sh - Functions involving temporary directories or files
 
 temp.file() {
 	# shellcheck disable=2155
-	local -n variable_=$(public "$1")
+	local -n temp_file_=${1?missing argument: name reference}
 
-	ensured _TMP_DIR
+	local file
 
-	local file_
-
-	file_=$(mktemp -p "$_TMP_DIR" "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
-	at_exit_files "$file_"
+	file=$(mktemp -p "${TMPDIR:-/tmp}" "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
+	at_exit_files "$file"
 
 	# shellcheck disable=2034
-	variable_=$file_
+	temp_file_=$file
 }
 
 temp.dir() {
 	# shellcheck disable=2155
-	local -n variable_=$(public "$1")
+	local -n temp_dir_=${1?missing argument: name reference}
 
-	ensured _TMP_DIR
-
-	local dir_
-	dir_=$(mktemp -p "$_TMP_DIR" -d "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
-	at_exit_files "$dir_"
+	local dir
+	dir=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
+	at_exit_files "$dir"
 
 	# shellcheck disable=2034
-	variable_=$dir_
+	temp_dir_=$dir
 }
 
 # temp.inside: Execute command in temp dir and (optionally) move it elsewhere
 temp.inside() {
-	local outdir='' parents=''
+	local temp_dir orig_dir=$PWD
+	temp.dir temp_dir
 
-	while [[ $# -gt 0 ]]; do
-		case $1 in
-		-outside|-out|-o|--outside|--out)
-			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
-			shift
-
-			outdir=$1
-			shift
-			;;
-		-p|-parents|--parents)
-			parents=true
-			shift
-			;;
-		-*)
-			die "Unrecognized flag: $1"
-			;;
-		*)
-			break
-			;;
-		esac
-	done
-
-	narg 1 - "$@"
-
-	if [[ -z $parents ]]; then
-		[[ -d $outdir ]] || die "Outside directory must exist: $outdir"
-		[[ -w $outdir ]] || die "Outside directory must be writable: $outdir"
-	else
-		[[ -n $outdir ]] || die 'No outside directory specified'
-	fi
-
-	local origdir=$PWD
-
-	local tempdir
-	temp.dir tempdir
-
-	must cd "$tempdir"
+	must cd "$temp_dir"
 	"$@"
-	must cd "$origdir"
+	must cd "$orig_dir"
 
-	if [[ -n $outdir  ]]; then
-		[[ -z $parents ]] || must mkdir -p "$outdir"
-		must cp -aT "$tempdir" "$outdir"
-		must chmod 755 "$outdir"
-	fi
+	rm -rf -- "$temp_dir"
+}
 
-	rm -rf -- "$tempdir"
+temp.clean() {
+	local -n temp_clean_=${1?missing argument: name reference}
+
+	[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
 }

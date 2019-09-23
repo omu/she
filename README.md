@@ -1,13 +1,59 @@
 Betikleme araç seti
 ===================
 
+Stil
+----
+
+### İşlev isimleri
+
+- İşlev isimleri `<modül>.<tanımlayıcı>` biçimindedir
+
+- Bir işlev 4 tipte olabilir
+
+  1. Komut fonksiyonları: `_ komut altkomut` şeklinde dışarı açılan komutların gerçeklemesi
+
+  2. Açık fonksiyonlar: "She" tüketicileri tarafından kitaplık düzeyinde kullanılabilen olağan fonksiyonlar
+
+  3. Alt tire değişkeni kullanan fonksiyonlar: `_` öntanımlı değişkenini kullanan fonksiyonlar
+
+  4. Kapalı fonksiyonlar: Sadece ilgili modülde kullanılabilecek fonksiyonlar
+
+- Bu tiplerde aşağıdaki sözdizimleri kullanılır
+
+  1. Fonksiyon başlığında `fonksiyon adı: açıklama` biçimiyle bildirilir
+
+  2. Özel bir biçim kullanılmaz
+
+  3. `<modül>.<tanımlayıcı>_` biçimi kullanılır
+
+  4. `<modül>._<tanımlayıcı>` biçimi kullanılır (ayrıca 3 tipinde ise `<modül>._<tanımlayıcı>_`
+
+### `_`
+
+`_` değişkeni hash tipinde dönüş değişkeni olarak kullanılır.  Bu yapılırken:
+
+- Daima yerel kapsamda `local -A _` ile bildirim yapılır
+
+- Seçeneklerde `-option` biçimi kullanılır
+
+- `0` anahtarı asla kullanılmaz
+
+- `${_[1]}`, `${_[9]}` değerleri konumsal parametreler için kullanılır
+
+- `error` anahtarı (varsa) hata iletisi taşır
+
+- Bunun dışında kalan (seçenek veya konumsal parametre olmayan) tüm anahtarlar değişken olarak kullanılır
+
+- Komut satırı parametrelerinin ayrıştırılmasında `flag` modülü kullanılır (`flag.parse "$@"`)
+
 Ortam
 -----
 
 | Tür                 | İç değişken  | Baskın değişken        | Geçerli değişken | Öntanımlı kullanıcı dizini | Öntanımlı sistem dizinleri
 | ------------------- | ------------ | ---------------------- | ---------------- | -------------------------- | ---------------------------
+| Programlar          | `_BIN_DIR`   | `UNDERSCORE_BIN_DIR`   | `BINDIR`         | `$HOME/.local/bin`         | `/run/_/bin`
 | İndirilen kaynaklar | `_SRC_DIR`   | `UNDERSCORE_SRC_DIR`   | `SRCDIR`         | `$HOME/.local/src`         | `/run/_/src`
-| Geçici dosyalar     | `_TMP_DIR`   | `UNDERSCORE_TMP_DIR`   | `TMPDIR`         | `$XDG_RUNTIME_DIR/_/tmp`   | `/run/_/tmp`
+| Geçici dosyalar     | `_TMP_DIR`   | `UNDERSCORE_TMP_DIR`   | `TMPDIR`         | `/tmp`                     | `/tmp`
 | Yapılandırmalar     | `_ETC_DIR`   | `UNDERSCORE_ETC_DIR`   | `ETCDIR`         | `$XDG_CONFIG_HOME/_`       | `/usr/local/etc/_` `/etc/_`
 | Önbellek            | `_CACHE_DIR` | `UNDERSCORE_CACHE_DIR` | `CACHEDIR`       | `$XDG_CACHE_HOME/_`        | `/run/_/cache`
 | Değişken dosyalar   | `_VAR_DIR`   | `UNDERSCORE_VAR_DIR`   | `VARDIR`         | `$XDG_RUNTIME_DIR/_/var`   | `/run/_/var`
@@ -23,158 +69,167 @@ Kullanıcı için `XDG_*` ortam değişkenleri için öntanımlı değerler
 Standard
 ---------
 
-array (alias: args)
-        join
-        include
-        uniq
-        reverse
-        sort
-        shuffle
+        array (alias: args)
+                join
+                include
+                uniq
+                reverse
+                sort
+                shuffle
 
-blob
-        zip
-        unzip
-        verify
-        sign
-        encrypt
-        decrypt
+        blob
+                zip
+                unzip
+                verify
+                sign
+                encrypt
+                decrypt
 
-color
+        color
 
-data (alias: ayaml)
-        read
-                -json
-                -yaml (default)
-        write
-                -json
-                -yaml (default)
+        data (alias: ayaml)
+                read
+                        -json
+                        -yaml (default)
+                write
+                        -json
+                        -yaml (default)
 
-deb
-        use
-                backports|experimental|URL
-        install
-                -missing
-        update
-        upgrade
-        clean
-                -aggresive
-        uninstall
-
-etc
-
-file
-        get
-                -zip
-                -unzip
-        put
-        bin
-                -missing
-        run
-                -test
-        enter
-                -temp
-        leave
-
-        render
-
-has/hasnt
-        # which set
-
-is/isnt
-        # which set
-
-path
-        dir
-                -map
-        ext
-                -map
-        name
-        base
-                -map
-        rel
-        abs
-
-self
-        version
-        update
-        path
-        use
-
-src
-        prelude
-
-string (alias: arg)
-        prefix
-        suffix
-        split
-        downcase
-        upcase
-        titlecase
-        trim
-        reverse
-
-text
-        fix/unfix
-                -append/prepend
-                -insert
-        fixed
-        out
-
-template
-        render
-
-ui
-        ask
-        say
-        die
-        cry
-        fin
-        bug
-        setup # colored
-
-url
-        proto
-        host
-        user
-        pass
-        path
-        frag
-
-which
-        virtual
-                container
-                vm
-                lxc
-                lxd
-                docker
-                kvm
-                vmware
-                virtualbox
-        debian
-                buster
-                stretch
-                sid
-        ubuntu
-        gui
-        net
-                ip
-                interface
         deb
+                use
+                        backports|experimental|URL
+                install
+                        -missing
+                update
+                upgrade
+                clean
+                        -aggresive
+                uninstall
+
+        etc
+
+        file
+                get
+                install
+
+                run
+                        -test
+                enter
+                leave
+
+                render
+
         bin
+                get
+                install
+                exec
+
+        git
+                get
+                install
+
+        http
+                get
+                post
+
+        has/hasnt
+                # which set
+
+        is/isnt
+                # which set
+
+        path
+                dir
+                        -map
+                ext
+                        -map
+                name
+                base
+                        -map
+                rel
+                abs
+
+        self
+                version
+                update
+                path
+                use
+
+        src
+                prelude
+
+        string (alias: arg)
+                prefix
+                suffix
+                split
+                downcase
+                upcase
+                titlecase
+                trim
+                reverse
+
+        text
+                fix/unfix
+                        -append/prepend
+                        -insert
+                fixed
+                out
+
+        template
+                render
+
+        ui
+                ask
+                say
+                die
+                cry
+                fin
+                bug
+                setup # colored
+
+        url
+                proto
+                host
+                user
+                pass
+                path
+                frag
+
+        which
+                virtual
+                        container
+                        vm
+                        lxc
+                        lxd
+                        docker
+                        kvm
+                        vmware
+                        virtualbox
+                debian
+                        buster
+                        stretch
+                        sid
+                ubuntu
+                gui
+                net
+                        ip
+                        interface
+                deb
+                bin
 
 Optional
 --------
 
-api
-        github
-        gitlab
-        slack
+        api
+                github
+                gitlab
+                slack
 
-json
-        query
+        json
+                query
 
-mail
-        send
+        mail
+                send
 
-yaml
-        query
+        yaml
+                query

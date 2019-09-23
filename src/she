@@ -4,7 +4,15 @@
 
 #:lib/kernel.sh
 
-#:lib/debug.sh
+#:lib/meta.sh
+
+#:lib/flag.sh
+
+#:lib/string.sh
+
+#:lib/path.sh
+
+#:lib/http.sh
 
 #:lib/self.sh
 
@@ -49,7 +57,7 @@
 	local subject=${help["${*}"]:-}
 
 	[[ -n ${subject:-} ]] || die "E: No help found: ${*}."
-	fin "$subject"
+	bye "$subject"
 }
 
 #/command/
@@ -108,12 +116,12 @@
 		"$UNDERSCORE" die "$@"; exit $?
 	}
 
-	_.fin() {
-		"$UNDERSCORE" fin "$@"; exit $?
+	_.bye() {
+		"$UNDERSCORE" bye "$@"; exit $?
 	}
 
 	_.bug() {
-		"$UNDERSCORE" fin "$@"; exit $?
+		"$UNDERSCORE" bug "$@"; exit $?
 	}
 
 	_.enter() {
@@ -135,7 +143,7 @@ _() {
 	local cmd=$1
 
 	case $cmd in
-	die|fin|bug|enter|leave) shift; _."$cmd" "$@" ;;
+	die|bye|bug|enter|leave) shift; _."$cmd" "$@" ;;
 	*)                       "$UNDERSCORE" "$@"   ;;
 	esac
 }

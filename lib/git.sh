@@ -1,10 +1,10 @@
-# Git functions
+# git.sh - Git functions
 
-declare -Ag _git=(
-	[lazy_expiry]=3600
-	[eager_expiry]=180
-	[shibboleth]=_
-)
+git.is_git() {
+	local path=$1
+
+	[[ -d $path/.git ]] && git rev-parse --resolve-git-dir "$path/.git" &>/dev/null
+}
 
 git.must_sane() {
 	git rev-parse --is-inside-work-tree &>/dev/null || die "Must be inside a git work tree: $PWD"
@@ -34,131 +34,58 @@ git.top() {
 	must cd "$(git.topdir)"
 }
 
-# shellcheck disable=2120
+git.default_branch() {
+	git.must_sane
+
+	git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'
+}
+
+git.switch() {
+	local branch=${1:-}
+
+	[[ -n $branch ]] || branch=$(git.default_branch)
+
+	git checkout --quiet "$branch"
+}
+
 git.refresh() {
-	local branch=master expiry=180
+	local -A _=(
+		[-expiry]=${_git[eager_expiry]}
+	)
 
-	while [[ $# -gt 0 ]]; do
-		case $1 in
-		-expiry|--expiry)
-			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
-			shift
+	flag.parse "$@"
 
-			expiry=$1
-			shift
-			;;
-		-branch|--branch)
-			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
-			shift
-
-			branch=$1
-			shift
-			;;
-		-*)
-			die "Unrecognized flag: $1"
-			;;
-		*)
-			break
-			;;
-		esac
-	done
-
-	narg 0 0 "$@"
-
-	if expired "$expiry" .git/"${_git[shibboleth]}" .git/FETCH_HEAD; then
+	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
 		git.must_clean
-		git checkout --quiet "$branch"
-		git pull --quiet origin "$branch"
-
-		must touch .git/"${_git[shibboleth]}"
+		git pull --quiet origin
 	fi
 }
 
-# shellcheck disable=2120
-git.always_refresh() {
-	git.refresh -branch "${1:-master}" -expiry 0
+git.clone_() {
+	local -a opt=(--quiet)
+
+	[[ -z ${_[-branch]:-}  ]] || opt+=(--branch "${_[branch]}")
+	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
+
+	temp.inside git clone "${opt[@]}" "${_[url]}"
+
+	_[src]=.
+	_[dst]=${_[-prefix]:-.}/${_[-name]}
+
+	file.copy_by_flag
+
+	temp.clean
+
+	must cd "${_[-dir]}"
 }
 
-# shellcheck disable=2120
-git.lazy_refresh() {
-	git.refresh -branch "${1:-master}" -expiry "${_git[lazy_expiry]}"
-}
+git.refresh_() {
+	must cd "${_[dst]}"
 
-# shellcheck disable=2120
-git.eager_refresh() {
-	git.refresh -branch "${1:-master}" -expiry "${_git[eager_expiry]}"
-}
+	git.switch "${_[-branch]:-}"
 
-# git.get: Get (clone or update) Git repository
-git.get() {
-	local prefix=${_SRC_DIR:-} branch='' shallow='' cached=''
-
-	while [[ $# -gt 0 ]]; do
-		case $1 in
-		-prefix|--prefix)
-			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
-			shift
-
-			prefix=$1
-			[[ -d $prefix ]] || die "Prefix directory not found: $prefix"
-			shift
-			;;
-		-branch|--branch)
-			[[ $# -gt 1 ]] || die "Argument required for flag: $1"
-			shift
-
-			branch=$1
-			shift
-			;;
-		-shallow|--shallow)
-			shallow=true
-			shift
-			;;
-		-cached|--cached)
-			cached=true
-			shift
-			;;
-		-*)
-			die "Unrecognized flag: $1"
-			;;
-		*)
-			break
-			;;
-		esac
-	done
-
-	narg 1 1 "$@"
-
-	# shellcheck disable=2034
-	local -A remote local
-	url.parse -prefix "${prefix:-.}" "$1" remote local
-
-	local repo=${local[path]}
-
-	if [[ ! -d $repo ]]; then
-		local -a args=(git clone --quiet)
-
-		[[ -z $branch  ]] || args+=(--branch "$branch")
-		[[ -z $shallow ]] || args+=(--depth 1)
-
-		args+=("${remote[git]}")
-
-		local -a flags
-		[[ -z $prefix ]] || flags=(-outside "${local[namespace]}" -parents)
-
-		temp.inside "${flags[@]}" "${args[@]}"
-
-		must cd "$repo"
-		must touch .git/"${_git[shibboleth]}"
-	else
-		must cd "$repo"
-
-		if [[ -n ${cached:-} ]]; then
-			# shellcheck disable=2119
-			git.lazy_refresh
-		else
-			# shellcheck disable=2119
-			git.eager_refresh
-		fi
+	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
+		git.must_clean
+		git pull --quiet origin
 	fi
 }

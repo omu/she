@@ -1,4 +1,4 @@
-# Kernel
+# kernel.sh - Core functions
 
 # cry: Print warning messages on standard error
 cry() {
@@ -31,8 +31,8 @@ bug() {
 	exit 127
 }
 
-# fin: Print messages and exit successfully
-fin() {
+# bye: Print messages and exit successfully
+bye() {
 	cry "$@"
 	exit 0
 }
@@ -66,17 +66,17 @@ const() {
 		esac
 	done
 
-	local -n variable_=$1
+	local -n const_reference_=$1
 	shift
 
-	local value_
-	for value_; do
-		if [[ -n $value_ ]]; then
+	local value
+	for value; do
+		if [[ -n $value ]]; then
 			# shellcheck disable=2034
-			variable_=$value_
+			const_reference_=$value
 
-			declare -gr "${!variable_}"
-			[[ -z ${export:-} ]] || export "${!variable_}"
+			declare -gr "${!const_reference_}"
+			[[ -z ${export:-} ]] || export "${!const_reference_}"
 
 			break
 		fi
@@ -85,43 +85,25 @@ const() {
 
 # Ensure that the directory pointed by given environment variable exists
 ensured() {
-	local -n variable_=$1
+	local -n ensured_reference_=${1?missing argument: name reference}
 
-	[[ -n $variable_ ]] || die "Blank environment value found: $variable_"
-	[[ -d $variable_ ]] || must mkdir -p "$variable_"
+	[[ -n $ensured_reference_ ]] || die "Blank environment value found: $ensured_reference_"
+	[[ -d $ensured_reference_ ]] || must mkdir -p "$ensured_reference_"
 }
 
-# Check timestamp of reference files against given expiry
+# Check timestamp of reference files against given expiry in minutes
 expired() {
-	local expiry=$1
+	local expiry=${1?missing argument: expiry} # minutes
 	shift
 
 	local file
 	for file; do
-		if [[ -e $file ]] && [[ $(( $(date +%s) - $(stat -c %Y "$file") )) -le $expiry ]]; then
+		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
 			return 1
 		fi
 	done
 
 	return 0
-}
-
-# Ensure a public a variable name
-public() {
-	if [[ $1 =~ (^_|_$) ]]; then
-		bug "Not a simple name: $1"
-	else
-		echo "$1"
-	fi
-}
-
-# Ensure proper number of arguments given
-narg() {
-	local lower=$1 upper=$2
-	shift 2
-
-	[[ $lower = - || $# -ge $lower               ]] || bug "Too few arguments: $*"
-	[[ -z $upper  || $upper = - || $# -le $upper ]] || bug "Too many arguments: $*"
 }
 
 # Initialize underscore system
@@ -132,26 +114,24 @@ narg() {
 
 	# Core environment
 	if [[ ${EUID:-} -eq 0 ]]; then
-		local etc=/usr/local/etc/_
-		[[ ! $PROGNAME =~ /usr/bin ]] || etc=/etc/_
-
-		const _SRC_DIR        "${UNDERSCORE_SRC_DIR:-}"   "${SRCDIR:-}"   /run/_/src
-		const _TMP_DIR        "${UNDERSCORE_TMP_DIR:-}"   "${TMPDIR:-}"   /run/_/tmp
-		const _ETC_DIR        "${UNDERSCORE_ETC_DIR:-}"   "${ETCDIR:-}"   "$etc"
-		const _CACHE_DIR      "${UNDERSCORE_CACHE_DIR:-}" "${CACHEDIR:-}" /run/_/cache
-		const _VAR_DIR        "${UNDERSCORE_VAR_DIR:-}"   "${VARDIR:-}"   /run/_/var
+		const _RUN "${UNDERSCORE_VOLATILE_PREFIX:-}"   /run/_
+		const _USR "${UNDERSCORE_PERSISTENT_PREFIX:-}" /usr/local
+		const _ETC  /etc/_:"$_USR"/etc/_:"$_RUN"/etc
 	else
-		const XDG_RUNTIME_DIR "${XDG_RUNTIME_DIR:-}"      /run/"$EUID"
-		const XDG_CONFIG_HOME "${XDG_CONFIG_HOME:-}"      "$HOME"/.config
-		const XDG_CACHE_HOME  "${XDG_CACHE_HOME:-}"       "$HOME"/.cache
+		const XDG_RUNTIME_DIR "${XDG_RUNTIME_DIR:-}" /run/"$EUID"
+		const XDG_CONFIG_HOME "${XDG_CONFIG_HOME:-}" "$HOME"/.config
+		const XDG_CACHE_HOME  "${XDG_CACHE_HOME:-}"  "$HOME"/.cache
 
-		const _SRC_DIR        "${UNDERSCORE_SRC_DIR:-}"   "${SRCDIR:-}"   "$HOME"/.local/src
-		const _TMP_DIR        "${UNDERSCORE_TMP_DIR:-}"   "${TMPDIR:-}"   "$XDG_RUNTIME_DIR"/_/tmp
-		const _ETC_DIR        "${UNDERSCORE_ETC_DIR:-}"   "${ETCDIR:-}"   "$XDG_CONFIG_HOME"/_
-		const _CACHE_DIR      "${UNDERSCORE_CACHE_DIR:-}" "${CACHEDIR:-}" "$XDG_CACHE_HOME"/_
-		const _VAR_DIR        "${UNDERSCORE_VAR_DIR:-}"   "${VARDIR:-}"   "$XDG_RUNTIME_DIR"/_/var
+		const _RUN "${UNDERSCORE_VOLATILE_PREFIX:-}"   "$XDG_RUNTIME_DIR"/_
+		const _USR "${UNDERSCORE_PERSISTENT_PREFIX:-}" "$HOME"/.local
+		const _ETC  /etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc
 	fi
+
+	export PATH="$_RUN"/bin:"$PATH"
+	export _ROOT=$_RUN
 
 	unset -f "${FUNCNAME[0]}"
 }
-. # init
+
+# init
+.
