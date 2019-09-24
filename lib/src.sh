@@ -88,7 +88,7 @@ src._plan_() {
 		_[url]=${_[proto]}://${_[name]}.git
 	fi
 
-	_[dst]=${_[-prefix]}/${_[name]}
+	_[dst]=${_[name]}
 }
 
 src._chdir_() {

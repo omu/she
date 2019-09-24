@@ -362,6 +362,8 @@ path.is_inside() {
 path.dir() {
 	local -n path_dir_=${1?missing 1th argument: name reference}
 
+	path.normalize path_dir_
+
 	case $path_dir_ in
 	*/*)
 		path_dir_=${path_dir_%/*}
@@ -394,18 +396,26 @@ path.ext() {
 	esac
 }
 
-path.ext_change() {
-	local -n path_ext_change_=${1?missing 1th argument: name reference}
+path.subext() {
+	local -n path_subext_=${1?missing 1th argument: name reference}
 	local ext=${2?missing 2nd argument: ext}
 
-	case $path_ext_change_ in
+	case $path_subext_ in
 	*.*)
-		path_ext_change_=${path_ext_change_%.*}
-		path_ext_change_=${path_ext_change_}${ext}
+		path_subext_=${path_subext_%.*}
+		path_subext_=${path_subext_}${ext}
 		;;
 	*)
 		;;
 	esac
+}
+
+path.normalize() {
+	local -n path_normalize_=${1?missing 1th argument: name reference}
+
+	while [[ $path_normalize_ =~ //+ ]]; do
+		path_normalize_=${path_normalize_/\/\//\/}
+	done
 }
 
 # https.sh - HTTP functions
@@ -732,16 +742,19 @@ git.clone_() {
 	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
 	[[ -z ${_[branch]:-}   ]] || opt+=(--branch "${_[branch]}")
 
-	temp.inside git clone "${opt[@]}" "${_[url]}"
+	git._clone_() {
+		git clone "${opt[@]}" "${_[url]}"
 
-	_[src]=.
-	_[dst]=${_[-prefix]:-.}/${_[name]}
+		_[src]=.
 
-	file.copy_by_flag
+		file._do_ file.copy_
+	}
 
-	temp.clean
+	temp.inside git._clone_
 
-	must cd "${_[dir]}"
+	unset -f git._clone_
+
+	# must cd "${_[dir]}"
 }
 
 git.refresh_() {
@@ -915,6 +928,216 @@ file.chogm_() {
 	[[ -z ${_[-group]:-} ]] || must chgrp "${_[-group]}" "$file"
 }
 
+# bin.sh - Executable files
+
+bin.install() {
+	file.install -mode=755 -prefix="$_USR"/bin "$@"
+}
+
+bin.use() {
+	file.install -mode=755 -prefix="$_RUN"/bin "$@"
+}
+
+# git.sh - Git functions
+
+git.is_git() {
+	local path=$1
+
+	[[ -d $path/.git ]] && git rev-parse --resolve-git-dir "$path/.git" &>/dev/null
+}
+
+git.must_sane() {
+	git rev-parse --is-inside-work-tree &>/dev/null || die "Must be inside a git work tree: $PWD"
+	git rev-parse --verify HEAD >/dev/null          || die "Unverified git HEAD: $PWD"
+}
+
+git.is_clean() {
+	git rev-parse --verify HEAD >/dev/null &&
+	git update-index -q --ignore-submodules --refresh &&
+	git diff-files --quiet --ignore-submodules &&
+	git diff-index --cached --quiet --ignore-submodules HEAD --
+}
+
+git.must_clean() {
+	git.is_clean || die "Must be a clean git work tree: $PWD"
+}
+
+git.topdir() {
+	local dir
+
+	dir=$(git rev-parse --git-dir) && dir=$(cd "$dir" && pwd)/ && echo "${dir%%/.git/*}"
+}
+
+git.top() {
+	git.must_sane
+
+	must cd "$(git.topdir)"
+}
+
+git.default_branch() {
+	git.must_sane
+
+	git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'
+}
+
+git.switch() {
+	local branch=${1:-}
+
+	[[ -n $branch ]] || branch=$(git.default_branch)
+
+	git checkout --quiet "$branch"
+}
+
+git.refresh() {
+	local -A _=(
+		[-expiry]=3
+	)
+
+	flag.parse "$@"
+
+	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
+		git.must_clean
+		git pull --quiet origin
+	fi
+}
+
+git.clone_() {
+	local -a opt=(--quiet)
+
+	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
+	[[ -z ${_[branch]:-}   ]] || opt+=(--branch "${_[branch]}")
+
+	git._clone_() {
+		git clone "${opt[@]}" "${_[url]}"
+
+		_[src]=.
+
+		file._do_ file.copy_
+	}
+
+	temp.inside git._clone_
+
+	unset -f git._clone_
+
+	# must cd "${_[dir]}"
+}
+
+git.refresh_() {
+	must cd "${_[dst]}"
+
+	git.switch "${_[branch]:-}"
+
+	if expired "${_[expiry]}" .git/FETCH_HEAD; then
+		git.must_clean
+		git pull --quiet origin
+	fi
+}
+
+# src.sh - Source management
+
+# src.install: Install to a known location
+src.install() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-prefix]="$_USR"/src
+		[-shallow]=
+	)
+
+	flag.parse "$@"
+
+	src.install_
+}
+
+# src.use: Install src into the runtime tree
+src.use() {
+	src.install -prefix="$_RUN"/src "$@"
+}
+
+# enter: Get files from URL and chdir to directory
+src.enter() {
+	{ src.use "$@"; src._chdir_; } >/dev/null
+
+	echo "$PWD"
+}
+
+src.is_managed_path() {
+	local path=${1?missing 1th argument: path}
+
+	git.is_git "$path" && git -C "$path" config underscore.name &>/dev/null
+}
+
+src.install_() {
+	local url=${_[1]?missing value at [1]: url}
+
+	url.parse "$url" || die "Error parsing URL: ${_[error]}: $url"
+
+	src._plan_ || die "Error planning URL: ${_[error]}: $url"
+
+	if [[ ! -d ${_[dst]} ]]; then
+		git.clone_
+	else
+		git.refresh_
+	fi
+}
+
+src._plan_() {
+	local owner repo auth path
+
+	if [[ ! ${_[host]} =~ ^(github.com|gitlab.com|bitbucket.com)$ ]]; then
+		_[error]='unsupported provider'
+		return 1
+	fi
+
+	path=${_[path]:-}
+
+	if [[ ! $path =~ [^/]+/[^/]+ ]]; then
+		_[error]='incomplete url'
+		return 1
+	fi
+
+	if [[ $path =~ @.*$ ]]; then
+		_[branch]=${path#*@}; path=${path%@*}
+		_[path]=$path
+	fi
+
+	owner=${path%%/*}; path=${path#*/}
+
+	_[dir]=
+	if [[ $path = */* ]]; then
+		_[dir]=${path#*/}; path=${path%%/*}
+	fi
+
+	repo=${path%.git}
+
+	_[name]=${_[host]}/$owner/$repo
+
+	if [[ ${_[proto]} == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
+		auth="${HTTPS_TOKEN}:x-oauth-basic"
+	else
+		auth=${_[userinfo]}
+	fi
+
+	if [[ -n ${auth:-} ]]; then
+		_[url]=${_[proto]}://$auth@${_[name]}.git
+	else
+		_[url]=${_[proto]}://${_[name]}.git
+	fi
+
+	_[dst]=${_[name]}
+}
+
+src._chdir_() {
+	[[ -n ${_[dir]:-} ]] || return 0
+
+	if [[ -d ${_[dir]} ]]; then
+		must cd "${_[dir]}"
+	elif [[ -f ${_[dir]} ]]; then
+		must cd "${_[dir]%/*}"
+	else
+		die "No path found: ${_[name]}: ${_[dir]}"
+	fi
+}
+
 # is.sh - System predications
 
 # is.virtual: Detect given virtualization
@@ -981,6 +1204,9 @@ declare -Ag help=(
 	['deb update']='Update Debian package index'
 	['deb install']='Install Debian packages'
 	['file install']='Install file from URL'
+	['src install']='Install to a known location'
+	['src use']='Install src into the runtime tree'
+	['enter']='Get files from URL and chdir to directory'
 	['is virtual']='Detect given virtualization'
 	['is debian']='Detect Debian or its given release'
 	['is ubuntu']='Detect Ubuntu or its given release'
@@ -1027,6 +1253,9 @@ declare -Ag command=(
 	['deb update']='deb.update'
 	['deb install']='deb.install'
 	['file install']='file.install'
+	['src install']='src.install'
+	['src use']='src.use'
+	['enter']='src.enter'
 	['is virtual']='is.virtual'
 	['is debian']='is.debian'
 	['is ubuntu']='is.ubuntu'
@@ -1136,7 +1365,7 @@ EOF
 
 .sourced() {
 	if [[ $# -gt 0 ]]; then
-		[[ $1 = src ]] && return 0 # source explicitly specified
+		[[ $1 = .src ]] && return 0 # source explicitly specified
 	else
 		[[ -t 1 ]] || return 0     # backticked or piped without args
 	fi

@@ -67,16 +67,19 @@ git.clone_() {
 	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
 	[[ -z ${_[branch]:-}   ]] || opt+=(--branch "${_[branch]}")
 
-	temp.inside git clone "${opt[@]}" "${_[url]}"
+	git._clone_() {
+		git clone "${opt[@]}" "${_[url]}"
 
-	_[src]=.
-	_[dst]=${_[-prefix]:-.}/${_[name]}
+		_[src]=.
 
-	file.copy_by_flag
+		file._do_ file.copy_
+	}
 
-	temp.clean
+	temp.inside git._clone_
 
-	must cd "${_[dir]}"
+	unset -f git._clone_
+
+	# must cd "${_[dir]}"
 }
 
 git.refresh_() {

@@ -20,6 +20,8 @@ path.is_inside() {
 path.dir() {
 	local -n path_dir_=${1?missing 1th argument: name reference}
 
+	path.normalize path_dir_
+
 	case $path_dir_ in
 	*/*)
 		path_dir_=${path_dir_%/*}
@@ -52,16 +54,24 @@ path.ext() {
 	esac
 }
 
-path.ext_change() {
-	local -n path_ext_change_=${1?missing 1th argument: name reference}
+path.subext() {
+	local -n path_subext_=${1?missing 1th argument: name reference}
 	local ext=${2?missing 2nd argument: ext}
 
-	case $path_ext_change_ in
+	case $path_subext_ in
 	*.*)
-		path_ext_change_=${path_ext_change_%.*}
-		path_ext_change_=${path_ext_change_}${ext}
+		path_subext_=${path_subext_%.*}
+		path_subext_=${path_subext_}${ext}
 		;;
 	*)
 		;;
 	esac
+}
+
+path.normalize() {
+	local -n path_normalize_=${1?missing 1th argument: name reference}
+
+	while [[ $path_normalize_ =~ //+ ]]; do
+		path_normalize_=${path_normalize_/\/\//\/}
+	done
 }
