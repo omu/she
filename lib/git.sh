@@ -50,7 +50,7 @@ git.switch() {
 
 git.refresh() {
 	local -A _=(
-		[-expiry]=${_git[eager_expiry]}
+		[-expiry]=3
 	)
 
 	flag.parse "$@"
@@ -64,27 +64,27 @@ git.refresh() {
 git.clone_() {
 	local -a opt=(--quiet)
 
-	[[ -z ${_[-branch]:-}  ]] || opt+=(--branch "${_[branch]}")
 	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
+	[[ -z ${_[branch]:-}   ]] || opt+=(--branch "${_[branch]}")
 
 	temp.inside git clone "${opt[@]}" "${_[url]}"
 
 	_[src]=.
-	_[dst]=${_[-prefix]:-.}/${_[-name]}
+	_[dst]=${_[-prefix]:-.}/${_[name]}
 
 	file.copy_by_flag
 
 	temp.clean
 
-	must cd "${_[-dir]}"
+	must cd "${_[dir]}"
 }
 
 git.refresh_() {
 	must cd "${_[dst]}"
 
-	git.switch "${_[-branch]:-}"
+	git.switch "${_[branch]:-}"
 
-	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
+	if expired "${_[expiry]}" .git/FETCH_HEAD; then
 		git.must_clean
 		git pull --quiet origin
 	fi

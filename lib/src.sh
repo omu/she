@@ -20,7 +20,7 @@ src.use() {
 
 # enter: Get files from URL and chdir to directory
 src.enter() {
-	src.use "$@"
+	src.use "$@" >/dev/null
 
 	[[ -n ${_[dir]:-} ]] || return 0
 
@@ -31,6 +31,8 @@ src.enter() {
 	else
 		die "No path found: ${_[name]}: ${_[dir]}"
 	fi
+
+	echo "$PWD"
 }
 
 src.is_managed_path() {
