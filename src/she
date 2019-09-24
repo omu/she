@@ -4,8 +4,6 @@
 
 #:lib/kernel.sh
 
-#:lib/meta.sh
-
 #:lib/flag.sh
 
 #:lib/string.sh

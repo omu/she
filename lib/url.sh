@@ -83,5 +83,5 @@ url.parse() {
 # url.dump: TODO
 url.dump() {
 	url.parse "$1"
-	_.dump
+	hmm _
 }

@@ -37,6 +37,39 @@ bye() {
 	exit 0
 }
 
+# Dump an array variable
+hmm() {
+	while [[ $# -gt 0 ]]; do
+		# shellcheck disable=2178,2155
+		local -n hmm_=$1
+
+		echo "${!hmm_}"
+
+		local key
+		for key in "${!hmm_[@]}"; do
+			printf '  %-16s  %s\n' "${key}" "${hmm_[$key]}"
+		done | sort
+		echo
+
+		shift
+	done
+}
+
+bool() {
+	local value=${1:-}
+
+	case $value in
+	true|on|yes|1)
+		return 0
+		;;
+	false|off|no|0|"")
+		return 1
+		;;
+	*)
+		bug "Invalid boolean: $value"
+	esac
+}
+
 # Command must success
 must() {
 	"$@" || die "Command failed: $*"

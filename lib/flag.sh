@@ -20,7 +20,7 @@ flag.args() {
 }
 
 flag.true() {
-	meta.bool "${_[-$1]:-}"
+	bool "${_[-$1]:-}"
 }
 
 flag.false() {
@@ -28,7 +28,7 @@ flag.false() {
 }
 
 flag.dump() {
-	_.dump
+	hmm _
 }
 
 flag.overlay() {
