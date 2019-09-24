@@ -91,7 +91,8 @@ file._do_() {
 	if string.has_suffix_deleted dst /; then
 		dstdir=$dst
 	else
-		dstdir=$(dirname "$dst")
+		dstdir=$dst
+		path.dir dstdir
 	fi
 
 	_[dst]=$dst
