@@ -810,14 +810,17 @@ file._do_() {
 
 	[[ -z ${_[-prefix]:-} ]] || _[dst]=${_[-prefix]}/${_[dst]}
 
-	local dstdir
+	local dst=${_[dst]} dstdir
+
 	if string.has_suffix_deleted dst /; then
-		dstdir=${_[dst]}
+		dstdir=$dst
 	else
-		dstdir=${_[dst]%/*}
+		dstdir=$(dirname "$dst")
 	fi
 
-	must mkdir -p "$dstdir"
+	_[dst]=$dst
+
+	[[ $dstdir = . ]] || must mkdir -p "$dstdir"
 
 	"$func"
 
