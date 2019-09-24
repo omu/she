@@ -20,17 +20,7 @@ src.use() {
 
 # enter: Get files from URL and chdir to directory
 src.enter() {
-	src.use "$@" >/dev/null
-
-	[[ -n ${_[dir]:-} ]] || return 0
-
-	if [[ -d ${_[dir]} ]]; then
-		must cd "${_[dir]}"
-	elif [[ -f ${_[dir]} ]]; then
-		must cd "${_[dir]%/*}"
-	else
-		die "No path found: ${_[name]}: ${_[dir]}"
-	fi
+	{ src.use "$@"; src._chdir_; } >/dev/null
 
 	echo "$PWD"
 }
@@ -99,4 +89,16 @@ src._plan_() {
 	fi
 
 	_[dst]=${_[-prefix]}/${_[name]}
+}
+
+src._chdir_() {
+	[[ -n ${_[dir]:-} ]] || return 0
+
+	if [[ -d ${_[dir]} ]]; then
+		must cd "${_[dir]}"
+	elif [[ -f ${_[dir]} ]]; then
+		must cd "${_[dir]%/*}"
+	else
+		die "No path found: ${_[name]}: ${_[dir]}"
+	fi
 }
