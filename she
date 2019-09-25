@@ -816,12 +816,6 @@ url.parse() {
 	url_parse_[userinfo]=$userinfo
 }
 
-# url.dump: TODO
-url.dump() {
-	url.parse "$1"
-	hmm _
-}
-
 # https.sh - HTTP functions
 
 # http.get: Get URL
@@ -1165,7 +1159,6 @@ declare -Ag help=(
 	['self path']='Print self path'
 	['temp inside']='Execute command in temp dir and (optionally) move it elsewhere'
 	['file install']='Install file from URL'
-	['url dump']='TODO'
 	['http get']='Get URL'
 	['src install']='Install to a known location'
 	['src use']='Install src into the runtime tree'
@@ -1214,7 +1207,6 @@ declare -Ag command=(
 	['self path']='self.path'
 	['temp inside']='temp.inside'
 	['file install']='file.install'
-	['url dump']='url.dump'
 	['http get']='http.get'
 	['src install']='src.install'
 	['src use']='src.use'

@@ -79,9 +79,3 @@ url.parse() {
 	url_parse_[proto]=$proto
 	url_parse_[userinfo]=$userinfo
 }
-
-# url.dump: TODO
-url.dump() {
-	url.parse "$1"
-	hmm _
-}
