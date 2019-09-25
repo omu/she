@@ -82,7 +82,7 @@ file.do_() {
 
 	[[ -e $src ]] || die "Source not found: $src"
 
-	[[ -z ${_[-prefix]:-} ]] || dst=${_[-prefix]}/$dst
+	file.dst_ dst
 
 	local dstdir
 	if string.has_suffix_deleted dst /; then
@@ -110,6 +110,12 @@ file.do_() {
 	esac
 
 	file._chogm_ "$dst"
+}
+
+file.dst_() {
+	local -n file_dst_=${1?missing 1st argument: name reference}
+
+	[[ -z ${_[-prefix]:-} ]] || file_dst_=${_[-prefix]}/$file_dst_
 }
 
 file.install_() {

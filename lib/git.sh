@@ -61,9 +61,26 @@ git.refresh() {
 	fi
 }
 
+git.dst_() {
+	# shellcheck disable=2034
+	local -n git_dst_=${1?missing 1st argument: name reference}
+
+	file.dst_ git_dst_
+}
+
+git.exist_() {
+	local dst=${1?missing 1st argumenet: dst}
+
+	git.dst_ dst
+
+	[[ -d $dst ]]
+}
+
 git.clone_() {
 	local url=${1?missing 1th argument: url}
 	local dst=${2?missing 2nd argument: dst}
+
+	git.exist_ "$dst" || die "Destination already exist: $dst"
 
 	local -a opt
 
