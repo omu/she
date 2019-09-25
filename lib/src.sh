@@ -18,14 +18,14 @@ src.use() {
 	src.install -prefix="$_RUN"/src "$@"
 }
 
-# enter: Get files from URL and chdir to directory
+# enter: Get src from URL and enter to the directory
 src.enter() {
-	{ src.use "$@"; src._chdir_; } >/dev/null
+	src.use "$@" >/dev/null
 
 	echo "$PWD"
 }
 
-src.is_managed_path() {
+src.managed_() {
 	local path=${1?missing 1th argument: path}
 
 	git.is_git "$path" && git -C "$path" config underscore.name &>/dev/null
@@ -38,13 +38,15 @@ src.install_() {
 
 	src._plan_ || die "Error planning URL: ${_[error]}: $url"
 
-	local src=${_[url]} dst=${_[dst]}
+	local src=${_[1]} dst=${_[2]}
 
-	if [[ ! -d $dst ]]; then
-		git.clone_ "$src" "$dst"
+	if src.exist_ "$dst"; then
+		src.update_ "$dst"
 	else
-		git.refresh_ "$dst"
+		src.get_ "$src" "$dst"
 	fi
+
+	src.enter_ "$dst"
 }
 
 src._plan_() {
@@ -85,27 +87,30 @@ src._plan_() {
 	fi
 
 	if [[ -n ${auth:-} ]]; then
-		_[url]=${_[proto]}://$auth@${_[name]}.git
+		_[1]=${_[proto]}://$auth@${_[name]}.git
 	else
-		_[url]=${_[proto]}://${_[name]}.git
+		_[1]=${_[proto]}://${_[name]}.git
 	fi
 
-	if [[ -n ${_[-prefix]:-} ]]; then
-		_[dst]=${_[-prefix]}/${_[name]}
-		_[-prefix]=
-	else
-		_[dst]=${_[name]}
-	fi
+	_[2]=${_[name]}
 }
 
-src._chdir_() {
-	[[ -n ${_[dir]:-} ]] || return 0
+src.dst_() {
+	git.dst_ "$@"
+}
 
-	if [[ -d ${_[dir]} ]]; then
-		must cd "${_[dir]}"
-	elif [[ -f ${_[dir]} ]]; then
-		must cd "${_[dir]%/*}"
-	else
-		die "No path found: ${_[name]}: ${_[dir]}"
-	fi
+src.exist_() {
+	git.exist_ "$@"
+}
+
+src.get_() {
+	git.clone_ "$@"
+}
+
+src.update_() {
+	git.update_ "$@"
+}
+
+src.enter_() {
+	git.enter_ "$@"
 }

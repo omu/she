@@ -54,6 +54,20 @@ file.ln() {
 	must ln -sf "$src" "$dst"
 }
 
+file.enter() {
+	local dir=${1:-}
+
+	[[ -n $dir ]] || return 0
+
+	if [[ -d $dir ]]; then
+		must cd "$dir"
+	elif [[ -f $dir ]]; then
+		must cd "${dir%/*}"
+	else
+		die "No path found to enter: $dir"
+	fi
+}
+
 # file.sh - Private functions
 
 file._do_args_() {
@@ -114,7 +128,6 @@ file.do_() {
 
 file.dst_() {
 	local -n file_dst_=${1?missing 1st argument: name reference}
-
 	[[ -z ${_[-prefix]:-} ]] || file_dst_=${_[-prefix]}/$file_dst_
 }
 

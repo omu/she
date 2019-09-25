@@ -1,7 +1,7 @@
 # git.sh - Git functions
 
 git.is_git() {
-	local path=$1
+	local path=${1:-.}
 
 	[[ -d $path/.git ]] && git rev-parse --resolve-git-dir "$path/.git" &>/dev/null
 }
@@ -48,7 +48,7 @@ git.switch() {
 	git checkout --quiet "$branch"
 }
 
-git.refresh() {
+git.update() {
 	local -A _=(
 		[-expiry]=3
 	)
@@ -62,10 +62,7 @@ git.refresh() {
 }
 
 git.dst_() {
-	# shellcheck disable=2034
-	local -n git_dst_=${1?missing 1st argument: name reference}
-
-	file.dst_ git_dst_
+	file.dst_ "$@"
 }
 
 git.exist_() {
@@ -76,36 +73,54 @@ git.exist_() {
 	[[ -d $dst ]]
 }
 
+git.enter_() {
+	local dst=${1?missing 1st argument: dst}
+
+	git.dst_ dst
+
+	[[ -d $dst ]] || die "Destination not found: $dst"
+
+	must pushd "$dst" >/dev/null
+
+	git.is_git . || die "Not a git repository: $PWD"
+
+	file.enter "${_[dir]:-}"
+}
+
 git.clone_() {
 	local url=${1?missing 1th argument: url}
 	local dst=${2?missing 2nd argument: dst}
 
-	git.exist_ "$dst" || die "Destination already exist: $dst"
+	! git.exist_ "$dst" || die "Destination already exist: $dst"
 
 	local -a opt
 
 	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
 	[[ -z ${_[branch]:-}   ]] || opt+=(--branch "${_[branch]}")
 
-	git._clone_() {
+	_func_() {
 		git clone "${opt[@]}" "$url" .
 		file.do_ copy . "$dst"
 	}
 
-	temp.inside git._clone_
+	temp.inside _func_
 
-	unset -f git._clone_
+	unset -f _func_
 }
 
-git.refresh_() {
+git.update_() {
 	local dst=${1?missing 1st argument: dst}
 
-	must cd "$dst"
+	git.enter_ "$dst"
 
 	git.switch "${_[branch]:-}"
 
 	if expired "${_[-expiry]:-3}" .git/FETCH_HEAD; then
 		git.must_clean
+
+		cry 'Updating repository...'
 		git pull --quiet origin
 	fi
+
+	must popd >/dev/null
 }

@@ -676,7 +676,7 @@ url.dump() {
 # git.sh - Git functions
 
 git.is_git() {
-	local path=$1
+	local path=${1:-.}
 
 	[[ -d $path/.git ]] && git rev-parse --resolve-git-dir "$path/.git" &>/dev/null
 }
@@ -723,7 +723,7 @@ git.switch() {
 	git checkout --quiet "$branch"
 }
 
-git.refresh() {
+git.update() {
 	local -A _=(
 		[-expiry]=3
 	)
@@ -736,36 +736,68 @@ git.refresh() {
 	fi
 }
 
+git.dst_() {
+	file.dst_ "$@"
+}
+
+git.exist_() {
+	local dst=${1?missing 1st argumenet: dst}
+
+	git.dst_ dst
+
+	[[ -d $dst ]]
+}
+
+git.enter_() {
+	local dst=${1?missing 1st argument: dst}
+
+	git.dst_ dst
+
+	[[ -d $dst ]] || die "Destination not found: $dst"
+
+	must pushd "$dst" >/dev/null
+
+	git.is_git . || die "Not a git repository: $PWD"
+
+	file.enter "${_[dir]:-}"
+}
+
 git.clone_() {
 	local url=${1?missing 1th argument: url}
 	local dst=${2?missing 2nd argument: dst}
+
+	! git.exist_ "$dst" || die "Destination already exist: $dst"
 
 	local -a opt
 
 	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
 	[[ -z ${_[branch]:-}   ]] || opt+=(--branch "${_[branch]}")
 
-	git._clone_() {
+	_func_() {
 		git clone "${opt[@]}" "$url" .
 		file.do_ copy . "$dst"
 	}
 
-	temp.inside git._clone_
+	temp.inside _func_
 
-	unset -f git._clone_
+	unset -f _func_
 }
 
-git.refresh_() {
+git.update_() {
 	local dst=${1?missing 1st argument: dst}
 
-	must cd "$dst"
+	git.enter_ "$dst"
 
 	git.switch "${_[branch]:-}"
 
 	if expired "${_[-expiry]:-3}" .git/FETCH_HEAD; then
 		git.must_clean
+
+		cry 'Updating repository...'
 		git pull --quiet origin
 	fi
+
+	must popd >/dev/null
 }
 
 # deb.sh - Debian package management
@@ -840,6 +872,20 @@ file.ln() {
 	must ln -sf "$src" "$dst"
 }
 
+file.enter() {
+	local dir=${1:-}
+
+	[[ -n $dir ]] || return 0
+
+	if [[ -d $dir ]]; then
+		must cd "$dir"
+	elif [[ -f $dir ]]; then
+		must cd "${dir%/*}"
+	else
+		die "No path found to enter: $dir"
+	fi
+}
+
 # file.sh - Private functions
 
 file._do_args_() {
@@ -868,7 +914,7 @@ file.do_() {
 
 	[[ -e $src ]] || die "Source not found: $src"
 
-	[[ -z ${_[-prefix]:-} ]] || dst=${_[-prefix]}/$dst
+	file.dst_ dst
 
 	local dstdir
 	if string.has_suffix_deleted dst /; then
@@ -896,6 +942,11 @@ file.do_() {
 	esac
 
 	file._chogm_ "$dst"
+}
+
+file.dst_() {
+	local -n file_dst_=${1?missing 1st argument: name reference}
+	[[ -z ${_[-prefix]:-} ]] || file_dst_=${_[-prefix]}/$file_dst_
 }
 
 file.install_() {
@@ -938,7 +989,7 @@ bin.use() {
 # git.sh - Git functions
 
 git.is_git() {
-	local path=$1
+	local path=${1:-.}
 
 	[[ -d $path/.git ]] && git rev-parse --resolve-git-dir "$path/.git" &>/dev/null
 }
@@ -985,7 +1036,7 @@ git.switch() {
 	git checkout --quiet "$branch"
 }
 
-git.refresh() {
+git.update() {
 	local -A _=(
 		[-expiry]=3
 	)
@@ -998,36 +1049,68 @@ git.refresh() {
 	fi
 }
 
+git.dst_() {
+	file.dst_ "$@"
+}
+
+git.exist_() {
+	local dst=${1?missing 1st argumenet: dst}
+
+	git.dst_ dst
+
+	[[ -d $dst ]]
+}
+
+git.enter_() {
+	local dst=${1?missing 1st argument: dst}
+
+	git.dst_ dst
+
+	[[ -d $dst ]] || die "Destination not found: $dst"
+
+	must pushd "$dst" >/dev/null
+
+	git.is_git . || die "Not a git repository: $PWD"
+
+	file.enter "${_[dir]:-}"
+}
+
 git.clone_() {
 	local url=${1?missing 1th argument: url}
 	local dst=${2?missing 2nd argument: dst}
+
+	! git.exist_ "$dst" || die "Destination already exist: $dst"
 
 	local -a opt
 
 	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
 	[[ -z ${_[branch]:-}   ]] || opt+=(--branch "${_[branch]}")
 
-	git._clone_() {
+	_func_() {
 		git clone "${opt[@]}" "$url" .
 		file.do_ copy . "$dst"
 	}
 
-	temp.inside git._clone_
+	temp.inside _func_
 
-	unset -f git._clone_
+	unset -f _func_
 }
 
-git.refresh_() {
+git.update_() {
 	local dst=${1?missing 1st argument: dst}
 
-	must cd "$dst"
+	git.enter_ "$dst"
 
 	git.switch "${_[branch]:-}"
 
 	if expired "${_[-expiry]:-3}" .git/FETCH_HEAD; then
 		git.must_clean
+
+		cry 'Updating repository...'
 		git pull --quiet origin
 	fi
+
+	must popd >/dev/null
 }
 
 # src.sh - Source management
@@ -1050,14 +1133,14 @@ src.use() {
 	src.install -prefix="$_RUN"/src "$@"
 }
 
-# enter: Get files from URL and chdir to directory
+# enter: Get src from URL and enter to the directory
 src.enter() {
-	{ src.use "$@"; src._chdir_; } >/dev/null
+	src.use "$@" >/dev/null
 
 	echo "$PWD"
 }
 
-src.is_managed_path() {
+src.managed_() {
 	local path=${1?missing 1th argument: path}
 
 	git.is_git "$path" && git -C "$path" config underscore.name &>/dev/null
@@ -1070,13 +1153,15 @@ src.install_() {
 
 	src._plan_ || die "Error planning URL: ${_[error]}: $url"
 
-	local src=${_[url]} dst=${_[dst]}
+	local src=${_[1]} dst=${_[2]}
 
-	if [[ ! -d $dst ]]; then
-		git.clone_ "$src" "$dst"
+	if src.exist_ "$dst"; then
+		src.update_ "$dst"
 	else
-		git.refresh_ "$dst"
+		src.get_ "$src" "$dst"
 	fi
+
+	src.enter_ "$dst"
 }
 
 src._plan_() {
@@ -1117,29 +1202,32 @@ src._plan_() {
 	fi
 
 	if [[ -n ${auth:-} ]]; then
-		_[url]=${_[proto]}://$auth@${_[name]}.git
+		_[1]=${_[proto]}://$auth@${_[name]}.git
 	else
-		_[url]=${_[proto]}://${_[name]}.git
+		_[1]=${_[proto]}://${_[name]}.git
 	fi
 
-	if [[ -n ${_[-prefix]:-} ]]; then
-		_[dst]=${_[-prefix]}/${_[name]}
-		_[-prefix]=
-	else
-		_[dst]=${_[name]}
-	fi
+	_[2]=${_[name]}
 }
 
-src._chdir_() {
-	[[ -n ${_[dir]:-} ]] || return 0
+src.dst_() {
+	git.dst_ "$@"
+}
 
-	if [[ -d ${_[dir]} ]]; then
-		must cd "${_[dir]}"
-	elif [[ -f ${_[dir]} ]]; then
-		must cd "${_[dir]%/*}"
-	else
-		die "No path found: ${_[name]}: ${_[dir]}"
-	fi
+src.exist_() {
+	git.exist_ "$@"
+}
+
+src.get_() {
+	git.clone_ "$@"
+}
+
+src.update_() {
+	git.update_ "$@"
+}
+
+src.enter_() {
+	git.enter_ "$@"
 }
 
 # is.sh - System predications
@@ -1210,7 +1298,7 @@ declare -Ag help=(
 	['file install']='Install file from URL'
 	['src install']='Install to a known location'
 	['src use']='Install src into the runtime tree'
-	['enter']='Get files from URL and chdir to directory'
+	['enter']='Get src from URL and enter to the directory'
 	['is virtual']='Detect given virtualization'
 	['is debian']='Detect Debian or its given release'
 	['is ubuntu']='Detect Ubuntu or its given release'
@@ -1369,7 +1457,7 @@ EOF
 
 .sourced() {
 	if [[ $# -gt 0 ]]; then
-		[[ $1 = .src ]] && return 0 # source explicitly specified
+		[[ $1 = . ]] && return 0 # source explicitly specified
 	else
 		[[ -t 1 ]] || return 0     # backticked or piped without args
 	fi
