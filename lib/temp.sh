@@ -25,7 +25,7 @@ temp.dir() {
 	temp_dir_=$dir
 }
 
-# temp.inside: Execute command in temp dir and (optionally) move it elsewhere
+# temp.inside: Execute command in temp dir
 temp.inside() {
 	local temp_dir orig_dir=$PWD
 	temp.dir temp_dir

@@ -556,7 +556,7 @@ temp.dir() {
 	temp_dir_=$dir
 }
 
-# temp.inside: Execute command in temp dir and (optionally) move it elsewhere
+# temp.inside: Execute command in temp dir
 temp.inside() {
 	local temp_dir orig_dir=$PWD
 	temp.dir temp_dir
@@ -1157,7 +1157,7 @@ declare -Ag help=(
 	['self version']='Print self version'
 	['self name']='Print self name'
 	['self path']='Print self path'
-	['temp inside']='Execute command in temp dir and (optionally) move it elsewhere'
+	['temp inside']='Execute command in temp dir'
 	['file install']='Install file from URL'
 	['http get']='Get URL'
 	['src install']='Install to a known location'
