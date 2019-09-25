@@ -38,10 +38,12 @@ src.install_() {
 
 	src._plan_ || die "Error planning URL: ${_[error]}: $url"
 
-	if [[ ! -d ${_[dst]} ]]; then
-		git.clone_
+	local src=${_[url]} dst=${_[dst]}
+
+	if [[ ! -d $dst ]]; then
+		git.clone_ "$src" "$dst"
 	else
-		git.refresh_
+		git.refresh_ "$dst"
 	fi
 }
 
@@ -88,7 +90,12 @@ src._plan_() {
 		_[url]=${_[proto]}://${_[name]}.git
 	fi
 
-	_[dst]=${_[name]}
+	if [[ -n ${_[-prefix]:-} ]]; then
+		_[dst]=${_[-prefix]}/${_[name]}
+		_[-prefix]=
+	else
+		_[dst]=${_[name]}
+	fi
 }
 
 src._chdir_() {

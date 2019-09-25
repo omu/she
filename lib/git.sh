@@ -62,32 +62,32 @@ git.refresh() {
 }
 
 git.clone_() {
-	local -a opt=(--quiet)
+	local url=${1?missing 1th argument: url}
+	local dst=${2?missing 2nd argument: dst}
+
+	local -a opt
 
 	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
 	[[ -z ${_[branch]:-}   ]] || opt+=(--branch "${_[branch]}")
 
 	git._clone_() {
-		git clone "${opt[@]}" "${_[url]}"
-
-		_[src]=.
-
-		file._do_ file.copy_
+		git clone "${opt[@]}" "$url" .
+		file.do_ copy . "$dst"
 	}
 
 	temp.inside git._clone_
 
 	unset -f git._clone_
-
-	# must cd "${_[dir]}"
 }
 
 git.refresh_() {
-	must cd "${_[dst]}"
+	local dst=${1?missing 1st argument: dst}
+
+	must cd "$dst"
 
 	git.switch "${_[branch]:-}"
 
-	if expired "${_[expiry]}" .git/FETCH_HEAD; then
+	if expired "${_[-expiry]:-3}" .git/FETCH_HEAD; then
 		git.must_clean
 		git pull --quiet origin
 	fi

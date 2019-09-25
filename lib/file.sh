@@ -12,27 +12,24 @@ file.install() {
 
 	flag.parse "$@"
 
-	local url=${_[1]?missing value at [1]: url}
+	local url=${_[1]?missing value at [1]: url} dst=${_[2]:-${url##*/}}
 
-	_[url]=$url
-	_[dst]=${_[2]:-${url##*/}}
-
-	file.install_
+	file.install_ "$url" "$dst"
 }
 
 # Copy file/directory to dstination creating all parents if necessary
 file.copy() {
-	file._do_args_ file.copy_ "$@"
+	file._do_args_ copy "$@"
 }
 
 # Move file/directory to destination creating all parents if necessary
 file.move() {
-	file._do_args_ file.move_ "$@"
+	file._do_args_ move "$@"
 }
 
 # Link file/directory to dstination creating all parents if necessary
 file.link() {
-	file._do_args_ file.link_ "$@"
+	file._do_args_ link "$@"
 }
 
 file.chogm() {
@@ -45,9 +42,9 @@ file.chogm() {
 
 	flag.parse "$@"
 
-	local file=${1?missing 1th argument: file}
+	local dst=${_[1]?missing value at [1]: dst}
 
-	file.chogm_ "$file"
+	file.chogm_ "$dst"
 }
 
 file.ln() {
@@ -60,7 +57,7 @@ file.ln() {
 # file.sh - Private functions
 
 file._do_args_() {
-	local func=${1?missing 1th argument: func}
+	local op=${1?missing 1th argument: op}
 	shift
 
 	# shellcheck disable=2192
@@ -73,21 +70,21 @@ file._do_args_() {
 
 	flag.parse "$@"
 
-	_[src]=${_[1]?missing value at [1]: src} _[dst]=${_[2]?missing value at [2]: dst}
+	local src=${_[1]?missing value at [1]: src} dst=${_[2]?missing value at [2]: dst}
 
-	file._do_ "$func"
+	file.do_ "$op" "$src" "$dst"
 }
 
-file._do_() {
-	local func=${1?missing 1th argument: func}
-	shift
+file.do_() {
+	local op=${1?missing 1th argument: op}
+	local src=${2?missing 2nd argument: src}
+	local dst=${3?missing 3rd argument: dst}
 
-	[[ -e ${_[src]} ]] || die "Source not found: ${_[src]}"
+	[[ -e $src ]] || die "Source not found: $src"
 
-	[[ -z ${_[-prefix]:-} ]] || _[dst]=${_[-prefix]}/${_[dst]}
+	[[ -z ${_[-prefix]:-} ]] || dst=${_[-prefix]}/$dst
 
-	local dst=${_[dst]} dstdir
-
+	local dstdir
 	if string.has_suffix_deleted dst /; then
 		dstdir=$dst
 	else
@@ -95,49 +92,49 @@ file._do_() {
 		path.dir dstdir
 	fi
 
-	_[dst]=$dst
-
 	[[ $dstdir = . ]] || must mkdir -p "$dstdir"
 
-	"$func"
+	case $op in
+	copy)
+		must cp -a "$src" "$dst"
+		;;
+	move)
+		must mv -f "$src" "$dst"
+		;;
+	link)
+		file.ln "$src" "$dst"
+		;;
+	*)
+		bug "Unrecognized operation: $op"
+		;;
+	esac
 
-	file.chogm_ "${_[dst]}"
+	file._chogm_ "$dst"
 }
 
 file.install_() {
-	local url=${_[url]?missing value: url} tempfile
+	local url=${1?missing 1th argument: url}
+	local dst=${2?missing 2nd argument: dst}
 
 	local tempfile
 
 	if [[ $url =~ ^[.]*/ ]]; then
-		_[src]=$url
+		src=$url
 	else
 		temp.file tempfile
 		http.get "$url" >"$tempfile"
-		_[src]=$tempfile
+		src=$tempfile
 	fi
 
-	file._do_ file.copy_
+	file.do_ copy "$src" "$dst"
 
 	temp.clean tempfile
 }
 
-file.copy_() {
-	must cp -a "${_[src]}" "${_[dst]}"
-}
+file._chogm_() {
+	local dst=${1?missing 1th argument: dst}
 
-file.move_() {
-	must mv -f "${_[src]}" "${_[dst]}"
-}
-
-file.link_() {
-	file.ln "${_[src]}" "${_[dst]}"
-}
-
-file.chogm_() {
-	local file=${1?missing 1th argument: file}
-
-	[[ -z ${_[-mode]:-}  ]] || must chmod "${_[-mode]}"  "$file"
-	[[ -z ${_[-owner]:-} ]] || must chown "${_[-owner]}" "$file"
-	[[ -z ${_[-group]:-} ]] || must chgrp "${_[-group]}" "$file"
+	[[ -z ${_[-mode]:-}  ]] || must chmod "${_[-mode]}"  "$dst"
+	[[ -z ${_[-owner]:-} ]] || must chown "${_[-owner]}" "$dst"
+	[[ -z ${_[-group]:-} ]] || must chgrp "${_[-group]}" "$dst"
 }
