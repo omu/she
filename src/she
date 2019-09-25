@@ -4,35 +4,33 @@
 
 #:lib/kernel.sh
 
+#:lib/self.sh
+
 #:lib/flag.sh
 
 #:lib/string.sh
 
+#:lib/array.sh
+
 #:lib/path.sh
-
-#:lib/http.sh
-
-#:lib/self.sh
 
 #:lib/trap.sh
 
 #:lib/temp.sh
 
-#:lib/array.sh
+#:lib/file.sh
 
 #:lib/url.sh
 
-#:lib/git.sh
-
-#:lib/deb.sh
-
-#:lib/file.sh
+#:lib/http.sh
 
 #:lib/bin.sh
 
 #:lib/git.sh
 
 #:lib/src.sh
+
+#:lib/deb.sh
 
 #:lib/is.sh
 
