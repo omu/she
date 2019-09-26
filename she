@@ -1246,11 +1246,6 @@ src.enter_() {
 
 export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
-# deb.update: Update Debian package index
-deb.update() {
-	expired 60 /var/cache/apt/pkgcache.bin || apt-get update
-}
-
 # deb.install: Install Debian packages
 deb.install() {
 	# shellcheck disable=2192
@@ -1295,6 +1290,12 @@ deb.install() {
 	apt-get -y install --no-install-recommends "${packages[@]}"
 }
 
+# deb.update: Update Debian package index
+deb.update() {
+	expired 60 /var/cache/apt/pkgcache.bin || apt-get update
+}
+
+# deb.repository: Add Debian repository
 deb.repository() {
 	local name=${1?missing argument: name}
 	shift
@@ -1379,8 +1380,9 @@ declare -Ag help=(
 	['src use']='Install src into the runtime tree'
 	['enter']='Get src from URL and enter to the directory'
 	['run']='Run src from URL'
-	['deb update']='Update Debian package index'
 	['deb install']='Install Debian packages'
+	['deb update']='Update Debian package index'
+	['deb repository']='Add Debian repository'
 	['is virtual']='Detect given virtualization'
 	['is debian']='Detect Debian or its given release'
 	['is ubuntu']='Detect Ubuntu or its given release'
@@ -1428,8 +1430,9 @@ declare -Ag command=(
 	['src use']='src.use'
 	['enter']='src.enter'
 	['run']='src.run'
-	['deb update']='deb.update'
 	['deb install']='deb.install'
+	['deb update']='deb.update'
+	['deb repository']='deb.repository'
 	['is virtual']='is.virtual'
 	['is debian']='is.debian'
 	['is ubuntu']='is.ubuntu'

@@ -2,11 +2,6 @@
 
 export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
-# deb.update: Update Debian package index
-deb.update() {
-	expired 60 /var/cache/apt/pkgcache.bin || apt-get update
-}
-
 # deb.install: Install Debian packages
 deb.install() {
 	# shellcheck disable=2192
@@ -51,6 +46,12 @@ deb.install() {
 	apt-get -y install --no-install-recommends "${packages[@]}"
 }
 
+# deb.update: Update Debian package index
+deb.update() {
+	expired 60 /var/cache/apt/pkgcache.bin || apt-get update
+}
+
+# deb.repository: Add Debian repository
 deb.repository() {
 	local name=${1?missing argument: name}
 	shift
