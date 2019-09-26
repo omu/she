@@ -123,13 +123,13 @@ src.interprete() {
 
 	local interpreter
 	case $ext in
-	sh|"") interpreter=bash    ;;
-	rb)    interpreter=ruby    ;;
-	py)    interpreter=python  ;;
-	pl)    interpreter=perl    ;;
-	js)    interpreter=node    ;;
-	php)   interpreter=php     ;;
-	*)     die "Unsupported interpreter for extension: $ext" ;;
+	sh)  interpreter=bash   ;;
+	rb)  interpreter=ruby   ;;
+	py)  interpreter=python ;;
+	pl)  interpreter=perl   ;;
+	js)  interpreter=node   ;;
+	php) interpreter=php    ;;
+	*)   die "Unsupported interpreter for extension: $ext" ;;
 	esac
 
 	env "$@" "$interpreter" "$file"
