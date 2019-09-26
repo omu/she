@@ -8,6 +8,10 @@ flag.parse() {
 	fi
 }
 
+flag.must() {
+	: # TODO
+}
+
 flag.env() {
 	local -n flag_env_=${1?missing 1st argument: array reference}
 
