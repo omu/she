@@ -61,10 +61,10 @@ bool() {
 	value=${value,,}
 
 	case $value in
-	t|true|on|y|yes|1)
+	true|t|1|on|yes|y)
 		return 0
 		;;
-	f|false|off|n|no|0|"")
+	false|f|0|off|no|n|"")
 		return 1
 		;;
 	*)
