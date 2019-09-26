@@ -61,10 +61,10 @@ file.enter() {
 
 	if [[ -d $dir ]]; then
 		must cd "$dir"
-	elif [[ -f $dir ]]; then
-		must cd "${dir%/*}"
 	else
-		die "No path found to enter: $dir"
+		dir=${dir%/*}
+		[[ -d $dir ]] || die "No path found to enter: $dir"
+		must cd "$dir"
 	fi
 }
 

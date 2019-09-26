@@ -226,8 +226,19 @@ flag.parse() {
 	fi
 }
 
+flag.env() {
+	local -n flag_env_=${1?missing 1st argument: array reference}
+
+	local key
+	for key in "${!_[@]}"; do
+		if [[ $key =~ ^[[:alpha:]_][[:alnum:]_]*$ ]]; then
+			flag_env_+=("$key='${_[$key]}'")
+		fi
+	done
+}
+
 flag.args() {
-	local -n flag_args_=$1
+	local -n flag_args_=${1?missing 1st argument: array reference}
 
 	local -i i
 	for i in {1..9}; do
@@ -432,8 +443,17 @@ path.dir() {
 
 path.base() {
 	local -n path_base_=${1?missing 1th argument: name reference}
+	local ext=${2:-}
 
 	path_base_=${path_base_##*/}
+}
+
+path.name() {
+	local -n path_name_=${1?missing 1th argument: name reference}
+	local ext=${2:-}
+
+	path_name_=${path_name_##*/}
+	path_name_=${path_name_%.*}
 }
 
 path.ext() {
@@ -463,6 +483,39 @@ path.subext() {
 	*)
 		;;
 	esac
+}
+
+# shellcheck disable=2034
+path.parse() {
+	local -n path_parse_=_
+	if [[ ${1:-} = -A ]]; then
+		shift
+		path_parse_=${1?missing argument for -A: hash reference}
+	fi
+
+	local path=${1?missing 1th argument: path}
+
+	local dir=$path base=$path name=$path ext=$path
+
+	path.dir dir
+	path.base base
+	path.name name
+	path.ext ext
+
+	path_parse_[dir]=dir
+	path_parse_[base]=base
+	path_parse_[name]=name
+	path_parse_[ext]=ext
+}
+
+path.suffixize() {
+	local -n path_suffixize_=${1?missing 1th argument: name reference}
+	local suffix=${2?missing 2nd argument: suffix}
+
+	local -A _
+	path.parse "$path_suffixize_"
+
+	printf -v path_suffixize_ "%s/%s_$suffix.%s" "${_[dir]:-.}" "${_[name]}" "${_[ext]}"
 }
 
 path.normalize() {
@@ -637,10 +690,10 @@ file.enter() {
 
 	if [[ -d $dir ]]; then
 		must cd "$dir"
-	elif [[ -f $dir ]]; then
-		must cd "${dir%/*}"
 	else
-		die "No path found to enter: $dir"
+		dir=${dir%/*}
+		[[ -d $dir ]] || die "No path found to enter: $dir"
+		must cd "$dir"
 	fi
 }
 
@@ -742,7 +795,7 @@ url.parse() {
 	local -n url_parse_=_
 	if [[ ${1:-} = -A ]]; then
 		shift
-		url_parse_=${1?missing 1th argument: hash reference}
+		url_parse_=${1?missing argument for -A: hash reference}
 	fi
 
 	local url=${1?missing 1th argument: url}
@@ -971,7 +1024,7 @@ src.install() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-prefix]="$_USR"/src
-		[-shallow]=
+		[-expiry]=
 	)
 
 	flag.parse "$@"
@@ -981,7 +1034,16 @@ src.install() {
 
 # src.use: Install src into the runtime tree
 src.use() {
-	src.install -prefix="$_RUN"/src "$@"
+	# shellcheck disable=2192
+	local -A _=(
+		[-prefix]="$_RUN"/src
+		[-shallow]=
+		[-expiry]=
+	)
+
+	flag.parse "$@"
+
+	src.install_
 }
 
 # enter: Get src from URL and enter to the directory
@@ -989,6 +1051,25 @@ src.enter() {
 	src.use "$@" >/dev/null
 
 	echo "$PWD"
+}
+
+# run: Run src from URL
+src.run() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-prefix]="$_RUN"/src
+		[-shallow]=
+		[-expiry]=-1
+		[-pwd]=
+		[-test]=
+	)
+
+	flag.parse "$@"
+
+	src.install_
+
+	src.run_ "${_[dir]}"
+	flag.false test || src.test_ "${_[dir]}"
 }
 
 src.managed_() {
@@ -1013,6 +1094,71 @@ src.install_() {
 	fi
 
 	src.enter_ "$dst"
+}
+
+src.run_() {
+	local file=${1?missing 1st argument: file}
+
+	path.base file
+	src.exe_ "$file"
+}
+
+src.test_() {
+	local file=${1?missing 1st argument: file}
+
+	local test_file=$file
+	path.suffixize test_file '_test'
+
+	src.run_ "$test_file"
+}
+
+src.exe_() {
+	local file=${1?missing 1st argument: file}
+
+	local -a env
+	src.env_ env
+
+	if [[ -x $file ]]; then
+		env "${env[@]}" "$file"
+	else
+		src.interprete "$file" "${env[@]}"
+	fi
+}
+
+src.interprete() {
+	local file=${1?missing 1st argument: file}
+	shift
+
+	local ext=$file
+	path.ext ext
+
+	if [[ -z $ext ]]; then
+		# shellcheck disable=2209
+		ext=sh
+		file=$file.$ext
+	fi
+
+	[[ -f $file ]] || die "Not file found to interprete: $file"
+
+	local interpreter
+	case $ext in
+	sh|"") interpreter=bash    ;;
+	rb)    interpreter=ruby    ;;
+	py)    interpreter=python  ;;
+	pl)    interpreter=perl    ;;
+	js)    interpreter=node    ;;
+	php)   interpreter=php     ;;
+	*)     die "Unsupported interpreter for extension: $ext" ;;
+	esac
+
+	env "$@" "$interpreter" "$file"
+}
+
+src.env_() {
+	# shellcheck disable=2034
+	local -n src_env_=${1?missing 1st argument: array reference}
+
+	flag.env src_env_
 }
 
 src._plan_() {
@@ -1163,6 +1309,7 @@ declare -Ag help=(
 	['src install']='Install to a known location'
 	['src use']='Install src into the runtime tree'
 	['enter']='Get src from URL and enter to the directory'
+	['run']='Run src from URL'
 	['deb update']='Update Debian package index'
 	['deb install']='Install Debian packages'
 	['is virtual']='Detect given virtualization'
@@ -1211,6 +1358,7 @@ declare -Ag command=(
 	['src install']='src.install'
 	['src use']='src.use'
 	['enter']='src.enter'
+	['run']='src.run'
 	['deb update']='deb.update'
 	['deb install']='deb.install'
 	['is virtual']='is.virtual'

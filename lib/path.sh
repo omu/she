@@ -35,8 +35,17 @@ path.dir() {
 
 path.base() {
 	local -n path_base_=${1?missing 1th argument: name reference}
+	local ext=${2:-}
 
 	path_base_=${path_base_##*/}
+}
+
+path.name() {
+	local -n path_name_=${1?missing 1th argument: name reference}
+	local ext=${2:-}
+
+	path_name_=${path_name_##*/}
+	path_name_=${path_name_%.*}
 }
 
 path.ext() {
@@ -66,6 +75,39 @@ path.subext() {
 	*)
 		;;
 	esac
+}
+
+# shellcheck disable=2034
+path.parse() {
+	local -n path_parse_=_
+	if [[ ${1:-} = -A ]]; then
+		shift
+		path_parse_=${1?missing argument for -A: hash reference}
+	fi
+
+	local path=${1?missing 1th argument: path}
+
+	local dir=$path base=$path name=$path ext=$path
+
+	path.dir dir
+	path.base base
+	path.name name
+	path.ext ext
+
+	path_parse_[dir]=dir
+	path_parse_[base]=base
+	path_parse_[name]=name
+	path_parse_[ext]=ext
+}
+
+path.suffixize() {
+	local -n path_suffixize_=${1?missing 1th argument: name reference}
+	local suffix=${2?missing 2nd argument: suffix}
+
+	local -A _
+	path.parse "$path_suffixize_"
+
+	printf -v path_suffixize_ "%s/%s_$suffix.%s" "${_[dir]:-.}" "${_[name]}" "${_[ext]}"
 }
 
 path.normalize() {

@@ -8,8 +8,19 @@ flag.parse() {
 	fi
 }
 
+flag.env() {
+	local -n flag_env_=${1?missing 1st argument: array reference}
+
+	local key
+	for key in "${!_[@]}"; do
+		if [[ $key =~ ^[[:alpha:]_][[:alnum:]_]*$ ]]; then
+			flag_env_+=("$key='${_[$key]}'")
+		fi
+	done
+}
+
 flag.args() {
-	local -n flag_args_=$1
+	local -n flag_args_=${1?missing 1st argument: array reference}
 
 	local -i i
 	for i in {1..9}; do

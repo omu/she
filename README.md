@@ -120,13 +120,12 @@ Standard
                 render
 
         bin
-                get
+                use
                 install
                 exec
 
         git
                 get
-                install
 
         http
                 get
@@ -156,7 +155,8 @@ Standard
                 use
 
         src
-                prelude
+                install
+                use
 
         string (alias: arg)
                 prefix
@@ -183,7 +183,7 @@ Standard
                 say
                 die
                 cry
-                fin
+                bye
                 bug
                 setup # colored
 

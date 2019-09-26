@@ -5,7 +5,7 @@ src.install() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-prefix]="$_USR"/src
-		[-shallow]=
+		[-expiry]=
 	)
 
 	flag.parse "$@"
@@ -15,7 +15,16 @@ src.install() {
 
 # src.use: Install src into the runtime tree
 src.use() {
-	src.install -prefix="$_RUN"/src "$@"
+	# shellcheck disable=2192
+	local -A _=(
+		[-prefix]="$_RUN"/src
+		[-shallow]=
+		[-expiry]=
+	)
+
+	flag.parse "$@"
+
+	src.install_
 }
 
 # enter: Get src from URL and enter to the directory
@@ -23,6 +32,25 @@ src.enter() {
 	src.use "$@" >/dev/null
 
 	echo "$PWD"
+}
+
+# run: Run src from URL
+src.run() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-prefix]="$_RUN"/src
+		[-shallow]=
+		[-expiry]=-1
+		[-pwd]=
+		[-test]=
+	)
+
+	flag.parse "$@"
+
+	src.install_
+
+	src.run_ "${_[dir]}"
+	flag.false test || src.test_ "${_[dir]}"
 }
 
 src.managed_() {
@@ -47,6 +75,71 @@ src.install_() {
 	fi
 
 	src.enter_ "$dst"
+}
+
+src.run_() {
+	local file=${1?missing 1st argument: file}
+
+	path.base file
+	src.exe_ "$file"
+}
+
+src.test_() {
+	local file=${1?missing 1st argument: file}
+
+	local test_file=$file
+	path.suffixize test_file '_test'
+
+	src.run_ "$test_file"
+}
+
+src.exe_() {
+	local file=${1?missing 1st argument: file}
+
+	local -a env
+	src.env_ env
+
+	if [[ -x $file ]]; then
+		env "${env[@]}" "$file"
+	else
+		src.interprete "$file" "${env[@]}"
+	fi
+}
+
+src.interprete() {
+	local file=${1?missing 1st argument: file}
+	shift
+
+	local ext=$file
+	path.ext ext
+
+	if [[ -z $ext ]]; then
+		# shellcheck disable=2209
+		ext=sh
+		file=$file.$ext
+	fi
+
+	[[ -f $file ]] || die "Not file found to interprete: $file"
+
+	local interpreter
+	case $ext in
+	sh|"") interpreter=bash    ;;
+	rb)    interpreter=ruby    ;;
+	py)    interpreter=python  ;;
+	pl)    interpreter=perl    ;;
+	js)    interpreter=node    ;;
+	php)   interpreter=php     ;;
+	*)     die "Unsupported interpreter for extension: $ext" ;;
+	esac
+
+	env "$@" "$interpreter" "$file"
+}
+
+src.env_() {
+	# shellcheck disable=2034
+	local -n src_env_=${1?missing 1st argument: array reference}
+
+	flag.env src_env_
 }
 
 src._plan_() {
