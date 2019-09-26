@@ -58,11 +58,13 @@ hmm() {
 bool() {
 	local value=${1:-}
 
+	value=${value,,}
+
 	case $value in
-	true|on|yes|1)
+	t|true|on|y|yes|1)
 		return 0
 		;;
-	false|off|no|0|"")
+	f|false|off|n|no|0|"")
 		return 1
 		;;
 	*)

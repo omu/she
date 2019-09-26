@@ -70,11 +70,13 @@ hmm() {
 bool() {
 	local value=${1:-}
 
+	value=${value,,}
+
 	case $value in
-	true|on|yes|1)
+	t|true|on|y|yes|1)
 		return 0
 		;;
-	false|off|no|0|"")
+	f|false|off|n|no|0|"")
 		return 1
 		;;
 	*)
@@ -1032,8 +1034,8 @@ git.update_() {
 src.install() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_USR"/src
 		[-expiry]=
+		[-prefix]="$_USR"/src
 	)
 
 	flag.parse "$@"
@@ -1045,9 +1047,9 @@ src.install() {
 src.use() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_RUN"/src
-		[-shallow]=
 		[-expiry]=
+		[-prefix]="$_RUN"/src
+		[-shallow]=false
 	)
 
 	flag.parse "$@"
@@ -1066,11 +1068,11 @@ src.enter() {
 src.run() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_RUN"/src
-		[-shallow]=
 		[-expiry]=-1
+		[-prefix]="$_RUN"/src
 		[-pwd]=
-		[-test]=
+		[-shallow]=false
+		[-test]=false
 	)
 
 	flag.parse "$@"

@@ -4,8 +4,8 @@
 src.install() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_USR"/src
 		[-expiry]=
+		[-prefix]="$_USR"/src
 	)
 
 	flag.parse "$@"
@@ -17,9 +17,9 @@ src.install() {
 src.use() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_RUN"/src
-		[-shallow]=
 		[-expiry]=
+		[-prefix]="$_RUN"/src
+		[-shallow]=false
 	)
 
 	flag.parse "$@"
@@ -38,11 +38,11 @@ src.enter() {
 src.run() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_RUN"/src
-		[-shallow]=
 		[-expiry]=-1
+		[-prefix]="$_RUN"/src
 		[-pwd]=
-		[-test]=
+		[-shallow]=false
+		[-test]=false
 	)
 
 	flag.parse "$@"
