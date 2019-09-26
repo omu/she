@@ -17,10 +17,10 @@ deb.install() {
 
 	case $prefer in
 	backports)
-		if is.debian stable; then
-			local codename
-			codename=$(which.debian codename)
+		local codename
+		codename=$(which.debian codename)
 
+		if deb.has_backports "$codename"; then
 			deb.repository backports <<-EOF
 				deb http://ftp.debian.org/debian $codename-backports main contrib non-free
 			EOF
@@ -59,12 +59,20 @@ deb.repository() {
 	local keyurl=${1?missing argument: keyurl}
 	shift
 
+	has.stdin || bug "No stdin data found"
+
 	cat >/etc/apt/sources.list.d/"$name".list
-	[[ -z ${keyurl:-} ]] || http.get -fsSL "$keyurl" | apt-key add -
+	[[ -z ${keyurl:-} ]] || http.get "$keyurl" | apt-key add -
 
 	apt-get update -y
 }
 
 deb.missings() {
 	:
+}
+
+deb.has_backports() {
+	local codename=${1?missing argument: codename}
+
+	http.ok "http://ftp.debian.org/debian/dists/$codename-backports/"
 }

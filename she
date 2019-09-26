@@ -894,6 +894,15 @@ http.get() {
 	curl -fsSL "$url"
 }
 
+http.ok() {
+	local url=${1?missing argument: url}
+
+	local code
+	code=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
+
+	[[ $code = 200 ]]
+}
+
 # bin.sh - Executable files
 
 bin.install() {
@@ -1261,10 +1270,10 @@ deb.install() {
 
 	case $prefer in
 	backports)
-		if is.debian stable; then
-			local codename
-			codename=$(which.debian codename)
+		local codename
+		codename=$(which.debian codename)
 
+		if deb.has_backports "$codename"; then
 			deb.repository backports <<-EOF
 				deb http://ftp.debian.org/debian $codename-backports main contrib non-free
 			EOF
@@ -1303,14 +1312,22 @@ deb.repository() {
 	local keyurl=${1?missing argument: keyurl}
 	shift
 
+	has.stdin || bug "No stdin data found"
+
 	cat >/etc/apt/sources.list.d/"$name".list
-	[[ -z ${keyurl:-} ]] || http.get -fsSL "$keyurl" | apt-key add -
+	[[ -z ${keyurl:-} ]] || http.get "$keyurl" | apt-key add -
 
 	apt-get update -y
 }
 
 deb.missings() {
 	:
+}
+
+deb.has_backports() {
+	local codename=${1?missing argument: codename}
+
+	http.ok "http://ftp.debian.org/debian/dists/$codename-backports/"
 }
 
 # is.sh - System predications
@@ -1332,7 +1349,17 @@ is.virtual() {
 # is.debian: Detect Debian or its given release
 is.debian() {
 	if [[ $# -gt 0 ]]; then
-		[[ "$(which.codename)" = "$1" ]]
+		case $1 in
+		unstable|testing|sid)
+			grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+			;;
+		stable)
+			! grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+			;;
+		*)
+			[[ "$(which.codename)" = "$1" ]]
+			;;
+		esac
 	else
 		[[ "$(which.distribution)" = 'debian' ]]
 	fi
