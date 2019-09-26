@@ -84,7 +84,7 @@ git.enter_() {
 
 	git.is_git . || die "Not a git repository: $PWD"
 
-	file.enter "${_[dir]:-}"
+	file.enter "${_[.dir]:-}"
 }
 
 git.clone_() {
@@ -96,7 +96,7 @@ git.clone_() {
 	local -a opt
 
 	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
-	[[ -z ${_[branch]:-}   ]] || opt+=(--branch "${_[branch]}")
+	[[ -z ${_[.branch]:-}   ]] || opt+=(--branch "${_[.branch]}")
 
 	_func_() {
 		git clone "${opt[@]}" "$url" .
@@ -113,9 +113,10 @@ git.update_() {
 
 	git.enter_ "$dst"
 
-	git.switch "${_[branch]:-}"
+	git.switch "${_[.branch]:-}"
 
-	if expired "${_[-expiry]:-3}" .git/FETCH_HEAD; then
+	local -i expiry=${_[-expiry]:-3}
+	if expired "$expiry" .git/FETCH_HEAD; then
 		git.must_clean
 
 		cry 'Updating repository...'

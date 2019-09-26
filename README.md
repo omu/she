@@ -36,13 +36,15 @@ Stil
 
 - Seçeneklerde `-option` biçimi kullanılır
 
+- Ara değişkenler için `.variable` biçimi kullanılır
+
 - `0` anahtarı asla kullanılmaz
 
 - `${_[1]}`, `${_[9]}` değerleri konumsal parametreler için kullanılır
 
-- `error` anahtarı (varsa) hata iletisi taşır
+- `.error` değişkeni (varsa) hata iletisi taşır
 
-- Bunun dışında kalan (seçenek veya konumsal parametre olmayan) tüm anahtarlar değişken olarak kullanılır
+- Bunun dışında kalan (seçenek, ara değişken veya konumsal parametre olmayan) tüm anahtarlar değişken olarak kullanılır
 
 - Komut satırı parametrelerinin ayrıştırılmasında `flag` modülü kullanılır (`flag.parse "$@"`)
 

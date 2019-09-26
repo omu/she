@@ -49,8 +49,8 @@ src.run() {
 
 	src.install_
 
-	src.run_ "${_[dir]}"
-	flag.false test || src.test_ "${_[dir]}"
+	src.run_ "${_[.dir]}"
+	flag.false test || src.test_ "${_[.dir]}"
 }
 
 src.managed_() {
@@ -62,9 +62,9 @@ src.managed_() {
 src.install_() {
 	local url=${_[1]?missing value at [1]: url}
 
-	url.parse "$url" || die "Error parsing URL: ${_[error]}: $url"
+	url.parse "$url" || die "Error parsing URL: ${_[.error]}: $url"
 
-	src._plan_ || die "Error planning URL: ${_[error]}: $url"
+	src._plan_ || die "Error planning URL: ${_[.error]}: $url"
 
 	local src=${_[1]} dst=${_[2]}
 
@@ -145,47 +145,47 @@ src.env_() {
 src._plan_() {
 	local owner repo auth path
 
-	if [[ ! ${_[host]} =~ ^(github.com|gitlab.com|bitbucket.com)$ ]]; then
-		_[error]='unsupported provider'
+	if [[ ! ${_[.host]} =~ ^(github.com|gitlab.com|bitbucket.com)$ ]]; then
+		_[.error]='unsupported provider'
 		return 1
 	fi
 
-	path=${_[path]:-}
+	path=${_[.path]:-}
 
 	if [[ ! $path =~ [^/]+/[^/]+ ]]; then
-		_[error]='incomplete url'
+		_[.error]='incomplete url'
 		return 1
 	fi
 
 	if [[ $path =~ @.*$ ]]; then
-		_[branch]=${path#*@}; path=${path%@*}
-		_[path]=$path
+		_[.branch]=${path#*@}; path=${path%@*}
+		_[.path]=$path
 	fi
 
 	owner=${path%%/*}; path=${path#*/}
 
-	_[dir]=
+	_[.dir]=
 	if [[ $path = */* ]]; then
-		_[dir]=${path#*/}; path=${path%%/*}
+		_[.dir]=${path#*/}; path=${path%%/*}
 	fi
 
 	repo=${path%.git}
 
-	_[name]=${_[host]}/$owner/$repo
+	_[.name]=${_[.host]}/$owner/$repo
 
-	if [[ ${_[proto]} == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
+	if [[ ${_[.proto]} == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
 		auth="${HTTPS_TOKEN}:x-oauth-basic"
 	else
-		auth=${_[userinfo]}
+		auth=${_[.userinfo]}
 	fi
 
 	if [[ -n ${auth:-} ]]; then
-		_[1]=${_[proto]}://$auth@${_[name]}.git
+		_[1]=${_[.proto]}://$auth@${_[.name]}.git
 	else
-		_[1]=${_[proto]}://${_[name]}.git
+		_[1]=${_[.proto]}://${_[.name]}.git
 	fi
 
-	_[2]=${_[name]}
+	_[2]=${_[.name]}
 }
 
 src.dst_() {

@@ -20,8 +20,8 @@ url.parse() {
 		path=$url
 
 		# shellcheck disable=2209
-		url_parse_[proto]=file
-		url_parse_[path]=$path
+		url_parse_[.proto]=file
+		url_parse_[.path]=$path
 
 		return 0
 	fi
@@ -47,7 +47,7 @@ url.parse() {
 		if [[ -n $proto ]]; then
 			if [[ $proto != ssh ]]; then
 				# shellcheck disable=2154
-				url_parse_[error]='protocol mismatch'
+				url_parse_[.error]='protocol mismatch'
 				return 1
 			fi
 		else
@@ -57,7 +57,7 @@ url.parse() {
 		url=${url#/}
 
 		if [[ -n $proto && $proto = ssh ]]; then
-			url_parse_[error]='invalid SSH url'
+			url_parse_[.error]='invalid SSH url'
 			return 1
 		fi
 	fi
@@ -72,10 +72,10 @@ url.parse() {
 
 	path=$url
 
-	url_parse_[frag]=$frag
-	url_parse_[host]=$host
-	url_parse_[path]=$path
-	url_parse_[port]=$port
-	url_parse_[proto]=$proto
-	url_parse_[userinfo]=$userinfo
+	url_parse_[.frag]=$frag
+	url_parse_[.host]=$host
+	url_parse_[.path]=$path
+	url_parse_[.port]=$port
+	url_parse_[.proto]=$proto
+	url_parse_[.userinfo]=$userinfo
 }

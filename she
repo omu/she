@@ -138,8 +138,10 @@ ensured() {
 
 # Check timestamp of reference files against given expiry in minutes
 expired() {
-	local expiry=${1?missing 1th argument: expiry} # minutes
+	local -i expiry=${1?missing 1th argument: expiry} # minutes
 	shift
+
+	[[ $expiry -gt 0 ]] || return 1
 
 	local file
 	for file; do
@@ -478,7 +480,7 @@ path.subext() {
 	case $path_subext_ in
 	*.*)
 		path_subext_=${path_subext_%.*}
-		path_subext_=${path_subext_}${ext}
+		path_subext_=${path_subext_}.${ext}
 		;;
 	*)
 		;;
@@ -502,10 +504,16 @@ path.parse() {
 	path.name name
 	path.ext ext
 
-	path_parse_[dir]=dir
-	path_parse_[base]=base
-	path_parse_[name]=name
-	path_parse_[ext]=ext
+	path_parse_[.dir]=$dir
+	path_parse_[.base]=$base
+	path_parse_[.name]=$name
+	path_parse_[.ext]=$ext
+
+	if [[ -n $ext ]]; then
+		path_parse_[.dotext]=.$ext
+	else
+		path_parse_[.dotext]=$ext
+	fi
 }
 
 path.suffixize() {
@@ -515,7 +523,7 @@ path.suffixize() {
 	local -A _
 	path.parse "$path_suffixize_"
 
-	printf -v path_suffixize_ "%s/%s_$suffix.%s" "${_[dir]:-.}" "${_[name]}" "${_[ext]}"
+	printf -v path_suffixize_ "%s/%s${suffix}%s" "${_[.dir]:-.}" "${_[.name]}" "${_[.dotext]}"
 }
 
 path.normalize() {
@@ -809,8 +817,8 @@ url.parse() {
 		path=$url
 
 		# shellcheck disable=2209
-		url_parse_[proto]=file
-		url_parse_[path]=$path
+		url_parse_[.proto]=file
+		url_parse_[.path]=$path
 
 		return 0
 	fi
@@ -836,7 +844,7 @@ url.parse() {
 		if [[ -n $proto ]]; then
 			if [[ $proto != ssh ]]; then
 				# shellcheck disable=2154
-				url_parse_[error]='protocol mismatch'
+				url_parse_[.error]='protocol mismatch'
 				return 1
 			fi
 		else
@@ -846,7 +854,7 @@ url.parse() {
 		url=${url#/}
 
 		if [[ -n $proto && $proto = ssh ]]; then
-			url_parse_[error]='invalid SSH url'
+			url_parse_[.error]='invalid SSH url'
 			return 1
 		fi
 	fi
@@ -861,12 +869,12 @@ url.parse() {
 
 	path=$url
 
-	url_parse_[frag]=$frag
-	url_parse_[host]=$host
-	url_parse_[path]=$path
-	url_parse_[port]=$port
-	url_parse_[proto]=$proto
-	url_parse_[userinfo]=$userinfo
+	url_parse_[.frag]=$frag
+	url_parse_[.host]=$host
+	url_parse_[.path]=$path
+	url_parse_[.port]=$port
+	url_parse_[.proto]=$proto
+	url_parse_[.userinfo]=$userinfo
 }
 
 # https.sh - HTTP functions
@@ -976,7 +984,7 @@ git.enter_() {
 
 	git.is_git . || die "Not a git repository: $PWD"
 
-	file.enter "${_[dir]:-}"
+	file.enter "${_[.dir]:-}"
 }
 
 git.clone_() {
@@ -988,7 +996,7 @@ git.clone_() {
 	local -a opt
 
 	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
-	[[ -z ${_[branch]:-}   ]] || opt+=(--branch "${_[branch]}")
+	[[ -z ${_[.branch]:-}   ]] || opt+=(--branch "${_[.branch]}")
 
 	_func_() {
 		git clone "${opt[@]}" "$url" .
@@ -1005,9 +1013,10 @@ git.update_() {
 
 	git.enter_ "$dst"
 
-	git.switch "${_[branch]:-}"
+	git.switch "${_[.branch]:-}"
 
-	if expired "${_[-expiry]:-3}" .git/FETCH_HEAD; then
+	local -i expiry=${_[-expiry]:-3}
+	if expired "$expiry" .git/FETCH_HEAD; then
 		git.must_clean
 
 		cry 'Updating repository...'
@@ -1068,8 +1077,8 @@ src.run() {
 
 	src.install_
 
-	src.run_ "${_[dir]}"
-	flag.false test || src.test_ "${_[dir]}"
+	src.run_ "${_[.dir]}"
+	flag.false test || src.test_ "${_[.dir]}"
 }
 
 src.managed_() {
@@ -1081,9 +1090,9 @@ src.managed_() {
 src.install_() {
 	local url=${_[1]?missing value at [1]: url}
 
-	url.parse "$url" || die "Error parsing URL: ${_[error]}: $url"
+	url.parse "$url" || die "Error parsing URL: ${_[.error]}: $url"
 
-	src._plan_ || die "Error planning URL: ${_[error]}: $url"
+	src._plan_ || die "Error planning URL: ${_[.error]}: $url"
 
 	local src=${_[1]} dst=${_[2]}
 
@@ -1164,47 +1173,47 @@ src.env_() {
 src._plan_() {
 	local owner repo auth path
 
-	if [[ ! ${_[host]} =~ ^(github.com|gitlab.com|bitbucket.com)$ ]]; then
-		_[error]='unsupported provider'
+	if [[ ! ${_[.host]} =~ ^(github.com|gitlab.com|bitbucket.com)$ ]]; then
+		_[.error]='unsupported provider'
 		return 1
 	fi
 
-	path=${_[path]:-}
+	path=${_[.path]:-}
 
 	if [[ ! $path =~ [^/]+/[^/]+ ]]; then
-		_[error]='incomplete url'
+		_[.error]='incomplete url'
 		return 1
 	fi
 
 	if [[ $path =~ @.*$ ]]; then
-		_[branch]=${path#*@}; path=${path%@*}
-		_[path]=$path
+		_[.branch]=${path#*@}; path=${path%@*}
+		_[.path]=$path
 	fi
 
 	owner=${path%%/*}; path=${path#*/}
 
-	_[dir]=
+	_[.dir]=
 	if [[ $path = */* ]]; then
-		_[dir]=${path#*/}; path=${path%%/*}
+		_[.dir]=${path#*/}; path=${path%%/*}
 	fi
 
 	repo=${path%.git}
 
-	_[name]=${_[host]}/$owner/$repo
+	_[.name]=${_[.host]}/$owner/$repo
 
-	if [[ ${_[proto]} == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
+	if [[ ${_[.proto]} == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
 		auth="${HTTPS_TOKEN}:x-oauth-basic"
 	else
-		auth=${_[userinfo]}
+		auth=${_[.userinfo]}
 	fi
 
 	if [[ -n ${auth:-} ]]; then
-		_[1]=${_[proto]}://$auth@${_[name]}.git
+		_[1]=${_[.proto]}://$auth@${_[.name]}.git
 	else
-		_[1]=${_[proto]}://${_[name]}.git
+		_[1]=${_[.proto]}://${_[.name]}.git
 	fi
 
-	_[2]=${_[name]}
+	_[2]=${_[.name]}
 }
 
 src.dst_() {

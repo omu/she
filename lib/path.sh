@@ -70,7 +70,7 @@ path.subext() {
 	case $path_subext_ in
 	*.*)
 		path_subext_=${path_subext_%.*}
-		path_subext_=${path_subext_}${ext}
+		path_subext_=${path_subext_}.${ext}
 		;;
 	*)
 		;;
@@ -94,10 +94,16 @@ path.parse() {
 	path.name name
 	path.ext ext
 
-	path_parse_[dir]=dir
-	path_parse_[base]=base
-	path_parse_[name]=name
-	path_parse_[ext]=ext
+	path_parse_[.dir]=$dir
+	path_parse_[.base]=$base
+	path_parse_[.name]=$name
+	path_parse_[.ext]=$ext
+
+	if [[ -n $ext ]]; then
+		path_parse_[.dotext]=.$ext
+	else
+		path_parse_[.dotext]=$ext
+	fi
 }
 
 path.suffixize() {
@@ -107,7 +113,7 @@ path.suffixize() {
 	local -A _
 	path.parse "$path_suffixize_"
 
-	printf -v path_suffixize_ "%s/%s_$suffix.%s" "${_[dir]:-.}" "${_[name]}" "${_[ext]}"
+	printf -v path_suffixize_ "%s/%s${suffix}%s" "${_[.dir]:-.}" "${_[.name]}" "${_[.dotext]}"
 }
 
 path.normalize() {

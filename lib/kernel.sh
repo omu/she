@@ -126,8 +126,10 @@ ensured() {
 
 # Check timestamp of reference files against given expiry in minutes
 expired() {
-	local expiry=${1?missing 1th argument: expiry} # minutes
+	local -i expiry=${1?missing 1th argument: expiry} # minutes
 	shift
+
+	[[ $expiry -gt 0 ]] || return 1
 
 	local file
 	for file; do
