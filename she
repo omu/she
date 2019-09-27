@@ -680,7 +680,7 @@ which.codename() {
 	lsb_release -sc
 }
 
-# is.sh - System predications
+# is.sh - Predications at is form
 
 # is.virtual: Detect given virtualization
 is.virtual() {
@@ -724,8 +724,14 @@ is.ubuntu() {
 	fi
 }
 
+# has.sh - Predications at has form
+
 has.stdin() {
-        : # TODO
+	[[ ! -t 0 ]]
+}
+
+has.stdout() {
+	[[ ! -t 1 ]]
 }
 
 # file.sh - File related operations

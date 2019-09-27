@@ -1,3 +1,9 @@
+# has.sh - Predications at has form
+
 has.stdin() {
-        : # TODO
+	[[ ! -t 0 ]]
+}
+
+has.stdout() {
+	[[ ! -t 1 ]]
 }
