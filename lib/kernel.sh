@@ -72,6 +72,20 @@ bool() {
 	esac
 }
 
+included() {
+	local needle=${1?missing argument: needle}
+	shift
+
+	local element
+	for element; do
+		if [[ $element = "$needle" ]]; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
 # Command must success
 must() {
 	"$@" || die "Command failed: $*"

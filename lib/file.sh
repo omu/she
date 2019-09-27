@@ -68,6 +68,19 @@ file.enter() {
 	fi
 }
 
+file.download() {
+	local url=${1?missing 1th argument: url}
+	local -n file_download_dst_=${2?missing 2nd argument: name reference}
+
+	local tempfile
+
+	temp.file tempfile
+	must http.get "$url" >"$tempfile"
+
+	# shellcheck disable=2034
+	file_download_dst_=$tempfile
+}
+
 # file.sh - Private functions
 
 file._do_args_() {
