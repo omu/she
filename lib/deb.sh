@@ -96,15 +96,17 @@ deb.repository() {
 	local name=${1?missing argument: name}
 	shift
 
-	local url=${1?missing argument: url}
+	local url=${1:-}
 	shift
 
 	has.stdin || die 'Required stdin data'
 
-	if ! deb._apt_key_add "$url"; then
-		cat >/etc/apt/sources.list.d/"$name".list
-		apt-get update -y
+	if [[ -n ${url:-} ]]; then
+		deb._apt_key_add "$url" || return 0
 	fi
+
+	cat >/etc/apt/sources.list.d/"$name".list
+	apt-get update -y
 }
 
 # deb.using: Use given official Debian distributions

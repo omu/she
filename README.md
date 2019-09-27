@@ -98,20 +98,18 @@ Standard
                         -yaml (default)
 
         deb
-                use
-                        backports|experimental|URL
+                using
+                        *-backports|experimental|stable|testing|unstable|sid
                 install
-                        -missing
+                        -shiny
+                        -missings
                 update
-                upgrade
-                clean
-                        -aggresive
                 uninstall
 
         etc
 
         file
-                get
+                download
                 install
 
                 run
@@ -124,10 +122,9 @@ Standard
         bin
                 use
                 install
-                exec
 
         git
-                get
+                ...
 
         http
                 get
