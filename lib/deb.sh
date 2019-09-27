@@ -6,9 +6,8 @@ export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontW
 deb.install() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefer]=
 		[-missings]=false
-		[-clean]=false
+		[-shiny]=false
 	)
 
 	local -a opts=(
@@ -18,52 +17,54 @@ deb.install() {
 
 	flag.parse "$@"
 
-	local prefer=${_[-prefer]:-} target
+	local -a args
+	flag.args args
 
-	case $prefer in
-	backports)
-		local dist; dist=$(which.debian codename)-backports
+	[[ ${#args[@]} -gt 0 ]] || return 0
 
-		if is.debian stable && deb._dist_valid "$dist"; then
-			deb._dist_added "$dist" || deb.repository "$dist" <<-EOF
-				deb http://ftp.debian.org/debian $dist main contrib non-free
-			EOF
-			target=$dist
+	local -a packages urls non_urls
+
+	local arg
+	for arg in "${args[@]}"; do
+		if is.url "$arg"; then
+			urls+=("$arg")
+		else
+			non_urls+=("$arg")
 		fi
-		;;
-	experimental)
-		local dist=experimental
-
-		if is.debian unstable; then
-			deb._dist_added "$dist" || deb.repository experimental <<-EOF
-				deb http://ftp.debian.org/debian $dist main contrib non-free
-			EOF
-			target=$dist
-		fi
-		;;
-	*)
-		die "Unrecognized prefered repository: $prefer"
-	esac
-
-	[[ -z ${target:-} ]] || opts+=(
-		--target-release
-		"$target"
-	)
-
-	local -a packages
+	done
 
 	if flag.true missings; then
-		deb._missings packages "$@"
+		deb._missings packages "${non_urls[@]}"
 	else
-		packages=("$@")
+		packages=("${non_urls[@]}")
 	fi
 
-	[[ ${#packages[@]} -gt 0 ]] || return 0
+	if flag.true shiny; then
+		local target
+
+		if is.debian stable; then
+			target=$(which.debian codename)-backports
+		elif is.debian unstable; then
+			target=experimental
+		fi
+
+		if [[ -n ${target:-} ]]; then
+			deb.using "$target"
+
+			opts+=(
+				--target-release
+				"$target"
+			)
+		fi
+	fi
 
 	deb.update
-	apt-get install "${opts[@]}" "${packages[@]}"
+
+	[[ "${#packages[@]}" -eq 0 ]] || apt-get install "${opts[@]}" "${packages[@]}"
+	[[ "${#urls[@]}" -eq 0     ]] || deb._install_from_urls "${urls[@]}"
 }
 
+# deb.uninstall: Uninstall Debian packages
 deb.uninstall() {
 	local -a packages
 
@@ -73,18 +74,6 @@ deb.uninstall() {
 	apt-get purge -y "${packages[@]}"
 
 	might apt-get autoremove -y && might apt-get autoclean -y
-}
-
-deb.install_file() {
-	local url
-	for url; do
-		local deb
-
-		file.download "$url" deb
-		dpkg -i -- "$deb" 2>/dev/null || true
-		apt-get -y install --no-install-recommends --fix-broken
-		rm -f -- "$deb"
-	done
 }
 
 # deb.missings: Print missing packages among given packages
@@ -117,6 +106,27 @@ deb.repository() {
 		apt-get update -y
 	fi
 }
+
+# deb.using: Use given official Debian distributions
+deb.using() {
+	local dist
+
+	for dist; do
+		case $dist in
+		stable|testing|unstable|sid|experimental)
+			;;
+		*)
+			deb._dist_valid "$dist" || die "Invalid distribution: $dist"
+			;;
+		esac
+
+		deb._dist_added "$dist" || deb.repository "$dist" <<-EOF
+			deb http://ftp.debian.org/debian $dist main contrib non-free
+		EOF
+	done
+}
+
+# deb.sh - Private functions
 
 deb._dist_valid() {
 	local dist=${1?missing argument: dist}
@@ -169,5 +179,20 @@ deb._missings() {
 		if [ -z "$(dpkg-query -W -f='${Installed-Size}' "$package" 2>/dev/null ||:)" ]; then
 			deb_missings_+=("$package")
 		fi
+	done
+}
+
+deb._install_from_urls() {
+	local url
+	for url; do
+		local deb
+
+		file.download "$url" deb
+
+		dpkg-deb --info "$deb" &>/dev/null || die "Not a valid Debian package: $url"
+		dpkg -i -- "$deb" 2>/dev/null || true
+		apt-get -y install --no-install-recommends --fix-broken
+
+		rm -f -- "$deb"
 	done
 }

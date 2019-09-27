@@ -26,11 +26,10 @@ flag.env() {
 flag.args() {
 	local -n flag_args_=${1?missing 1st argument: array reference}
 
-	local -i i
-	for i in {1..9}; do
-		if [[ -v _[$i] ]]; then
-			flag_args_+=("${_[$i]}")
-		fi
+	local key
+	for key in "${!_[@]}"; do
+		[[ $key =~ ^[1-9][0-9]+$ ]] || continue
+		flag_args_+=("${_[$key]}")
 	done
 }
 
