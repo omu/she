@@ -662,6 +662,72 @@ temp.clean() {
 	[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
 }
 
+# which.sh - Show facts
+
+# which.virtual: Which virtualization
+which.virtual() {
+	systemd-detect-virt
+}
+
+# which.distribution: Which distribution
+which.distribution() {
+	# shellcheck disable=1091
+	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
+}
+
+# which.codename: Which distribution release
+which.codename() {
+	lsb_release -sc
+}
+
+# is.sh - System predications
+
+# is.virtual: Detect given virtualization
+is.virtual() {
+	if [[ $# -gt 0 ]]; then
+		[[ "$(which.virtual)" = "$1" ]]
+	else
+		[[ -z ${CI:-} ]] || return 0
+		[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
+
+		is.docker && return 0
+
+		systemd-detect-virt -q
+	fi
+}
+
+# is.debian: Detect Debian or its given release
+is.debian() {
+	if [[ $# -gt 0 ]]; then
+		case $1 in
+		unstable|testing|sid)
+			grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+			;;
+		stable)
+			! grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+			;;
+		*)
+			[[ "$(which.codename)" = "$1" ]]
+			;;
+		esac
+	else
+		[[ "$(which.distribution)" = 'debian' ]]
+	fi
+}
+
+# is.ubuntu: Detect Ubuntu or its given release
+is.ubuntu() {
+	if [[ $# -gt 0 ]]; then
+		[[ "$(which.codename)" = "$1" ]]
+	else
+		[[ "$(which.distribution)" = 'ubuntu' ]]
+	fi
+}
+
+has.stdin() {
+        : # TODO
+}
+
 # file.sh - File related operations
 
 # file.install: Install file from URL
@@ -1486,66 +1552,38 @@ deb._install_from_urls() {
 	done
 }
 
-# is.sh - System predications
+# text.sh - Text blob manipulations
 
-# is.virtual: Detect given virtualization
-is.virtual() {
-	if [[ $# -gt 0 ]]; then
-		[[ "$(which.virtual)" = "$1" ]]
-	else
-		[[ -z ${CI:-} ]] || return 0
-		[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
+# text.fix: Append stdin content to the target file
+text.fix() {
+	local file=${1?missing argument: file}
 
-		is.docker && return 0
+	text.unfix "$file"
 
-		systemd-detect-virt -q
-	fi
+	{
+		echo '# BEGIN FIX'
+		cat
+		echo '# END FIX'
+	} >>"$file"
 }
 
-# is.debian: Detect Debian or its given release
-is.debian() {
-	if [[ $# -gt 0 ]]; then
-		case $1 in
-		unstable|testing|sid)
-			grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-			;;
-		stable)
-			! grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-			;;
-		*)
-			[[ "$(which.codename)" = "$1" ]]
-			;;
-		esac
-	else
-		[[ "$(which.distribution)" = 'debian' ]]
-	fi
+# text.fix: Remove appended content
+text.unfix() {
+	local file=${1?missing argument: file}
+
+	text.fixed "$file" || return 0
+
+	[[ -w $file ]] || die "File not writable: $file"
+
+	sed -i '/BEGIN FIX/,/END FIX/d' "$file"
 }
 
-# is.ubuntu: Detect Ubuntu or its given release
-is.ubuntu() {
-	if [[ $# -gt 0 ]]; then
-		[[ "$(which.codename)" = "$1" ]]
-	else
-		[[ "$(which.distribution)" = 'ubuntu' ]]
-	fi
-}
+text.fixed() {
+	local file=${1?missing argument: file}
 
-# which.sh - Show facts
+	[[ -f $file ]] || die "File not found: $file"
 
-# which.virtual: Which virtualization
-which.virtual() {
-	systemd-detect-virt
-}
-
-# which.distribution: Which distribution
-which.distribution() {
-	# shellcheck disable=1091
-	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
-}
-
-# which.codename: Which distribution release
-which.codename() {
-	lsb_release -sc
+	grep -qE '(BEGIN|END) FIX' "$file"
 }
 
 declare -Ag help=(
@@ -1557,6 +1595,12 @@ declare -Ag help=(
 	['self name']='Print self name'
 	['self path']='Print self path'
 	['temp inside']='Execute command in temp dir'
+	['which virtual']='Which virtualization'
+	['which distribution']='Which distribution'
+	['which codename']='Which distribution release'
+	['is virtual']='Detect given virtualization'
+	['is debian']='Detect Debian or its given release'
+	['is ubuntu']='Detect Ubuntu or its given release'
 	['file install']='Install file from URL'
 	['http get']='Get URL'
 	['src install']='Install to a known location'
@@ -1569,12 +1613,8 @@ declare -Ag help=(
 	['deb update']='Update Debian package index'
 	['deb repository']='Add Debian repository'
 	['deb using']='Use given official Debian distributions'
-	['is virtual']='Detect given virtualization'
-	['is debian']='Detect Debian or its given release'
-	['is ubuntu']='Detect Ubuntu or its given release'
-	['which virtual']='Which virtualization'
-	['which distribution']='Which distribution'
-	['which codename']='Which distribution release'
+	['text fix']='Append stdin content to the target file'
+	['text fix']='Remove appended content'
 )
 
 .usage() {
@@ -1610,6 +1650,12 @@ declare -Ag command=(
 	['self name']='self.name'
 	['self path']='self.path'
 	['temp inside']='temp.inside'
+	['which virtual']='which.virtual'
+	['which distribution']='which.distribution'
+	['which codename']='which.codename'
+	['is virtual']='is.virtual'
+	['is debian']='is.debian'
+	['is ubuntu']='is.ubuntu'
 	['file install']='file.install'
 	['http get']='http.get'
 	['src install']='src.install'
@@ -1622,12 +1668,8 @@ declare -Ag command=(
 	['deb update']='deb.update'
 	['deb repository']='deb.repository'
 	['deb using']='deb.using'
-	['is virtual']='is.virtual'
-	['is debian']='is.debian'
-	['is ubuntu']='is.ubuntu'
-	['which virtual']='which.virtual'
-	['which distribution']='which.distribution'
-	['which codename']='which.codename'
+	['text fix']='text.fix'
+	['text fix']='text.unfix'
 )
 
 .dispatch() {

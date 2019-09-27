@@ -18,6 +18,12 @@
 
 #:lib/temp.sh
 
+#:lib/which.sh
+
+#:lib/is.sh
+
+#:lib/has.sh
+
 #:lib/file.sh
 
 #:lib/url.sh
@@ -32,9 +38,7 @@
 
 #:lib/deb.sh
 
-#:lib/is.sh
-
-#:lib/which.sh
+#:lib/text.sh
 
 #/help/
 
