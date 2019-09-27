@@ -1,6 +1,7 @@
 # is.sh - Predications at is form
 
 # is.virtual: Detect given virtualization
+# shellcheck disable=2120
 is.virtual() {
 	if [[ $# -gt 0 ]]; then
 		[[ "$(which.virtual)" = "$1" ]]
@@ -40,4 +41,17 @@ is.ubuntu() {
 	else
 		[[ "$(which.distribution)" = 'ubuntu' ]]
 	fi
+}
+
+# is.proxmox: Detect Proxmox
+is.proxmox() {
+	command -v pveversion >/dev/null && uname -a | grep -q -i pve
+}
+
+# is.vagrant: Detect Vagrant
+is.vagrant() {
+	# shellcheck disable=2119
+	is.virtual || return 1
+
+	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
 }

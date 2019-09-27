@@ -119,7 +119,7 @@ git.update_() {
 	if expired "$expiry" .git/FETCH_HEAD; then
 		git.must_clean
 
-		cry 'Updating repository...'
+		say 'Updating repository...'
 		git pull --quiet origin
 	fi
 

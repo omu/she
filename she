@@ -6,18 +6,27 @@
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
 [[ -x /usr/bin/apt-get         ]] || { echo >&2 'Only Debian and derivatives supported.'; exit 1; }
 
-set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
+set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
 export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
 # kernel.sh - Core functions
+
+# say: Print messages on standard error
+say() {
+	local message
+
+	for message; do
+		echo -e >&2 "$message"
+	done
+}
 
 # cry: Print warning messages on standard error
 cry() {
 	local message
 
 	for message; do
-		echo >&2 "$message"
+		echo >&2 "W: $message"
 	done
 }
 
@@ -45,8 +54,20 @@ bug() {
 
 # bye: Print messages and exit successfully
 bye() {
-	cry "$@"
+	say "$@"
 	exit 0
+}
+
+# hey: Print colored messages
+hey() {
+	local message=$1
+	shift
+
+	echo -e >&2 "\\e[38;5;14m-->\\e[0m\\e[1m $message\\e[0m"
+
+	for message; do
+		echo -e >&2 "    $message"
+	done
 }
 
 # Dump an array variable
@@ -683,6 +704,7 @@ which.codename() {
 # is.sh - Predications at is form
 
 # is.virtual: Detect given virtualization
+# shellcheck disable=2120
 is.virtual() {
 	if [[ $# -gt 0 ]]; then
 		[[ "$(which.virtual)" = "$1" ]]
@@ -722,6 +744,19 @@ is.ubuntu() {
 	else
 		[[ "$(which.distribution)" = 'ubuntu' ]]
 	fi
+}
+
+# is.proxmox: Detect Proxmox
+is.proxmox() {
+	command -v pveversion >/dev/null && uname -a | grep -q -i pve
+}
+
+# is.vagrant: Detect Vagrant
+is.vagrant() {
+	# shellcheck disable=2119
+	is.virtual || return 1
+
+	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
 }
 
 # has.sh - Predications at has form
@@ -1140,7 +1175,7 @@ git.update_() {
 	if expired "$expiry" .git/FETCH_HEAD; then
 		git.must_clean
 
-		cry 'Updating repository...'
+		say 'Updating repository...'
 		git pull --quiet origin
 	fi
 
@@ -1230,6 +1265,8 @@ src.run_() {
 	local file=${1?missing 1st argument: file}
 
 	path.base file
+
+	hey "$file"
 	src.exe_ "$file"
 }
 
@@ -1593,10 +1630,12 @@ text.fixed() {
 }
 
 declare -Ag help=(
+	['say']='Print messages on standard error'
 	['cry']='Print warning messages on standard error'
 	['die']='Print error messages and exit failure'
 	['bug']='Report bug and exit failure'
 	['bye']='Print messages and exit successfully'
+	['hey']='Print colored messages'
 	['self version']='Print self version'
 	['self name']='Print self name'
 	['self path']='Print self path'
@@ -1607,6 +1646,8 @@ declare -Ag help=(
 	['is virtual']='Detect given virtualization'
 	['is debian']='Detect Debian or its given release'
 	['is ubuntu']='Detect Ubuntu or its given release'
+	['is proxmox']='Detect Proxmox'
+	['is vagrant']='Detect Vagrant'
 	['file install']='Install file from URL'
 	['http get']='Get URL'
 	['src install']='Install to a known location'
@@ -1648,10 +1689,12 @@ declare -Ag help=(
 }
 
 declare -Ag command=(
+	['say']='say'
 	['cry']='cry'
 	['die']='die'
 	['bug']='bug'
 	['bye']='bye'
+	['hey']='hey'
 	['self version']='self.version'
 	['self name']='self.name'
 	['self path']='self.path'
@@ -1662,6 +1705,8 @@ declare -Ag command=(
 	['is virtual']='is.virtual'
 	['is debian']='is.debian'
 	['is ubuntu']='is.ubuntu'
+	['is proxmox']='is.proxmox'
+	['is vagrant']='is.vagrant'
 	['file install']='file.install'
 	['http get']='http.get'
 	['src install']='src.install'
@@ -1723,7 +1768,7 @@ declare -Ag command=(
 	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
 	[[ -x /usr/bin/apt-get         ]] || { echo >&2 'Only Debian and derivatives supported.'; exit 1; }
 
-	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH
+	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
 	export LC_ALL=C.UTF-8 LANG=C.UTF-8
 

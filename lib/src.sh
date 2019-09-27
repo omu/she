@@ -81,6 +81,8 @@ src.run_() {
 	local file=${1?missing 1st argument: file}
 
 	path.base file
+
+	hey "$file"
 	src.exe_ "$file"
 }
 

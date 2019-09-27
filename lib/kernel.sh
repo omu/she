@@ -1,11 +1,20 @@
 # kernel.sh - Core functions
 
+# say: Print messages on standard error
+say() {
+	local message
+
+	for message; do
+		echo -e >&2 "$message"
+	done
+}
+
 # cry: Print warning messages on standard error
 cry() {
 	local message
 
 	for message; do
-		echo >&2 "$message"
+		echo >&2 "W: $message"
 	done
 }
 
@@ -33,8 +42,20 @@ bug() {
 
 # bye: Print messages and exit successfully
 bye() {
-	cry "$@"
+	say "$@"
 	exit 0
+}
+
+# hey: Print colored messages
+hey() {
+	local message=$1
+	shift
+
+	echo -e >&2 "\\e[38;5;14m-->\\e[0m\\e[1m $message\\e[0m"
+
+	for message; do
+		echo -e >&2 "    $message"
+	done
 }
 
 # Dump an array variable
