@@ -1,6 +1,19 @@
 Betikleme araç seti
 ===================
 
+TODO
+----
+
+- [ ] manuel test
+- [ ] API overhaul ve ekleme/düzeltmeler
+- [ ] Stil/tutarlılık bakımı
+- [ ] blob unpack
+- [ ] bin unpack desteği
+- [ ] README asgari dokümantasyonu
+- [ ] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
+- [ ] scripts aracının yeni sürümü
+- [ ] etc'nin durumu
+
 Stil
 ----
 
