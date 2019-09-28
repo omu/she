@@ -13,6 +13,7 @@ TODO
 - [ ] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
 - [ ] scripts aracının yeni sürümü
 - [ ] etc'nin durumu
+- [ ] Fikir: builtin olmayan versiyonu `i` olarak isimlendir
 
 Stil
 ----
