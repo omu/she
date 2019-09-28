@@ -2,7 +2,7 @@
 
 temp.file() {
 	# shellcheck disable=2155
-	local -n temp_file_=${1?missing 1th argument: name reference}
+	local -n temp_file_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local file
 
@@ -15,7 +15,7 @@ temp.file() {
 
 temp.dir() {
 	# shellcheck disable=2155
-	local -n temp_dir_=${1?missing 1th argument: name reference}
+	local -n temp_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local dir
 	dir=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
@@ -38,7 +38,7 @@ temp.inside() {
 }
 
 temp.clean() {
-	local -n temp_clean_=${1?missing 1th argument: name reference}
+	local -n temp_clean_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
 }

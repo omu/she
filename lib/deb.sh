@@ -93,11 +93,8 @@ deb.update() {
 
 # deb.repository: Add Debian repository
 deb.repository() {
-	local name=${1?missing argument: name}
-	shift
-
-	local url=${1:-}
-	shift
+	local name=${1?${FUNCNAME[0]}: missing argument}; shift
+	local url=${1:-};                                 shift
 
 	has.stdin || die 'Required stdin data'
 
@@ -131,19 +128,19 @@ deb.using() {
 # deb.sh - Private functions
 
 deb._dist_valid() {
-	local dist=${1?missing argument: dist}
+	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	http.ok http://ftp.debian.org/debian/dists/"$dist"/
 }
 
 deb._dist_added() {
-	local dist=${1?missing argument: dist}
+	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	grep -qE "^deb.*\bdebian.org\b.*\b$dist\b" /etc/apt/*.list /etc/apt/sources.list.d/*.list
 }
 
 deb._apt_key_add() {
-	local url=${1?missing argument: url}
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local tempfile
 	temp.file tempfile
@@ -172,8 +169,7 @@ deb._apt_key_add() {
 }
 
 deb._missings() {
-	local -a deb_missings_=${1?missing argument: array reference}
-	shift
+	local -a deb_missings_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local package
 	for package in "${[@]}"; do

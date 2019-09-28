@@ -54,13 +54,13 @@ src.run() {
 }
 
 src.managed_() {
-	local path=${1?missing 1th argument: path}
+	local path=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.is_git "$path" && git -C "$path" config underscore.name &>/dev/null
 }
 
 src.install_() {
-	local url=${_[1]?missing value at [1]: url}
+	local url=${_[1]?${FUNCNAME[0]}: missing value}
 
 	url.parse "$url" || die "Error parsing URL: ${_[.error]}: $url"
 
@@ -78,7 +78,7 @@ src.install_() {
 }
 
 src.run_() {
-	local file=${1?missing 1st argument: file}
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	path.base file
 
@@ -87,7 +87,7 @@ src.run_() {
 }
 
 src.test_() {
-	local file=${1?missing 1st argument: file}
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local test_file=$file
 	path.suffixize test_file '_test'
@@ -96,7 +96,7 @@ src.test_() {
 }
 
 src.exe_() {
-	local file=${1?missing 1st argument: file}
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local -a env
 	src.env_ env
@@ -109,8 +109,7 @@ src.exe_() {
 }
 
 src.interprete() {
-	local file=${1?missing 1st argument: file}
-	shift
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local ext=$file
 	path.ext ext
@@ -139,7 +138,7 @@ src.interprete() {
 
 src.env_() {
 	# shellcheck disable=2034
-	local -n src_env_=${1?missing 1st argument: array reference}
+	local -n src_env_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	flag.env src_env_
 }

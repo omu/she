@@ -12,7 +12,8 @@ file.install() {
 
 	flag.parse "$@"
 
-	local url=${_[1]?missing value at [1]: url} dst=${_[2]:-${url##*/}}
+	local url=${_[1]?${FUNCNAME[0]}: missing value}
+	local dst=${_[2]:-${url##*/}}
 
 	file.install_ "$url" "$dst"
 }
@@ -42,13 +43,14 @@ file.chogm() {
 
 	flag.parse "$@"
 
-	local dst=${_[1]?missing value at [1]: dst}
+	local dst=${_[1]?${FUNCNAME[0]}: missing value}
 
 	file.chogm_ "$dst"
 }
 
 file.ln() {
-	local src=${1?missing 1th argument: src} dst=${2?missing 2nd argument: dst}
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	src=$(realpath -m --relative-base "${dst%/*}" "$src")
 	must ln -sf "$src" "$dst"
@@ -69,8 +71,8 @@ file.enter() {
 }
 
 file.download() {
-	local url=${1?missing 1th argument: url}
-	local -n file_download_dst_=${2?missing 2nd argument: name reference}
+	local    url=${1?${FUNCNAME[0]}: missing argument};                shift
+	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local tempfile
 
@@ -84,8 +86,7 @@ file.download() {
 # file.sh - Private functions
 
 file._do_args_() {
-	local op=${1?missing 1th argument: op}
-	shift
+	local op=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	# shellcheck disable=2192
 	local -A _=(
@@ -97,15 +98,16 @@ file._do_args_() {
 
 	flag.parse "$@"
 
-	local src=${_[1]?missing value at [1]: src} dst=${_[2]?missing value at [2]: dst}
+	local src=${_[1]?${FUNCNAME[0]}: missing value}
+	local dst=${_[2]?${FUNCNAME[0]}: missing value}
 
 	file.do_ "$op" "$src" "$dst"
 }
 
 file.do_() {
-	local op=${1?missing 1th argument: op}
-	local src=${2?missing 2nd argument: src}
-	local dst=${3?missing 3rd argument: dst}
+	local op=${1?${FUNCNAME[0]}: missing argument};  shift
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -e $src ]] || die "Source not found: $src"
 
@@ -140,13 +142,14 @@ file.do_() {
 }
 
 file.dst_() {
-	local -n file_dst_=${1?missing 1st argument: name reference}
+	local -n file_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
+
 	[[ -z ${_[-prefix]:-} ]] || file_dst_=${_[-prefix]}/$file_dst_
 }
 
 file.install_() {
-	local url=${1?missing 1th argument: url}
-	local dst=${2?missing 2nd argument: dst}
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local tempfile
 
@@ -164,7 +167,7 @@ file.install_() {
 }
 
 file._chogm_() {
-	local dst=${1?missing 1th argument: dst}
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -z ${_[-mode]:-}  ]] || must chmod "${_[-mode]}"  "$dst"
 	[[ -z ${_[-owner]:-} ]] || must chown "${_[-owner]}" "$dst"

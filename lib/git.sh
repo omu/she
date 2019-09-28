@@ -66,7 +66,7 @@ git.dst_() {
 }
 
 git.exist_() {
-	local dst=${1?missing 1st argumenet: dst}
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.dst_ dst
 
@@ -74,7 +74,7 @@ git.exist_() {
 }
 
 git.enter_() {
-	local dst=${1?missing 1st argument: dst}
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.dst_ dst
 
@@ -88,8 +88,8 @@ git.enter_() {
 }
 
 git.clone_() {
-	local url=${1?missing 1th argument: url}
-	local dst=${2?missing 2nd argument: dst}
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	! git.exist_ "$dst" || die "Destination already exist: $dst"
 
@@ -109,7 +109,7 @@ git.clone_() {
 }
 
 git.update_() {
-	local dst=${1?missing 1st argument: dst}
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.enter_ "$dst"
 

@@ -106,7 +106,7 @@ bool() {
 }
 
 included() {
-	local needle=${1?missing argument: needle}
+	local needle=${1?${FUNCNAME[0]}: missing argument}; shift
 	shift
 
 	local element
@@ -167,7 +167,7 @@ const() {
 
 # Ensure that the directory pointed by given environment variable exists
 ensured() {
-	local -n ensured_reference_=${1?missing 1th argument: name reference}
+	local -n ensured_reference_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -n $ensured_reference_ ]] || die "Blank environment value found: $ensured_reference_"
 	[[ -d $ensured_reference_ ]] || must mkdir -p "$ensured_reference_"
@@ -175,8 +175,7 @@ ensured() {
 
 # Check timestamp of reference files against given expiry in minutes
 expired() {
-	local -i expiry=${1?missing 1th argument: expiry} # minutes
-	shift
+	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ $expiry -gt 0 ]] || return 1
 
@@ -265,12 +264,8 @@ flag.parse() {
 	fi
 }
 
-flag.must() {
-	: # TODO
-}
-
 flag.env() {
-	local -n flag_env_=${1?missing 1st argument: array reference}
+	local -n flag_env_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local key
 	for key in "${!_[@]}"; do
@@ -281,7 +276,7 @@ flag.env() {
 }
 
 flag.args() {
-	local -n flag_args_=${1?missing 1st argument: array reference}
+	local -n flag_args_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local key
 	for key in "${!_[@]}"; do
@@ -432,14 +427,14 @@ string.delete_suffix() {
 
 # Join array with the given separator
 array.join() {
-	local IFS=$1
-	shift
+	local IFS=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	echo "$*"
 }
 # Duplicate array
 array.dup() {
-	local -n array_dup_lhs_=${1?missing argument: array reference} array_dup_rhs_=${2?missing argument: array reference}
+	local -n array_dup_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n array_dup_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local key
 	for key in "${!array_dup_rhs_[@]}"; do
@@ -450,8 +445,8 @@ array.dup() {
 
 # The element included in the given array
 array.included() {
-	local -n array_included_=${1?missing argument: array reference}
-	local element=${2?missing argument: element}
+	local -n array_included_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    element=${1?${FUNCNAME[0]}: missing argument};         shift
 
 	included "$element" "${array_included_[@]}"
 }
@@ -467,7 +462,8 @@ path.is_equal() {
 }
 
 path.is_inside() {
-	local given=$1 path=$2
+	local given=${1?${FUNCNAME[0]}: missing argument}; shift
+	local path=${1?${FUNCNAME[0]}: missing argument};  shift
 
 	local relative
 	relative=$(realpath --relative-to "$given" "$path" 2>/dev/null) || return
@@ -476,7 +472,7 @@ path.is_inside() {
 }
 
 path.dir() {
-	local -n path_dir_=${1?missing 1th argument: name reference}
+	local -n path_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	path.normalize path_dir_
 
@@ -492,22 +488,22 @@ path.dir() {
 }
 
 path.base() {
-	local -n path_base_=${1?missing 1th argument: name reference}
-	local ext=${2:-}
+	local -n path_base_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    ext=${1:-}
 
 	path_base_=${path_base_##*/}
 }
 
 path.name() {
-	local -n path_name_=${1?missing 1th argument: name reference}
-	local ext=${2:-}
+	local -n path_name_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    ext=${1:-}
 
 	path_name_=${path_name_##*/}
 	path_name_=${path_name_%.*}
 }
 
 path.ext() {
-	local -n path_ext_=${1?missing 1th argument: name reference}
+	local -n path_ext_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	path_ext_=${path_ext_##*/}
 
@@ -522,8 +518,8 @@ path.ext() {
 }
 
 path.subext() {
-	local -n path_subext_=${1?missing 1th argument: name reference}
-	local ext=${2?missing 2nd argument: ext}
+	local -n path_subext_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    ext=${1?${FUNCNAME[0]}: missing argument};          shift
 
 	case $path_subext_ in
 	*.*)
@@ -540,10 +536,10 @@ path.parse() {
 	local -n path_parse_=_
 	if [[ ${1:-} = -A ]]; then
 		shift
-		path_parse_=${1?missing argument for -A: hash reference}
+		path_parse_=${1?${FUNCNAME[0]}: missing argument}; shift
 	fi
 
-	local path=${1?missing 1th argument: path}
+	local path=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local dir=$path base=$path name=$path ext=$path
 
@@ -565,8 +561,8 @@ path.parse() {
 }
 
 path.suffixize() {
-	local -n path_suffixize_=${1?missing 1th argument: name reference}
-	local suffix=${2?missing 2nd argument: suffix}
+	local -n path_suffixize_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    suffix=${1?${FUNCNAME[0]}: missing argument};          shift
 
 	local -A _
 	path.parse "$path_suffixize_"
@@ -575,7 +571,7 @@ path.suffixize() {
 }
 
 path.normalize() {
-	local -n path_normalize_=${1?missing 1th argument: name reference}
+	local -n path_normalize_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	while [[ $path_normalize_ =~ //+ ]]; do
 		path_normalize_=${path_normalize_/\/\//\/}
@@ -642,7 +638,7 @@ trap.setup() {
 
 temp.file() {
 	# shellcheck disable=2155
-	local -n temp_file_=${1?missing 1th argument: name reference}
+	local -n temp_file_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local file
 
@@ -655,7 +651,7 @@ temp.file() {
 
 temp.dir() {
 	# shellcheck disable=2155
-	local -n temp_dir_=${1?missing 1th argument: name reference}
+	local -n temp_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local dir
 	dir=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
@@ -678,7 +674,7 @@ temp.inside() {
 }
 
 temp.clean() {
-	local -n temp_clean_=${1?missing 1th argument: name reference}
+	local -n temp_clean_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
 }
@@ -783,7 +779,8 @@ file.install() {
 
 	flag.parse "$@"
 
-	local url=${_[1]?missing value at [1]: url} dst=${_[2]:-${url##*/}}
+	local url=${_[1]?${FUNCNAME[0]}: missing value}
+	local dst=${_[2]:-${url##*/}}
 
 	file.install_ "$url" "$dst"
 }
@@ -813,13 +810,14 @@ file.chogm() {
 
 	flag.parse "$@"
 
-	local dst=${_[1]?missing value at [1]: dst}
+	local dst=${_[1]?${FUNCNAME[0]}: missing value}
 
 	file.chogm_ "$dst"
 }
 
 file.ln() {
-	local src=${1?missing 1th argument: src} dst=${2?missing 2nd argument: dst}
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	src=$(realpath -m --relative-base "${dst%/*}" "$src")
 	must ln -sf "$src" "$dst"
@@ -840,8 +838,8 @@ file.enter() {
 }
 
 file.download() {
-	local url=${1?missing 1th argument: url}
-	local -n file_download_dst_=${2?missing 2nd argument: name reference}
+	local    url=${1?${FUNCNAME[0]}: missing argument};                shift
+	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local tempfile
 
@@ -855,8 +853,7 @@ file.download() {
 # file.sh - Private functions
 
 file._do_args_() {
-	local op=${1?missing 1th argument: op}
-	shift
+	local op=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	# shellcheck disable=2192
 	local -A _=(
@@ -868,15 +865,16 @@ file._do_args_() {
 
 	flag.parse "$@"
 
-	local src=${_[1]?missing value at [1]: src} dst=${_[2]?missing value at [2]: dst}
+	local src=${_[1]?${FUNCNAME[0]}: missing value}
+	local dst=${_[2]?${FUNCNAME[0]}: missing value}
 
 	file.do_ "$op" "$src" "$dst"
 }
 
 file.do_() {
-	local op=${1?missing 1th argument: op}
-	local src=${2?missing 2nd argument: src}
-	local dst=${3?missing 3rd argument: dst}
+	local op=${1?${FUNCNAME[0]}: missing argument};  shift
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -e $src ]] || die "Source not found: $src"
 
@@ -911,13 +909,14 @@ file.do_() {
 }
 
 file.dst_() {
-	local -n file_dst_=${1?missing 1st argument: name reference}
+	local -n file_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
+
 	[[ -z ${_[-prefix]:-} ]] || file_dst_=${_[-prefix]}/$file_dst_
 }
 
 file.install_() {
-	local url=${1?missing 1th argument: url}
-	local dst=${2?missing 2nd argument: dst}
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local tempfile
 
@@ -935,7 +934,7 @@ file.install_() {
 }
 
 file._chogm_() {
-	local dst=${1?missing 1th argument: dst}
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -z ${_[-mode]:-}  ]] || must chmod "${_[-mode]}"  "$dst"
 	[[ -z ${_[-owner]:-} ]] || must chown "${_[-owner]}" "$dst"
@@ -950,10 +949,10 @@ url.parse() {
 	local -n url_parse_=_
 	if [[ ${1:-} = -A ]]; then
 		shift
-		url_parse_=${1?missing argument for -A: hash reference}
+		url_parse_=${1?${FUNCNAME[0]}: missing argument}; shift
 	fi
 
-	local url=${1?missing 1th argument: url}
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	# shellcheck disable=1007
 	local proto= userinfo= host= port= path= frag=
@@ -1028,7 +1027,7 @@ url.parse() {
 
 # http.get: Get URL
 http.get() {
-	local url=$1
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ $url =~ ^.*:// ]] || url=https://$url
 
@@ -1036,7 +1035,7 @@ http.get() {
 }
 
 http.ok() {
-	local url=${1?missing argument: url}
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local code
 	code=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
@@ -1122,7 +1121,7 @@ git.dst_() {
 }
 
 git.exist_() {
-	local dst=${1?missing 1st argumenet: dst}
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.dst_ dst
 
@@ -1130,7 +1129,7 @@ git.exist_() {
 }
 
 git.enter_() {
-	local dst=${1?missing 1st argument: dst}
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.dst_ dst
 
@@ -1144,8 +1143,8 @@ git.enter_() {
 }
 
 git.clone_() {
-	local url=${1?missing 1th argument: url}
-	local dst=${2?missing 2nd argument: dst}
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	! git.exist_ "$dst" || die "Destination already exist: $dst"
 
@@ -1165,7 +1164,7 @@ git.clone_() {
 }
 
 git.update_() {
-	local dst=${1?missing 1st argument: dst}
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.enter_ "$dst"
 
@@ -1238,13 +1237,13 @@ src.run() {
 }
 
 src.managed_() {
-	local path=${1?missing 1th argument: path}
+	local path=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.is_git "$path" && git -C "$path" config underscore.name &>/dev/null
 }
 
 src.install_() {
-	local url=${_[1]?missing value at [1]: url}
+	local url=${_[1]?${FUNCNAME[0]}: missing value}
 
 	url.parse "$url" || die "Error parsing URL: ${_[.error]}: $url"
 
@@ -1262,7 +1261,7 @@ src.install_() {
 }
 
 src.run_() {
-	local file=${1?missing 1st argument: file}
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	path.base file
 
@@ -1271,7 +1270,7 @@ src.run_() {
 }
 
 src.test_() {
-	local file=${1?missing 1st argument: file}
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local test_file=$file
 	path.suffixize test_file '_test'
@@ -1280,7 +1279,7 @@ src.test_() {
 }
 
 src.exe_() {
-	local file=${1?missing 1st argument: file}
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local -a env
 	src.env_ env
@@ -1293,8 +1292,7 @@ src.exe_() {
 }
 
 src.interprete() {
-	local file=${1?missing 1st argument: file}
-	shift
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local ext=$file
 	path.ext ext
@@ -1323,7 +1321,7 @@ src.interprete() {
 
 src.env_() {
 	# shellcheck disable=2034
-	local -n src_env_=${1?missing 1st argument: array reference}
+	local -n src_env_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	flag.env src_env_
 }
@@ -1489,11 +1487,8 @@ deb.update() {
 
 # deb.repository: Add Debian repository
 deb.repository() {
-	local name=${1?missing argument: name}
-	shift
-
-	local url=${1:-}
-	shift
+	local name=${1?${FUNCNAME[0]}: missing argument}; shift
+	local url=${1:-};                                 shift
 
 	has.stdin || die 'Required stdin data'
 
@@ -1527,19 +1522,19 @@ deb.using() {
 # deb.sh - Private functions
 
 deb._dist_valid() {
-	local dist=${1?missing argument: dist}
+	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	http.ok http://ftp.debian.org/debian/dists/"$dist"/
 }
 
 deb._dist_added() {
-	local dist=${1?missing argument: dist}
+	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	grep -qE "^deb.*\bdebian.org\b.*\b$dist\b" /etc/apt/*.list /etc/apt/sources.list.d/*.list
 }
 
 deb._apt_key_add() {
-	local url=${1?missing argument: url}
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local tempfile
 	temp.file tempfile
@@ -1568,8 +1563,7 @@ deb._apt_key_add() {
 }
 
 deb._missings() {
-	local -a deb_missings_=${1?missing argument: array reference}
-	shift
+	local -a deb_missings_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local package
 	for package in "${[@]}"; do
@@ -1599,7 +1593,7 @@ deb._install_from_urls() {
 
 # text.fix: Append stdin content to the target file
 text.fix() {
-	local file=${1?missing argument: file}
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	text.unfix "$file"
 
@@ -1612,7 +1606,7 @@ text.fix() {
 
 # text.fix: Remove appended content
 text.unfix() {
-	local file=${1?missing argument: file}
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	text.fixed "$file" || return 0
 
@@ -1622,7 +1616,7 @@ text.unfix() {
 }
 
 text.fixed() {
-	local file=${1?missing argument: file}
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -f $file ]] || die "File not found: $file"
 
@@ -1667,8 +1661,8 @@ declare -Ag help=(
 .usage() {
 	local cmd
 
-	cry "Usage:    $0 commands ..."
-	cry "Commands:"
+	say "Usage:    $0 commands ..."
+	say "Commands:"
 
 	# shellcheck disable=2154
 	for cmd in "${!help[@]}"; do

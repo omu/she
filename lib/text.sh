@@ -2,7 +2,7 @@
 
 # text.fix: Append stdin content to the target file
 text.fix() {
-	local file=${1?missing argument: file}
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	text.unfix "$file"
 
@@ -15,7 +15,7 @@ text.fix() {
 
 # text.fix: Remove appended content
 text.unfix() {
-	local file=${1?missing argument: file}
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	text.fixed "$file" || return 0
 
@@ -25,7 +25,7 @@ text.unfix() {
 }
 
 text.fixed() {
-	local file=${1?missing argument: file}
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -f $file ]] || die "File not found: $file"
 

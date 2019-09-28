@@ -9,7 +9,8 @@ path.is_equal() {
 }
 
 path.is_inside() {
-	local given=$1 path=$2
+	local given=${1?${FUNCNAME[0]}: missing argument}; shift
+	local path=${1?${FUNCNAME[0]}: missing argument};  shift
 
 	local relative
 	relative=$(realpath --relative-to "$given" "$path" 2>/dev/null) || return
@@ -18,7 +19,7 @@ path.is_inside() {
 }
 
 path.dir() {
-	local -n path_dir_=${1?missing 1th argument: name reference}
+	local -n path_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	path.normalize path_dir_
 
@@ -34,22 +35,22 @@ path.dir() {
 }
 
 path.base() {
-	local -n path_base_=${1?missing 1th argument: name reference}
-	local ext=${2:-}
+	local -n path_base_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    ext=${1:-}
 
 	path_base_=${path_base_##*/}
 }
 
 path.name() {
-	local -n path_name_=${1?missing 1th argument: name reference}
-	local ext=${2:-}
+	local -n path_name_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    ext=${1:-}
 
 	path_name_=${path_name_##*/}
 	path_name_=${path_name_%.*}
 }
 
 path.ext() {
-	local -n path_ext_=${1?missing 1th argument: name reference}
+	local -n path_ext_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	path_ext_=${path_ext_##*/}
 
@@ -64,8 +65,8 @@ path.ext() {
 }
 
 path.subext() {
-	local -n path_subext_=${1?missing 1th argument: name reference}
-	local ext=${2?missing 2nd argument: ext}
+	local -n path_subext_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    ext=${1?${FUNCNAME[0]}: missing argument};          shift
 
 	case $path_subext_ in
 	*.*)
@@ -82,10 +83,10 @@ path.parse() {
 	local -n path_parse_=_
 	if [[ ${1:-} = -A ]]; then
 		shift
-		path_parse_=${1?missing argument for -A: hash reference}
+		path_parse_=${1?${FUNCNAME[0]}: missing argument}; shift
 	fi
 
-	local path=${1?missing 1th argument: path}
+	local path=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local dir=$path base=$path name=$path ext=$path
 
@@ -107,8 +108,8 @@ path.parse() {
 }
 
 path.suffixize() {
-	local -n path_suffixize_=${1?missing 1th argument: name reference}
-	local suffix=${2?missing 2nd argument: suffix}
+	local -n path_suffixize_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    suffix=${1?${FUNCNAME[0]}: missing argument};          shift
 
 	local -A _
 	path.parse "$path_suffixize_"
@@ -117,7 +118,7 @@ path.suffixize() {
 }
 
 path.normalize() {
-	local -n path_normalize_=${1?missing 1th argument: name reference}
+	local -n path_normalize_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	while [[ $path_normalize_ =~ //+ ]]; do
 		path_normalize_=${path_normalize_/\/\//\/}

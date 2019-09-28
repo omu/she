@@ -45,8 +45,8 @@
 .usage() {
 	local cmd
 
-	cry "Usage:    $0 commands ..."
-	cry "Commands:"
+	say "Usage:    $0 commands ..."
+	say "Commands:"
 
 	# shellcheck disable=2154
 	for cmd in "${!help[@]}"; do

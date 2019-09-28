@@ -2,7 +2,7 @@
 
 # http.get: Get URL
 http.get() {
-	local url=$1
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ $url =~ ^.*:// ]] || url=https://$url
 
@@ -10,7 +10,7 @@ http.get() {
 }
 
 http.ok() {
-	local url=${1?missing argument: url}
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local code
 	code=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)

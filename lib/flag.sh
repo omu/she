@@ -8,12 +8,8 @@ flag.parse() {
 	fi
 }
 
-flag.must() {
-	: # TODO
-}
-
 flag.env() {
-	local -n flag_env_=${1?missing 1st argument: array reference}
+	local -n flag_env_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local key
 	for key in "${!_[@]}"; do
@@ -24,7 +20,7 @@ flag.env() {
 }
 
 flag.args() {
-	local -n flag_args_=${1?missing 1st argument: array reference}
+	local -n flag_args_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local key
 	for key in "${!_[@]}"; do
