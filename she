@@ -1666,7 +1666,7 @@ deb.update() {
 # deb.repository: Add Debian repository
 deb.repository() {
 	local name=${1?${FUNCNAME[0]}: missing argument}; shift
-	local url=${1:-};                                 shift
+	local url=${1:-}
 
 	has.stdin || die 'Required stdin data'
 
