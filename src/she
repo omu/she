@@ -4,6 +4,8 @@
 
 #:lib/kernel.sh
 
+#:lib/must.sh
+
 #:lib/self.sh
 
 #:lib/flag.sh

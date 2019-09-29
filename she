@@ -118,72 +118,6 @@ included() {
 	return 1
 }
 
-must.e() {
-	local arg=${1?${FUNCNAME[0]}: missing argument};       shift
-	local message=${1:-"No such file or directory: $arg"}; shift
-
-	[[ -e $arg ]] || die message
-}
-
-must.f() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"No such file: $arg"};        shift
-
-	[[ -f $arg ]] || die message
-}
-
-must.d() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"No such directory: $arg"};   shift
-
-	[[ -d $arg ]] || die message
-}
-
-must.x() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"Not executable: $arg"};      shift
-
-	[[ -x $arg ]] || die message
-}
-
-must.r() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"No such file: $arg"};        shift
-
-	[[ -r $arg ]] || die message
-}
-
-must.w() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"No such file: $arg"};        shift
-
-	[[ -w $arg ]] || die message
-}
-
-must.n() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"Empty value: $arg"};         shift
-
-	[[ -n $arg ]] || die message
-}
-
-must.z() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"Empty value: $arg"};         shift
-
-	[[ -z $arg ]] || die message
-}
-
-# Command must success
-must.success() {
-	"$@" || die "Command failed: $*"
-}
-
-# Command may fail
-may.fail() {
-	"$@" || cry "Exit code $? is suppressed: $*"
-}
-
 # Announce constant (readonly) environment variable
 const() {
 	local export=
@@ -225,7 +159,7 @@ ensured() {
 	local -n ensured_reference_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -n $ensured_reference_ ]] || die "Blank environment value found: $ensured_reference_"
-	[[ -d $ensured_reference_ ]] || must.success mkdir -p "$ensured_reference_"
+	[[ -d $ensured_reference_ ]] || mkdir -p "$ensured_reference_" || die "Couldn't create directory: $ensured_reference_"
 }
 
 # Check timestamp of reference files against given expiry in minutes
@@ -273,6 +207,75 @@ expired() {
 
 # init
 .
+
+# must.sh - Guard functions
+
+must.e() {
+	local arg=${1?${FUNCNAME[0]}: missing argument};       shift
+	local message=${1:-"No such file or directory: $arg"}; shift
+
+	[[ -e $arg ]] || die "$message"
+}
+
+must.f() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${1:-"No such file: $arg"};        shift
+
+	[[ -f $arg ]] || die "$message"
+}
+
+must.d() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${1:-"No such directory: $arg"};   shift
+
+	[[ -d $arg ]] || die "$message"
+}
+
+must.x() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${1:-"Not executable: $arg"};      shift
+
+	[[ -x $arg ]] || die "$message"
+}
+
+must.r() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${1:-"No such file: $arg"};        shift
+
+	[[ -r $arg ]] || die "$message"
+}
+
+must.w() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${1:-"No such file: $arg"};        shift
+
+	[[ -w $arg ]] || die "$message"
+}
+
+must.n() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${1:-"Empty value: $arg"};         shift
+
+	[[ -n $arg ]] || die "$message"
+}
+
+must.z() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${1:-"Empty value: $arg"};         shift
+
+	[[ -z $arg ]] || die "$message"
+}
+
+# Command must success
+must.success() {
+	"$@" || die "Command failed: $*"
+}
+
+# Command may fail
+may.fail() {
+	"$@" || cry "Exit code $? is suppressed: $*"
+}
+
 
 # self.sh - Functions related to program itself
 
