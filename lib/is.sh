@@ -64,7 +64,7 @@ is.mime() {
 
 	local actual; actual=$(which.mime "$file")
 
-	[[ $actual = "$expected" ]] || [[ "${actual#*/}" = "$expected" ]]
+	[[ $actual = "$expected" ]] || [[ $actual =~ -$expected$ ]]
 }
 
 is.mimez() {
@@ -72,6 +72,8 @@ is.mimez() {
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	must.f "$file"
+
+	: # TODO
 }
 
 # is.file.binary: Detect binary file
@@ -109,29 +111,57 @@ is.file.compressed() {
 }
 
 is.file.tgz() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" gzip && is.zmime "$file" tar
 }
 
 is.file.txz() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" x-xz && is.zmime "$file" tar
 }
 
 is.file.tbz2() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" bzip2 && is.zmime "$file" tar
 }
 
 is.file.zip() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" zip
 }
 
 is.file.gz() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" gzip
 }
 
 is.file.bz2() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" bzip2
 }
 
 is.file.xz() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" x-xz
 }

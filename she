@@ -779,7 +779,7 @@ which.codename() {
 	lsb_release -sc
 }
 
-# which.filetype: Which file type
+# which.mime: Which mime type
 which.mime() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -788,7 +788,7 @@ which.mime() {
 	file --mime-type --brief "$file"
 }
 
-# which.filetype: Which file type inside zipped file
+# which.zmime: Which mime type inside compressed file
 which.zmime() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -863,7 +863,7 @@ is.mime() {
 
 	local actual; actual=$(which.mime "$file")
 
-	[[ $actual = "$expected" ]] || [[ "${actual#*/}" = "$expected" ]]
+	[[ $actual = "$expected" ]] || [[ $actual =~ -$expected$ ]]
 }
 
 is.mimez() {
@@ -871,6 +871,8 @@ is.mimez() {
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	must.f "$file"
+
+	: # TODO
 }
 
 # is.file.binary: Detect binary file
@@ -908,31 +910,59 @@ is.file.compressed() {
 }
 
 is.file.tgz() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" gzip && is.zmime "$file" tar
 }
 
 is.file.txz() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" x-xz && is.zmime "$file" tar
 }
 
 is.file.tbz2() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" bzip2 && is.zmime "$file" tar
 }
 
 is.file.zip() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" zip
 }
 
 is.file.gz() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" gzip
 }
 
 is.file.bz2() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" bzip2
 }
 
 is.file.xz() {
-	:
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	is.mime "$file" x-xz
 }
 
 # has.sh - Predications at has form
@@ -1828,8 +1858,8 @@ declare -Ag help=(
 	['which virtual']='Which virtualization'
 	['which distribution']='Which distribution'
 	['which codename']='Which distribution release'
-	['which filetype']='Which file type'
-	['which filetype']='Which file type inside zipped file'
+	['which mime']='Which mime type'
+	['which zmime']='Which mime type inside compressed file'
 	['is virtual']='Detect given virtualization'
 	['is debian']='Detect Debian or its given release'
 	['is ubuntu']='Detect Ubuntu or its given release'
@@ -1891,8 +1921,8 @@ declare -Ag command=(
 	['which virtual']='which.virtual'
 	['which distribution']='which.distribution'
 	['which codename']='which.codename'
-	['which filetype']='which.mime'
-	['which filetype']='which.zmime'
+	['which mime']='which.mime'
+	['which zmime']='which.zmime'
 	['is virtual']='is.virtual'
 	['is debian']='is.debian'
 	['is ubuntu']='is.ubuntu'
