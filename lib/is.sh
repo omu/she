@@ -64,7 +64,7 @@ is.mime() {
 
 	local actual; actual=$(which.mime "$file")
 
-	[[ $actual = "$expected" ]] || [[ $actual =~ -$expected$ ]]
+	[[ $actual = "$expected" ]]
 }
 
 is.mimez() {
@@ -73,36 +73,35 @@ is.mimez() {
 
 	must.f "$file"
 
-	: # TODO
+	local actual; actual=$(which.zmime "$file")
+
+	[[ $actual = "$expected" ]]
 }
 
-# is.file.binary: Detect binary file
-is.file.binary() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+declare -grA _file_type=(
+	[gzip]=application/gzip
+	[gz]=application/gzip
+	[xz]=application/x-xz
+	[bzip2]=application/bzip2
+	[bz2]=application/bzip2
+	[zip]=application/zip
+	[tar]=application/tar
+)
 
-	must.f "$file"
-
-	[[ $(file --mime-encoding --brief "$file") = binary ]]
+is.file._binary() {
+	[[ $(file --mime-encoding --brief "$1") = binary ]]
 }
 
-is.file.program() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	must.f "$file"
-
-	if is.file.binary "$file"; then
-		[[ $(file --mime-type --brief "$file") =~ -executable$ ]]
+is.file._program() {
+	if is.file.binary "$1"; then
+		[[ $(file --mime-type --brief "$1") =~ -executable$ ]]
 	else
-		has.file.shebang "$file"
+		has.file.shebang "$1"
 	fi
 }
 
-is.file.compressed() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	must.f "$file"
-
-	local mime; mime=$(file --mime-type --brief "$file"); mime=${mime#*/}
+is.file._compressed() {
+	local mime; mime=$(file --mime-type --brief "$1"); mime=${mime#*/}
 
 	case $mime in
 	gzip|zip|x-xz|x-bz2) return 0 ;;
@@ -110,58 +109,31 @@ is.file.compressed() {
 	esac
 }
 
-is.file.tgz() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	must.f "$file"
-
-	is.mime "$file" gzip && is.zmime "$file" tar
+is.file._tgz() {
+	is.mime "$1" gzip && is.zmime "$1" tar
 }
 
-is.file.txz() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	must.f "$file"
-
-	is.mime "$file" x-xz && is.zmime "$file" tar
+is.file._txz() {
+	is.mime "$1" xz && is.zmime "$1" tar
 }
 
-is.file.tbz2() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	must.f "$file"
-
-	is.mime "$file" bzip2 && is.zmime "$file" tar
+is.file._tbz2() {
+	is.mime "$1" bzip2 && is.zmime "$1" tar
 }
 
-is.file.zip() {
+is.file() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local type=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	must.f "$file"
 
-	is.mime "$file" zip
-}
+	if has.function is.file._"$type"; then
+		is.file._"$type" "$file"
+	elif [[ -n ${_file_type[$type]:-} ]]; then
+		local mime=${_file_type[$type]}
 
-is.file.gz() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	must.f "$file"
-
-	is.mime "$file" gzip
-}
-
-is.file.bz2() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	must.f "$file"
-
-	is.mime "$file" bzip2
-}
-
-is.file.xz() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	must.f "$file"
-
-	is.mime "$file" x-xz
+		is.mime "$file" "$mime"
+	else
+		die "Unrecognized file type: $type"
+	fi
 }
