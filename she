@@ -271,11 +271,24 @@ must.success() {
 	"$@" || die "Command failed: $*"
 }
 
-# Command may fail
+# Command may fail but must proceed
 must.proceed() {
 	"$@" || cry "Exit code $? is suppressed: $*"
 }
 
+# Condition must be true
+must.true() {
+	local message=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	"$@" || die "$message"
+}
+
+# Condition must be false
+must.false() {
+	local message=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	"$@" && die "$message"
+}
 
 # self.sh - Functions related to program itself
 
