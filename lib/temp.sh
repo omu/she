@@ -30,9 +30,9 @@ temp.inside() {
 	local temp_dir orig_dir=$PWD
 	temp.dir temp_dir
 
-	must cd "$temp_dir"
+	must.success cd "$temp_dir"
 	"$@"
-	must cd "$orig_dir"
+	must.success cd "$orig_dir"
 
 	rm -rf -- "$temp_dir"
 }

@@ -31,7 +31,7 @@ git.topdir() {
 git.top() {
 	git.must_sane
 
-	must cd "$(git.topdir)"
+	must.success cd "$(git.topdir)"
 }
 
 git.default_branch() {
@@ -80,7 +80,7 @@ git.enter_() {
 
 	[[ -d $dst ]] || die "Destination not found: $dst"
 
-	must pushd "$dst" >/dev/null
+	must.success pushd "$dst" >/dev/null
 
 	git.is_git . || die "Not a git repository: $PWD"
 
@@ -123,5 +123,5 @@ git.update_() {
 		git pull --quiet origin
 	fi
 
-	must popd >/dev/null
+	must.success popd >/dev/null
 }

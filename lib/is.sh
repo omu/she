@@ -45,7 +45,7 @@ is.ubuntu() {
 
 # is.proxmox: Detect Proxmox
 is.proxmox() {
-	command -v pveversion >/dev/null && uname -a | grep -q -i pve
+	has.command pveversion && uname -a | grep -q -i pve
 }
 
 # is.vagrant: Detect Vagrant
@@ -54,4 +54,84 @@ is.vagrant() {
 	is.virtual || return 1
 
 	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
+}
+
+is.mime() {
+	local file=${1?${FUNCNAME[0]}: missing argument};     shift
+	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	local actual; actual=$(which.mime "$file")
+
+	[[ $actual = "$expected" ]] || [[ "${actual#*/}" = "$expected" ]]
+}
+
+is.mimez() {
+	local file=${1?${FUNCNAME[0]}: missing argument};     shift
+	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+}
+
+# is.file.binary: Detect binary file
+is.file.binary() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	[[ $(file --mime-encoding --brief "$file") = binary ]]
+}
+
+is.file.program() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	if is.file.binary "$file"; then
+		[[ $(file --mime-type --brief "$file") =~ -executable$ ]]
+	else
+		has.file.shebang "$file"
+	fi
+}
+
+is.file.compressed() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	local mime; mime=$(file --mime-type --brief "$file"); mime=${mime#*/}
+
+	case $mime in
+	gzip|zip|x-xz|x-bz2) return 0 ;;
+	*)                   return 1 ;;
+	esac
+}
+
+is.file.tgz() {
+	:
+}
+
+is.file.txz() {
+	:
+}
+
+is.file.tbz2() {
+	:
+}
+
+is.file.zip() {
+	:
+}
+
+is.file.gz() {
+	:
+}
+
+is.file.bz2() {
+	:
+}
+
+is.file.xz() {
+	:
 }

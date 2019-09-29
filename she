@@ -119,13 +119,55 @@ included() {
 	return 1
 }
 
+must.e() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${2:-"No such file or directory: $arg"}
+
+	[[ -e $arg ]] || die message
+}
+
+must.f() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${2:-"No such file: $arg"}
+
+	[[ -f $arg ]] || die message
+}
+
+must.d() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${2:-"No such directory: $arg"}
+
+	[[ -d $arg ]] || die message
+}
+
+must.x() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${2:-"Not executable: $arg"}
+
+	[[ -n $arg ]] || die message
+}
+
+must.n() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${2:-"Empty value: $arg"}
+
+	[[ -n $arg ]] || die message
+}
+
+must.z() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${2:-"Empty value: $arg"}
+
+	[[ -z $arg ]] || die message
+}
+
 # Command must success
-must() {
+must.success() {
 	"$@" || die "Command failed: $*"
 }
 
 # Command may fail
-might() {
+may.fail() {
 	"$@" || cry "Exit code $? is suppressed: $*"
 }
 
@@ -170,7 +212,7 @@ ensured() {
 	local -n ensured_reference_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -n $ensured_reference_ ]] || die "Blank environment value found: $ensured_reference_"
-	[[ -d $ensured_reference_ ]] || must mkdir -p "$ensured_reference_"
+	[[ -d $ensured_reference_ ]] || must.success mkdir -p "$ensured_reference_"
 }
 
 # Check timestamp of reference files against given expiry in minutes
@@ -666,9 +708,9 @@ temp.inside() {
 	local temp_dir orig_dir=$PWD
 	temp.dir temp_dir
 
-	must cd "$temp_dir"
+	must.success cd "$temp_dir"
 	"$@"
-	must cd "$orig_dir"
+	must.success cd "$orig_dir"
 
 	rm -rf -- "$temp_dir"
 }
@@ -695,6 +737,24 @@ which.distribution() {
 # which.codename: Which distribution release
 which.codename() {
 	lsb_release -sc
+}
+
+# which.filetype: Which file type
+which.mime() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	file --mime-type --brief "$file"
+}
+
+# which.filetype: Which file type inside zipped file
+which.zmime() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	file --mime-type --brief --uncompress-noreport "$file"
 }
 
 # is.sh - Predications at is form
@@ -744,7 +804,7 @@ is.ubuntu() {
 
 # is.proxmox: Detect Proxmox
 is.proxmox() {
-	command -v pveversion >/dev/null && uname -a | grep -q -i pve
+	has.command pveversion && uname -a | grep -q -i pve
 }
 
 # is.vagrant: Detect Vagrant
@@ -755,7 +815,91 @@ is.vagrant() {
 	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
 }
 
+is.mime() {
+	local file=${1?${FUNCNAME[0]}: missing argument};     shift
+	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	local actual; actual=$(which.mime "$file")
+
+	[[ $actual = "$expected" ]] || [[ "${actual#*/}" = "$expected" ]]
+}
+
+is.mimez() {
+	local file=${1?${FUNCNAME[0]}: missing argument};     shift
+	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+}
+
+# is.file.binary: Detect binary file
+is.file.binary() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	[[ $(file --mime-encoding --brief "$file") = binary ]]
+}
+
+is.file.program() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	if is.file.binary "$file"; then
+		[[ $(file --mime-type --brief "$file") =~ -executable$ ]]
+	else
+		has.file.shebang "$file"
+	fi
+}
+
+is.file.compressed() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	local mime; mime=$(file --mime-type --brief "$file"); mime=${mime#*/}
+
+	case $mime in
+	gzip|zip|x-xz|x-bz2) return 0 ;;
+	*)                   return 1 ;;
+	esac
+}
+
+is.file.tgz() {
+	:
+}
+
+is.file.txz() {
+	:
+}
+
+is.file.tbz2() {
+	:
+}
+
+is.file.zip() {
+	:
+}
+
+is.file.gz() {
+	:
+}
+
+is.file.bz2() {
+	:
+}
+
+is.file.xz() {
+	:
+}
+
 # has.sh - Predications at has form
+
+has.command() {
+	command -v "$1" &>/dev/null
+}
 
 has.stdin() {
 	[[ ! -t 0 ]]
@@ -763,6 +907,13 @@ has.stdin() {
 
 has.stdout() {
 	[[ ! -t 1 ]]
+}
+
+# has.file.shebang: Detect shebang
+has.file.shebang() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	head -n 1 "$file" | grep -qE '^#!'
 }
 
 # file.sh - File related operations
@@ -820,7 +971,7 @@ file.ln() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	src=$(realpath -m --relative-base "${dst%/*}" "$src")
-	must ln -sf "$src" "$dst"
+	must.success ln -sf "$src" "$dst"
 }
 
 file.enter() {
@@ -829,11 +980,11 @@ file.enter() {
 	[[ -n $dir ]] || return 0
 
 	if [[ -d $dir ]]; then
-		must cd "$dir"
+		must.success cd "$dir"
 	else
 		dir=${dir%/*}
 		[[ -d $dir ]] || die "No path found to enter: $dir"
-		must cd "$dir"
+		must.success cd "$dir"
 	fi
 }
 
@@ -844,7 +995,7 @@ file.download() {
 	local tempfile
 
 	temp.file tempfile
-	must http.get "$url" >"$tempfile"
+	must.success http.get "$url" >"$tempfile"
 
 	# shellcheck disable=2034
 	file_download_dst_=$tempfile
@@ -888,14 +1039,14 @@ file.do_() {
 		path.dir dstdir
 	fi
 
-	[[ $dstdir = . ]] || must mkdir -p "$dstdir"
+	[[ $dstdir = . ]] || must.success mkdir -p "$dstdir"
 
 	case $op in
 	copy)
-		must cp -a "$src" "$dst"
+		must.success cp -a "$src" "$dst"
 		;;
 	move)
-		must mv -f "$src" "$dst"
+		must.success mv -f "$src" "$dst"
 		;;
 	link)
 		file.ln "$src" "$dst"
@@ -936,9 +1087,9 @@ file.install_() {
 file._chogm_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ -z ${_[-mode]:-}  ]] || must chmod "${_[-mode]}"  "$dst"
-	[[ -z ${_[-owner]:-} ]] || must chown "${_[-owner]}" "$dst"
-	[[ -z ${_[-group]:-} ]] || must chgrp "${_[-group]}" "$dst"
+	[[ -z ${_[-mode]:-}  ]] || must.success chmod "${_[-mode]}"  "$dst"
+	[[ -z ${_[-owner]:-} ]] || must.success chown "${_[-owner]}" "$dst"
+	[[ -z ${_[-group]:-} ]] || must.success chgrp "${_[-group]}" "$dst"
 }
 
 # uel.sh - URL processing
@@ -1086,7 +1237,7 @@ git.topdir() {
 git.top() {
 	git.must_sane
 
-	must cd "$(git.topdir)"
+	must.success cd "$(git.topdir)"
 }
 
 git.default_branch() {
@@ -1135,7 +1286,7 @@ git.enter_() {
 
 	[[ -d $dst ]] || die "Destination not found: $dst"
 
-	must pushd "$dst" >/dev/null
+	must.success pushd "$dst" >/dev/null
 
 	git.is_git . || die "Not a git repository: $PWD"
 
@@ -1178,7 +1329,7 @@ git.update_() {
 		git pull --quiet origin
 	fi
 
-	must popd >/dev/null
+	must.success popd >/dev/null
 }
 
 # src.sh - Source management
@@ -1467,7 +1618,7 @@ deb.uninstall() {
 
 	apt-get purge -y "${packages[@]}"
 
-	might apt-get autoremove -y && might apt-get autoclean -y
+	may.fail apt-get autoremove -y && may.fail apt-get autoclean -y
 }
 
 # deb.missings: Print missing packages among given packages
@@ -1637,11 +1788,15 @@ declare -Ag help=(
 	['which virtual']='Which virtualization'
 	['which distribution']='Which distribution'
 	['which codename']='Which distribution release'
+	['which filetype']='Which file type'
+	['which filetype']='Which file type inside zipped file'
 	['is virtual']='Detect given virtualization'
 	['is debian']='Detect Debian or its given release'
 	['is ubuntu']='Detect Ubuntu or its given release'
 	['is proxmox']='Detect Proxmox'
 	['is vagrant']='Detect Vagrant'
+	['is file binary']='Detect binary file'
+	['has file shebang']='Detect shebang'
 	['file install']='Install file from URL'
 	['http get']='Get URL'
 	['src install']='Install to a known location'
@@ -1696,11 +1851,15 @@ declare -Ag command=(
 	['which virtual']='which.virtual'
 	['which distribution']='which.distribution'
 	['which codename']='which.codename'
+	['which filetype']='which.mime'
+	['which filetype']='which.zmime'
 	['is virtual']='is.virtual'
 	['is debian']='is.debian'
 	['is ubuntu']='is.ubuntu'
 	['is proxmox']='is.proxmox'
 	['is vagrant']='is.vagrant'
+	['is file binary']='is.file.binary'
+	['has file shebang']='has.file.shebang'
 	['file install']='file.install'
 	['http get']='http.get'
 	['src install']='src.install'

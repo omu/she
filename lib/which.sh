@@ -15,3 +15,21 @@ which.distribution() {
 which.codename() {
 	lsb_release -sc
 }
+
+# which.filetype: Which file type
+which.mime() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	file --mime-type --brief "$file"
+}
+
+# which.filetype: Which file type inside zipped file
+which.zmime() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	file --mime-type --brief --uncompress-noreport "$file"
+}

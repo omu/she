@@ -107,13 +107,55 @@ included() {
 	return 1
 }
 
+must.e() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${2:-"No such file or directory: $arg"}
+
+	[[ -e $arg ]] || die message
+}
+
+must.f() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${2:-"No such file: $arg"}
+
+	[[ -f $arg ]] || die message
+}
+
+must.d() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${2:-"No such directory: $arg"}
+
+	[[ -d $arg ]] || die message
+}
+
+must.x() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${2:-"Not executable: $arg"}
+
+	[[ -n $arg ]] || die message
+}
+
+must.n() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${2:-"Empty value: $arg"}
+
+	[[ -n $arg ]] || die message
+}
+
+must.z() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${2:-"Empty value: $arg"}
+
+	[[ -z $arg ]] || die message
+}
+
 # Command must success
-must() {
+must.success() {
 	"$@" || die "Command failed: $*"
 }
 
 # Command may fail
-might() {
+may.fail() {
 	"$@" || cry "Exit code $? is suppressed: $*"
 }
 
@@ -158,7 +200,7 @@ ensured() {
 	local -n ensured_reference_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -n $ensured_reference_ ]] || die "Blank environment value found: $ensured_reference_"
-	[[ -d $ensured_reference_ ]] || must mkdir -p "$ensured_reference_"
+	[[ -d $ensured_reference_ ]] || must.success mkdir -p "$ensured_reference_"
 }
 
 # Check timestamp of reference files against given expiry in minutes
