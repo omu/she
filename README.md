@@ -62,6 +62,10 @@ Stil
 
 - Komut satırı parametrelerinin ayrıştırılmasında `flag` modülü kullanılır (`flag.parse "$@"`)
 
+### Çıktı atamaları
+
+- Sadece bang versiyon olarak backtick'ten kaçınan fonksiyonlara izin var.  Bu fonksiyonlarda girdi aynı zamanda çıktıdır.
+
 Ortam
 -----
 
