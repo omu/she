@@ -16,5 +16,5 @@ has.stdout() {
 has.file.shebang() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	head -n 1 "$file" | grep -qE '^#!'
+	head -n 1 "$file" | grep -q '^#!'
 }
