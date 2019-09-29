@@ -107,7 +107,6 @@ bool() {
 
 included() {
 	local needle=${1?${FUNCNAME[0]}: missing argument}; shift
-	shift
 
 	local element
 	for element; do
@@ -120,43 +119,57 @@ included() {
 }
 
 must.e() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${2:-"No such file or directory: $arg"}
+	local arg=${1?${FUNCNAME[0]}: missing argument};       shift
+	local message=${1:-"No such file or directory: $arg"}; shift
 
 	[[ -e $arg ]] || die message
 }
 
 must.f() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${2:-"No such file: $arg"}
+	local message=${1:-"No such file: $arg"};        shift
 
 	[[ -f $arg ]] || die message
 }
 
 must.d() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${2:-"No such directory: $arg"}
+	local message=${1:-"No such directory: $arg"};   shift
 
 	[[ -d $arg ]] || die message
 }
 
 must.x() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${2:-"Not executable: $arg"}
+	local message=${1:-"Not executable: $arg"};      shift
 
-	[[ -n $arg ]] || die message
+	[[ -x $arg ]] || die message
+}
+
+must.r() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${1:-"No such file: $arg"};        shift
+
+	[[ -r $arg ]] || die message
+}
+
+must.w() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${1:-"No such file: $arg"};        shift
+
+	[[ -w $arg ]] || die message
 }
 
 must.n() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${2:-"Empty value: $arg"}
+	local message=${1:-"Empty value: $arg"};         shift
 
 	[[ -n $arg ]] || die message
 }
 
 must.z() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${2:-"Empty value: $arg"}
+	local message=${1:-"Empty value: $arg"};         shift
 
 	[[ -z $arg ]] || die message
 }
