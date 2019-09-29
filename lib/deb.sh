@@ -73,7 +73,7 @@ deb.uninstall() {
 
 	apt-get purge -y "${packages[@]}"
 
-	may.fail apt-get autoremove -y && may.fail apt-get autoclean -y
+	must.proceed apt-get autoremove -y && must.proceed apt-get autoclean -y
 }
 
 # deb.missings: Print missing packages among given packages
