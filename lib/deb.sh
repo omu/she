@@ -43,7 +43,7 @@ deb.install() {
 		local target
 
 		if is.debian stable; then
-			target=$(which.debian codename)-backports
+			target=$(what.debian codename)-backports
 		elif is.debian unstable; then
 			target=experimental
 		fi

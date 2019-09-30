@@ -779,26 +779,26 @@ temp.clean() {
 	done
 }
 
-# which.sh - Show facts
+# what.sh - Show facts
 
-# which.virtual: Which virtualization
-which.virtual() {
+# what.virtual: Which virtualization
+what.virtual() {
 	systemd-detect-virt
 }
 
-# which.distribution: Which distribution
-which.distribution() {
+# what.distribution: Which distribution
+what.distribution() {
 	# shellcheck disable=1091
 	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
 }
 
-# which.codename: Which distribution release
-which.codename() {
+# what.codename: Which distribution release
+what.codename() {
 	lsb_release -sc
 }
 
-# which.mime: Which mime type
-which.mime() {
+# what.mime: Which mime type
+what.mime() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	must.f "$file"
@@ -806,8 +806,8 @@ which.mime() {
 	file --mime-type --brief "$file"
 }
 
-# which.zmime: Which mime type inside compressed file
-which.zmime() {
+# what.zmime: Which mime type inside compressed file
+what.zmime() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	must.f "$file"
@@ -821,7 +821,7 @@ which.zmime() {
 # shellcheck disable=2120
 is.virtual() {
 	if [[ $# -gt 0 ]]; then
-		[[ "$(which.virtual)" = "$1" ]]
+		[[ "$(what.virtual)" = "$1" ]]
 	else
 		[[ -z ${CI:-} ]] || return 0
 		[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
@@ -843,20 +843,20 @@ is.debian() {
 			! grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
 			;;
 		*)
-			[[ "$(which.codename)" = "$1" ]]
+			[[ "$(what.codename)" = "$1" ]]
 			;;
 		esac
 	else
-		[[ "$(which.distribution)" = 'debian' ]]
+		[[ "$(what.distribution)" = 'debian' ]]
 	fi
 }
 
 # is.ubuntu: Detect Ubuntu or its given release
 is.ubuntu() {
 	if [[ $# -gt 0 ]]; then
-		[[ "$(which.codename)" = "$1" ]]
+		[[ "$(what.codename)" = "$1" ]]
 	else
-		[[ "$(which.distribution)" = 'ubuntu' ]]
+		[[ "$(what.distribution)" = 'ubuntu' ]]
 	fi
 }
 
@@ -880,7 +880,7 @@ is.mime() {
 
 	must.f "$file"
 
-	local actual; actual=$(which.mime "$file")
+	local actual; actual=$(what.mime "$file")
 
 	[[ $actual = "$expected" ]]
 }
@@ -892,7 +892,7 @@ is.mimez() {
 
 	must.f "$file"
 
-	local actual; actual=$(which.zmime "$file")
+	local actual; actual=$(what.zmime "$file")
 
 	[[ $actual = "$expected" ]]
 }
@@ -1709,7 +1709,7 @@ deb.install() {
 		local target
 
 		if is.debian stable; then
-			target=$(which.debian codename)-backports
+			target=$(what.debian codename)-backports
 		elif is.debian unstable; then
 			target=experimental
 		fi
@@ -1986,11 +1986,11 @@ declare -Ag help=(
 	['self name']='Print self name'
 	['self path']='Print self path'
 	['temp inside']='Execute command in temp dir'
-	['which virtual']='Which virtualization'
-	['which distribution']='Which distribution'
-	['which codename']='Which distribution release'
-	['which mime']='Which mime type'
-	['which zmime']='Which mime type inside compressed file'
+	['what virtual']='Which virtualization'
+	['what distribution']='Which distribution'
+	['what codename']='Which distribution release'
+	['what mime']='Which mime type'
+	['what zmime']='Which mime type inside compressed file'
 	['is virtual']='Detect given virtualization'
 	['is debian']='Detect Debian or its given release'
 	['is ubuntu']='Detect Ubuntu or its given release'
@@ -2054,11 +2054,11 @@ declare -Ag command=(
 	['self name']='self.name'
 	['self path']='self.path'
 	['temp inside']='temp.inside'
-	['which virtual']='which.virtual'
-	['which distribution']='which.distribution'
-	['which codename']='which.codename'
-	['which mime']='which.mime'
-	['which zmime']='which.zmime'
+	['what virtual']='what.virtual'
+	['what distribution']='what.distribution'
+	['what codename']='what.codename'
+	['what mime']='what.mime'
+	['what zmime']='what.zmime'
 	['is virtual']='is.virtual'
 	['is debian']='is.debian'
 	['is ubuntu']='is.ubuntu'

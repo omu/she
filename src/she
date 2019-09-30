@@ -20,7 +20,7 @@
 
 #:lib/temp.sh
 
-#:lib/which.sh
+#:lib/what.sh
 
 #:lib/is.sh
 

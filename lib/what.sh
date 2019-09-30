@@ -1,23 +1,23 @@
-# which.sh - Show facts
+# what.sh - Show facts
 
-# which.virtual: Which virtualization
-which.virtual() {
+# what.virtual: Which virtualization
+what.virtual() {
 	systemd-detect-virt
 }
 
-# which.distribution: Which distribution
-which.distribution() {
+# what.distribution: Which distribution
+what.distribution() {
 	# shellcheck disable=1091
 	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
 }
 
-# which.codename: Which distribution release
-which.codename() {
+# what.codename: Which distribution release
+what.codename() {
 	lsb_release -sc
 }
 
-# which.mime: Which mime type
-which.mime() {
+# what.mime: Which mime type
+what.mime() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	must.f "$file"
@@ -25,8 +25,8 @@ which.mime() {
 	file --mime-type --brief "$file"
 }
 
-# which.zmime: Which mime type inside compressed file
-which.zmime() {
+# what.zmime: Which mime type inside compressed file
+what.zmime() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	must.f "$file"

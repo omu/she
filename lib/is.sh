@@ -4,7 +4,7 @@
 # shellcheck disable=2120
 is.virtual() {
 	if [[ $# -gt 0 ]]; then
-		[[ "$(which.virtual)" = "$1" ]]
+		[[ "$(what.virtual)" = "$1" ]]
 	else
 		[[ -z ${CI:-} ]] || return 0
 		[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
@@ -26,20 +26,20 @@ is.debian() {
 			! grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
 			;;
 		*)
-			[[ "$(which.codename)" = "$1" ]]
+			[[ "$(what.codename)" = "$1" ]]
 			;;
 		esac
 	else
-		[[ "$(which.distribution)" = 'debian' ]]
+		[[ "$(what.distribution)" = 'debian' ]]
 	fi
 }
 
 # is.ubuntu: Detect Ubuntu or its given release
 is.ubuntu() {
 	if [[ $# -gt 0 ]]; then
-		[[ "$(which.codename)" = "$1" ]]
+		[[ "$(what.codename)" = "$1" ]]
 	else
-		[[ "$(which.distribution)" = 'ubuntu' ]]
+		[[ "$(what.distribution)" = 'ubuntu' ]]
 	fi
 }
 
@@ -63,7 +63,7 @@ is.mime() {
 
 	must.f "$file"
 
-	local actual; actual=$(which.mime "$file")
+	local actual; actual=$(what.mime "$file")
 
 	[[ $actual = "$expected" ]]
 }
@@ -75,7 +75,7 @@ is.mimez() {
 
 	must.f "$file"
 
-	local actual; actual=$(which.zmime "$file")
+	local actual; actual=$(what.zmime "$file")
 
 	[[ $actual = "$expected" ]]
 }
