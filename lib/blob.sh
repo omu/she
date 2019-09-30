@@ -23,8 +23,8 @@ blob._unpack.tar.xz() {
 	tar --strip-components=1 -Jxvf "$1" -C "$2"
 }
 
-blob._unpack.tar.zxstd() {
-	tar -I zstd -xvf "$1" -C "$2"
+blob._unpack.tar.zst() {
+	tar --strip-components=1 --zstd -xvf "$1" -C "$2"
 }
 
 blob._unpack.zip() {
@@ -52,10 +52,9 @@ blob._unpack.xz() {
 	unxz "$1" >"$tempfile" && mv "$tempfile" "$2"
 }
 
-blob._unpack.zstd() {
+blob._unpack.zst() {
 	local tempfile
 	temp.file tempfile
 
 	zstdcat -f "$1" >"$tempfile" && mv "$tempfile" "$2"
 }
-

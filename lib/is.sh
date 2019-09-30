@@ -67,6 +67,7 @@ is.file() {
 		[xz]=application/x-xz
 		[zip]=application/zip
 		[zst]=application/x-zstd
+		[zstd]=application/x-zstd
 	)
 
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -122,7 +123,7 @@ is.file._program() {
 }
 
 is.file._compressed() {
-	local mime; mime=$(file --mime-type --brief "$1"); mime=${mime#*/}
+	local mime; mime=$(file --mime-type --brief "$1"); mime=${mime#application/}
 
 	case $mime in
 	gzip|zip|x-xz|x-bzip2|x-zstd) return 0 ;;

@@ -29,17 +29,6 @@ flag.args() {
 	done
 }
 
-flag.read() {
-	local -a out; mapfile -t out < <("$@")
-
-	local -i i=1
-
-	local value
-	for value in "${out[@]}"; do
-		_[$((i++))]=$value
-	done
-}
-
 flag.true() {
 	bool "${_[-$1]:-}"
 }

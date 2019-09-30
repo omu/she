@@ -42,6 +42,8 @@
 
 #:lib/text.sh
 
+#:lib/blob.sh
+
 #/help/
 
 .usage() {

@@ -356,17 +356,6 @@ flag.args() {
 	done
 }
 
-flag.read() {
-	local -a out; mapfile -t out < <("$@")
-
-	local -i i=1
-
-	local value
-	for value in "${out[@]}"; do
-		_[$((i++))]=$value
-	done
-}
-
 flag.true() {
 	bool "${_[-$1]:-}"
 }
@@ -866,6 +855,7 @@ is.file() {
 		[xz]=application/x-xz
 		[zip]=application/zip
 		[zst]=application/x-zstd
+		[zstd]=application/x-zstd
 	)
 
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -921,7 +911,7 @@ is.file._program() {
 }
 
 is.file._compressed() {
-	local mime; mime=$(file --mime-type --brief "$1"); mime=${mime#*/}
+	local mime; mime=$(file --mime-type --brief "$1"); mime=${mime#application/}
 
 	case $mime in
 	gzip|zip|x-xz|x-bzip2|x-zstd) return 0 ;;
@@ -1830,6 +1820,67 @@ text.fixed() {
 	grep -qE '(BEGIN|END) FIX' "$file"
 }
 
+# blob.unpack: Unpack blob
+blob.unpack() {
+	local type=${1?${FUNCNAME[0]}: missing argument};  shift
+	local in=${1?${FUNCNAME[0]}: missing argument};    shift
+	local out=${1?${FUNCNAME[0]}: missing argument};   shift
+
+	must.f "$in"
+
+	has.function blob._unpack."$type" || die "Unrecognized file type: $type"
+
+	blob._unpack."$type" "$in" "$out"
+}
+
+blob._unpack.tar.gz() {
+	tar --strip-components=1 -zxvf "$1" -C "$2"
+}
+
+blob._unpack.tar.bz2() {
+	tar --strip-components=1 -jxvf "$1" -C "$2"
+}
+
+blob._unpack.tar.xz() {
+	tar --strip-components=1 -Jxvf "$1" -C "$2"
+}
+
+blob._unpack.tar.zst() {
+	tar --strip-components=1 --zstd -xvf "$1" -C "$2"
+}
+
+blob._unpack.zip() {
+	unzip -q -d "$2" "$1"
+}
+
+blob._unpack.gz() {
+	local tempfile
+	temp.file tempfile
+
+	zcat "$1" >"$tempfile" && mv "$tempfile" "$2"
+}
+
+blob._unpack.bz2() {
+	local tempfile
+	temp.file tempfile
+
+	bzcat "$1" >"$tempfile" && mv "$tempfile" "$2"
+}
+
+blob._unpack.xz() {
+	local tempfile
+	temp.file tempfile
+
+	unxz "$1" >"$tempfile" && mv "$tempfile" "$2"
+}
+
+blob._unpack.zst() {
+	local tempfile
+	temp.file tempfile
+
+	zstdcat -f "$1" >"$tempfile" && mv "$tempfile" "$2"
+}
+
 declare -Ag help=(
 	['say']='Print messages on standard error'
 	['cry']='Print warning messages on standard error'
@@ -1869,6 +1920,7 @@ declare -Ag help=(
 	['deb using']='Use given official Debian distributions'
 	['text fix']='Append stdin content to the target file'
 	['text fix']='Remove appended content'
+	['blob unpack']='Unpack blob'
 )
 
 .usage() {
@@ -1934,6 +1986,7 @@ declare -Ag command=(
 	['deb using']='deb.using'
 	['text fix']='text.fix'
 	['text fix']='text.unfix'
+	['blob unpack']='blob.unpack'
 )
 
 .dispatch() {
