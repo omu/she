@@ -38,7 +38,9 @@ temp.inside() {
 }
 
 temp.clean() {
-	local -n temp_clean_=${1?${FUNCNAME[0]}: missing argument}; shift
+	while [[ $# -gt 0 ]]; do
+		local -n temp_clean_=$1; shift
 
-	[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
+		[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
+	done
 }

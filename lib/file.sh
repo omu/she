@@ -151,7 +151,7 @@ file.install_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local tempfile
+	local tempfile=
 
 	if [[ $url =~ ^[.]*/ ]]; then
 		src=$url

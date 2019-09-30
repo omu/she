@@ -11,16 +11,3 @@ has.stdin() {
 has.stdout() {
 	[[ ! -t 1 ]]
 }
-
-# has.file.shebang: Detect shebang
-has.file.shebang() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	head -n 1 "$file" | grep -q '^#!'
-}
-
-has.function() {
-	local name=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ $(type -t "$name" || true) == function ]]
-}

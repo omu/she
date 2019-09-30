@@ -56,36 +56,6 @@ is.vagrant() {
 	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
 }
 
-# is.file: Detect file type
-is.file() {
-	local -A is_file_=(
-		[bz2]=application/x-bzip2
-		[bzip2]=application/x-bzip2
-		[gz]=application/gzip
-		[gzip]=application/gzip
-		[tar]=application/tar
-		[xz]=application/x-xz
-		[zip]=application/zip
-		[zst]=application/x-zstd
-		[zstd]=application/x-zstd
-	)
-
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-	local type=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	must.f "$file"
-
-	if has.function is.file._"$type"; then
-		is.file._"$type" "$file"
-	elif [[ -n ${is_file_[$type]:-} ]]; then
-		local mime=${is_file_[$type]}
-
-		is.mime "$file" "$mime"
-	else
-		die "Unrecognized file type: $type"
-	fi
-}
-
 # is.mime: Detect mime type
 is.mime() {
 	local file=${1?${FUNCNAME[0]}: missing argument};     shift
@@ -110,39 +80,68 @@ is.mimez() {
 	[[ $actual = "$expected" ]]
 }
 
-is.file._binary() {
-	[[ $(file --mime-encoding --brief "$1") = binary ]]
+# is.file: Detect file type
+is.file() {
+	local -A _
+
+	is.file_ "$@"
 }
 
-is.file._program() {
-	if is.file.binary "$1"; then
-		[[ $(file --mime-type --brief "$1") =~ -executable$ ]]
+# is.function: Detect function
+is.function() {
+	local name=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $(type -t "$name" || true) == function ]]
+}
+
+is.file_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local type=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	local func=is.file._"${expected}"_
+
+	must.func "$func" "Unable to know type: $type"
+
+	"$func" "$file"
+}
+
+is.file._program_() {
+	local mime encoding
+
+	IFS='; ' read -r mime encoding < <(file --mime --brief "$1")
+
+	if [[ $encoding =~ binary$ ]]; then
+		if [[ $mime  =~ -executable$ ]]; then
+			_[file.program]=binary
+			return 0
+		fi
 	else
-		has.file.shebang "$1"
+		if head -n 1 "$file" | grep -q '^#!'; then
+			_[file.program]=script
+			return 1
+		fi
 	fi
+
+	return 1
 }
 
-is.file._compressed() {
-	local mime; mime=$(file --mime-type --brief "$1"); mime=${mime#application/}
+is.file._compressed_() {
+	local mime; mime=$(file --mime-type --brief "$1")
 
 	case $mime in
-	gzip|zip|x-xz|x-bzip2|x-zstd) return 0 ;;
-	*)                            return 1 ;;
+	gzip|zip|x-xz|x-bzip2|x-zstd)
+		local zip=$mime; zip=${zip##*/}; zip=${zip##*-}
+
+		if [[ $(file --mime-type --brief --uncompress-noreport "$file") = tar ]]; then
+			_[file.zip]=tar.$zip
+		else
+			_[file.zip]=$zip
+		fi
+
+		return 0 ;;
+	*)
+		return 1 ;;
 	esac
-}
-
-is.file._tar.gz() {
-	is.mime "$1" gzip && is.zmime "$1" tar
-}
-
-is.file._tar.xz() {
-	is.mime "$1" xz && is.zmime "$1" tar
-}
-
-is.file._tar.bz2() {
-	is.mime "$1" x-bzip2 && is.zmime "$1" tar
-}
-
-is.file._tar.zst() {
-	is.mime "$1" x-zstd && is.zmime "$1" tar
 }

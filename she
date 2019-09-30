@@ -266,6 +266,14 @@ must.z() {
 	[[ -z $arg ]] || die "$message"
 }
 
+# Function must exist
+must.func() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${1:-"Empty value: $arg"}
+
+	is.func "$arg" || die "$message"
+}
+
 # Command must success
 must.success() {
 	"$@" || die "Command failed: $*"
@@ -362,6 +370,16 @@ flag.args() {
 	for key in "${!_[@]}"; do
 		[[ $key =~ ^[1-9][0-9]+$ ]] || continue
 		flag_args_+=("${_[$key]}")
+	done
+}
+
+flag.vars() {
+	local -n flag_vars_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!_[@]}"; do
+		[[ $key =~ ^[.].+$ ]] || continue
+		flag_vars_+=("${_[$key]}")
 	done
 }
 
@@ -754,9 +772,11 @@ temp.inside() {
 }
 
 temp.clean() {
-	local -n temp_clean_=${1?${FUNCNAME[0]}: missing argument}; shift
+	while [[ $# -gt 0 ]]; do
+		local -n temp_clean_=$1; shift
 
-	[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
+		[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
+	done
 }
 
 # which.sh - Show facts
@@ -853,36 +873,6 @@ is.vagrant() {
 	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
 }
 
-# is.file: Detect file type
-is.file() {
-	local -A is_file_=(
-		[bz2]=application/x-bzip2
-		[bzip2]=application/x-bzip2
-		[gz]=application/gzip
-		[gzip]=application/gzip
-		[tar]=application/tar
-		[xz]=application/x-xz
-		[zip]=application/zip
-		[zst]=application/x-zstd
-		[zstd]=application/x-zstd
-	)
-
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-	local type=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	must.f "$file"
-
-	if has.function is.file._"$type"; then
-		is.file._"$type" "$file"
-	elif [[ -n ${is_file_[$type]:-} ]]; then
-		local mime=${is_file_[$type]}
-
-		is.mime "$file" "$mime"
-	else
-		die "Unrecognized file type: $type"
-	fi
-}
-
 # is.mime: Detect mime type
 is.mime() {
 	local file=${1?${FUNCNAME[0]}: missing argument};     shift
@@ -907,41 +897,70 @@ is.mimez() {
 	[[ $actual = "$expected" ]]
 }
 
-is.file._binary() {
-	[[ $(file --mime-encoding --brief "$1") = binary ]]
+# is.file: Detect file type
+is.file() {
+	local -A _
+
+	is.file_ "$@"
 }
 
-is.file._program() {
-	if is.file.binary "$1"; then
-		[[ $(file --mime-type --brief "$1") =~ -executable$ ]]
+# is.function: Detect function
+is.function() {
+	local name=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $(type -t "$name" || true) == function ]]
+}
+
+is.file_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local type=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	local func=is.file._"${expected}"_
+
+	must.func "$func" "Unable to know type: $type"
+
+	"$func" "$file"
+}
+
+is.file._program_() {
+	local mime encoding
+
+	IFS='; ' read -r mime encoding < <(file --mime --brief "$1")
+
+	if [[ $encoding =~ binary$ ]]; then
+		if [[ $mime  =~ -executable$ ]]; then
+			_[file.program]=binary
+			return 0
+		fi
 	else
-		has.file.shebang "$1"
+		if head -n 1 "$file" | grep -q '^#!'; then
+			_[file.program]=script
+			return 1
+		fi
 	fi
+
+	return 1
 }
 
-is.file._compressed() {
-	local mime; mime=$(file --mime-type --brief "$1"); mime=${mime#application/}
+is.file._compressed_() {
+	local mime; mime=$(file --mime-type --brief "$1")
 
 	case $mime in
-	gzip|zip|x-xz|x-bzip2|x-zstd) return 0 ;;
-	*)                            return 1 ;;
+	gzip|zip|x-xz|x-bzip2|x-zstd)
+		local zip=$mime; zip=${zip##*/}; zip=${zip##*-}
+
+		if [[ $(file --mime-type --brief --uncompress-noreport "$file") = tar ]]; then
+			_[file.zip]=tar.$zip
+		else
+			_[file.zip]=$zip
+		fi
+
+		return 0 ;;
+	*)
+		return 1 ;;
 	esac
-}
-
-is.file._tar.gz() {
-	is.mime "$1" gzip && is.zmime "$1" tar
-}
-
-is.file._tar.xz() {
-	is.mime "$1" xz && is.zmime "$1" tar
-}
-
-is.file._tar.bz2() {
-	is.mime "$1" x-bzip2 && is.zmime "$1" tar
-}
-
-is.file._tar.zst() {
-	is.mime "$1" x-zstd && is.zmime "$1" tar
 }
 
 # has.sh - Predications at has form
@@ -956,19 +975,6 @@ has.stdin() {
 
 has.stdout() {
 	[[ ! -t 1 ]]
-}
-
-# has.file.shebang: Detect shebang
-has.file.shebang() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	head -n 1 "$file" | grep -q '^#!'
-}
-
-has.function() {
-	local name=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ $(type -t "$name" || true) == function ]]
 }
 
 # file.sh - File related operations
@@ -1124,7 +1130,7 @@ file.install_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local tempfile
+	local tempfile=
 
 	if [[ $url =~ ^[.]*/ ]]; then
 		src=$url
@@ -1251,12 +1257,72 @@ http.ok() {
 
 # bin.sh - Executable files
 
+# bin.install: Install program to path
 bin.install() {
-	file.install -mode=755 -prefix="$_USR"/bin "$@"
+	# shellcheck disable=2192
+	local -A _=(
+		[-prefix]="$_USR"/bin
+		[-name]=
+	)
+
+	flag.parse "$@"
+
+	local url=${_[1]?${FUNCNAME[0]}: missing value}
+
+	# shellcheck disable=1007
+	local bin= tempfile= tempdir=
+
+	if [[ $url =~ ^[.]*/ ]]; then
+		bin=$url
+	else
+		file.download tempfile
+		bin=$tempfile
+	fi
+
+	if is.file compressed "$bin"; then
+		blob.unpack "$bin" tempdir
+		bin=$tempdir
+	fi
+
+	local -a bins
+	bin._inspect "$bin" bins
+
+	if [[ ${#bins[@]} -eq 1 ]]; then
+		local src=${bins[0]} dst=${_[-name]:-}
+
+		file.install -prefix="${_[-prefix]}" -mode=755 "$src" "$dst"
+	elif [[ ${#bins[@]} -gt 1 ]]; then
+		[[ -n ${_[-name]:-} ]] || die "Ambiguous usage of name argument: ${_[-name]}"
+
+		local src
+		for src in "${bins[@]}"; do
+			file.install -prefix="${_[-prefix]}" -mode=755 "$src"
+		done
+	else
+		die "No program found: $url"
+	fi
+
+	temp.clean tempfile tempdir
 }
 
+# bin.use: Use program
 bin.use() {
-	file.install -mode=755 -prefix="$_RUN"/bin "$@"
+	bin.install -prefix="$_RUN"/bin "$@"
+}
+
+bin._inspect() {
+	local bin=${1?${FUNCNAME[0]}: missing argument};             shift
+	local -n bin_inspect_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	if [[ -d $bin ]]; then
+		local file
+		for file in "$bin"/*; do
+			is.file program "$file" || continue
+			bin_inspect_+=("$file")
+		done
+	elif is.file program "$bin"; then
+		bin_inspect_+=("$file")
+	fi
 }
 
 # git.sh - Git functions
@@ -1831,15 +1897,20 @@ text.fixed() {
 
 # blob.unpack: Unpack blob
 blob.unpack() {
-	local type=${1?${FUNCNAME[0]}: missing argument};  shift
-	local in=${1?${FUNCNAME[0]}: missing argument};    shift
-	local out=${1?${FUNCNAME[0]}: missing argument};   shift
+	local in=${1?${FUNCNAME[0]}: missing argument};   shift
+	local out=${1?${FUNCNAME[0]}: missing argument};  shift
 
 	must.f "$in"
 
-	has.function blob._unpack."$type" || die "Unrecognized file type: $type"
+	local -A _
 
-	blob._unpack."$type" "$in" "$out"
+	is.file_ compressed "$in" || die "Not a compressed file of known type: $in"
+
+	local func=blob._unpack.${_[file.zip]:-}
+
+	must.func "$func" "Unsupported compressed file type: $zip"
+
+	"$func" "$in" "$out"
 }
 
 blob._unpack.tar.gz() {
@@ -1878,7 +1949,7 @@ blob._unpack.gz() {
 }
 
 blob._unpack.bz2() {
-	must.program bzip2
+	must.program bzcat
 
 	local tempfile
 	temp.file tempfile
@@ -1887,7 +1958,7 @@ blob._unpack.bz2() {
 }
 
 blob._unpack.xz() {
-	must.program xz
+	must.program unxz
 
 	local tempfile
 	temp.file tempfile
@@ -1896,7 +1967,7 @@ blob._unpack.xz() {
 }
 
 blob._unpack.zst() {
-	must.program zstd
+	must.program zstdcat
 
 	local tempfile
 	temp.file tempfile
@@ -1925,12 +1996,14 @@ declare -Ag help=(
 	['is ubuntu']='Detect Ubuntu or its given release'
 	['is proxmox']='Detect Proxmox'
 	['is vagrant']='Detect Vagrant'
-	['is file']='Detect file type'
 	['is mime']='Detect mime type'
 	['is zmime']='Detect mime type inside a compressed file'
-	['has file shebang']='Detect shebang'
+	['is file']='Detect file type'
+	['is function']='Detect function'
 	['file install']='Install file from URL'
 	['http get']='Get URL'
+	['bin install']='Install program to path'
+	['bin use']='Use program'
 	['src install']='Install to a known location'
 	['src use']='Install src into the runtime tree'
 	['enter']='Get src from URL and enter to the directory'
@@ -1991,12 +2064,14 @@ declare -Ag command=(
 	['is ubuntu']='is.ubuntu'
 	['is proxmox']='is.proxmox'
 	['is vagrant']='is.vagrant'
-	['is file']='is.file'
 	['is mime']='is.mime'
 	['is zmime']='is.mimez'
-	['has file shebang']='has.file.shebang'
+	['is file']='is.file'
+	['is function']='is.function'
 	['file install']='file.install'
 	['http get']='http.get'
+	['bin install']='bin.install'
+	['bin use']='bin.use'
 	['src install']='src.install'
 	['src use']='src.use'
 	['enter']='src.enter'

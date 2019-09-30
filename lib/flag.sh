@@ -29,6 +29,16 @@ flag.args() {
 	done
 }
 
+flag.vars() {
+	local -n flag_vars_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!_[@]}"; do
+		[[ $key =~ ^[.].+$ ]] || continue
+		flag_vars_+=("${_[$key]}")
+	done
+}
+
 flag.true() {
 	bool "${_[-$1]:-}"
 }

@@ -1,14 +1,19 @@
 # blob.unpack: Unpack blob
 blob.unpack() {
-	local type=${1?${FUNCNAME[0]}: missing argument};  shift
-	local in=${1?${FUNCNAME[0]}: missing argument};    shift
-	local out=${1?${FUNCNAME[0]}: missing argument};   shift
+	local in=${1?${FUNCNAME[0]}: missing argument};   shift
+	local out=${1?${FUNCNAME[0]}: missing argument};  shift
 
 	must.f "$in"
 
-	has.function blob._unpack."$type" || die "Unrecognized file type: $type"
+	local -A _
 
-	blob._unpack."$type" "$in" "$out"
+	is.file_ compressed "$in" || die "Not a compressed file of known type: $in"
+
+	local func=blob._unpack.${_[file.zip]:-}
+
+	must.func "$func" "Unsupported compressed file type: $zip"
+
+	"$func" "$in" "$out"
 }
 
 blob._unpack.tar.gz() {
@@ -47,7 +52,7 @@ blob._unpack.gz() {
 }
 
 blob._unpack.bz2() {
-	must.program bzip2
+	must.program bzcat
 
 	local tempfile
 	temp.file tempfile
@@ -56,7 +61,7 @@ blob._unpack.bz2() {
 }
 
 blob._unpack.xz() {
-	must.program xz
+	must.program unxz
 
 	local tempfile
 	temp.file tempfile
@@ -65,7 +70,7 @@ blob._unpack.xz() {
 }
 
 blob._unpack.zst() {
-	must.program zstd
+	must.program zstdcat
 
 	local tempfile
 	temp.file tempfile
