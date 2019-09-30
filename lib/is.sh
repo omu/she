@@ -56,6 +56,36 @@ is.vagrant() {
 	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
 }
 
+# is.file: Detect file type
+is.file() {
+	local -A is_file_=(
+		[bz2]=application/x-bzip2
+		[bzip2]=application/x-bzip2
+		[gz]=application/gzip
+		[gzip]=application/gzip
+		[tar]=application/tar
+		[xz]=application/x-xz
+		[zip]=application/zip
+		[zst]=application/x-zstd
+	)
+
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local type=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	must.f "$file"
+
+	if has.function is.file._"$type"; then
+		is.file._"$type" "$file"
+	elif [[ -n ${is_file_[$type]:-} ]]; then
+		local mime=${is_file_[$type]}
+
+		is.mime "$file" "$mime"
+	else
+		die "Unrecognized file type: $type"
+	fi
+}
+
+# is.mime: Detect mime type
 is.mime() {
 	local file=${1?${FUNCNAME[0]}: missing argument};     shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -67,6 +97,7 @@ is.mime() {
 	[[ $actual = "$expected" ]]
 }
 
+# is.zmime: Detect mime type inside a compressed file
 is.mimez() {
 	local file=${1?${FUNCNAME[0]}: missing argument};     shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -77,16 +108,6 @@ is.mimez() {
 
 	[[ $actual = "$expected" ]]
 }
-
-declare -grA _file_type=(
-	[gzip]=application/gzip
-	[gz]=application/gzip
-	[xz]=application/x-xz
-	[bzip2]=application/bzip2
-	[bz2]=application/bzip2
-	[zip]=application/zip
-	[tar]=application/tar
-)
 
 is.file._binary() {
 	[[ $(file --mime-encoding --brief "$1") = binary ]]
@@ -104,36 +125,23 @@ is.file._compressed() {
 	local mime; mime=$(file --mime-type --brief "$1"); mime=${mime#*/}
 
 	case $mime in
-	gzip|zip|x-xz|x-bz2) return 0 ;;
-	*)                   return 1 ;;
+	gzip|zip|x-xz|x-bzip2|x-zstd) return 0 ;;
+	*)                            return 1 ;;
 	esac
 }
 
-is.file._tgz() {
+is.file._tar.gz() {
 	is.mime "$1" gzip && is.zmime "$1" tar
 }
 
-is.file._txz() {
+is.file._tar.xz() {
 	is.mime "$1" xz && is.zmime "$1" tar
 }
 
-is.file._tbz2() {
-	is.mime "$1" bzip2 && is.zmime "$1" tar
+is.file._tar.bz2() {
+	is.mime "$1" x-bzip2 && is.zmime "$1" tar
 }
 
-is.file() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-	local type=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	must.f "$file"
-
-	if has.function is.file._"$type"; then
-		is.file._"$type" "$file"
-	elif [[ -n ${_file_type[$type]:-} ]]; then
-		local mime=${_file_type[$type]}
-
-		is.mime "$file" "$mime"
-	else
-		die "Unrecognized file type: $type"
-	fi
+is.file._tar.zst() {
+	is.mime "$1" x-zstd && is.zmime "$1" tar
 }
