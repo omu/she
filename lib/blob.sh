@@ -16,18 +16,26 @@ blob._unpack.tar.gz() {
 }
 
 blob._unpack.tar.bz2() {
+	must.program bzip2
+
 	tar --strip-components=1 -jxvf "$1" -C "$2"
 }
 
 blob._unpack.tar.xz() {
+	must.program xz
+
 	tar --strip-components=1 -Jxvf "$1" -C "$2"
 }
 
 blob._unpack.tar.zst() {
+	must.program zstd
+
 	tar --strip-components=1 --zstd -xvf "$1" -C "$2"
 }
 
 blob._unpack.zip() {
+	must.program unzip
+
 	unzip -q -d "$2" "$1"
 }
 
@@ -39,6 +47,8 @@ blob._unpack.gz() {
 }
 
 blob._unpack.bz2() {
+	must.program bzip2
+
 	local tempfile
 	temp.file tempfile
 
@@ -46,6 +56,8 @@ blob._unpack.bz2() {
 }
 
 blob._unpack.xz() {
+	must.program xz
+
 	local tempfile
 	temp.file tempfile
 
@@ -53,6 +65,8 @@ blob._unpack.xz() {
 }
 
 blob._unpack.zst() {
+	must.program zstd
+
 	local tempfile
 	temp.file tempfile
 
