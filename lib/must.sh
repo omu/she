@@ -56,14 +56,6 @@ must.z() {
 	[[ -z $arg ]] || die "$message"
 }
 
-# Function must exist
-must.func() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"Empty value: $arg"}
-
-	is.func "$arg" || die "$message"
-}
-
 # Command must success
 must.success() {
 	"$@" || die "Command failed: $*"
@@ -95,3 +87,12 @@ must.available() {
 
 	command -v "$arg" &>/dev/null || die "$message"
 }
+
+# Function must exist
+must.callable() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${1:-"No function found: $arg"}
+
+	callable "$arg" || die "$message"
+}
+

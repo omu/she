@@ -22,7 +22,7 @@ os.is() {
 
 	local func=os.is._"${feature}"
 
-	must.func "$func" "Unable to detect: $feature"
+	must.callable "$func" "Unable to detect: $feature"
 
 	"$func"
 }

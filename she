@@ -114,6 +114,12 @@ available() {
 	command -v "$1" &>/dev/null
 }
 
+callable() {
+	local name=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $(type -t "$name" || true) == function ]]
+}
+
 piped() {
 	[[ ! -t 0 ]]
 }
@@ -240,14 +246,6 @@ must.z() {
 	[[ -z $arg ]] || die "$message"
 }
 
-# Function must exist
-must.func() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"Empty value: $arg"}
-
-	is.func "$arg" || die "$message"
-}
-
 # Command must success
 must.success() {
 	"$@" || die "Command failed: $*"
@@ -279,6 +277,15 @@ must.available() {
 
 	command -v "$arg" &>/dev/null || die "$message"
 }
+
+# Function must exist
+must.callable() {
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
+	local message=${1:-"No function found: $arg"}
+
+	callable "$arg" || die "$message"
+}
+
 
 # self.sh - Functions related to program itself
 
@@ -776,7 +783,7 @@ os.is() {
 
 	local func=os.is._"${feature}"
 
-	must.func "$func" "Unable to detect: $feature"
+	must.callable "$func" "Unable to detect: $feature"
 
 	"$func"
 }
@@ -1823,7 +1830,7 @@ filetype.is_() {
 
 	local func=filetype.is._"${type}"_
 
-	must.func "$func" "Unable to know type: $type"
+	must.callable "$func" "Unable to know type: $type"
 
 	"$func" "$file" "$@"
 }
@@ -1896,7 +1903,7 @@ blob.unpack() {
 
 	local func=blob._unpack.${_[.file.zip]:-}
 
-	must.func "$func" "Unsupported compressed file type: $zip"
+	must.callable "$func" "Unsupported compressed file type: $zip"
 
 	"$func" "$in" "$out"
 }

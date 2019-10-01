@@ -11,7 +11,7 @@ blob.unpack() {
 
 	local func=blob._unpack.${_[.file.zip]:-}
 
-	must.func "$func" "Unsupported compressed file type: $zip"
+	must.callable "$func" "Unsupported compressed file type: $zip"
 
 	"$func" "$in" "$out"
 }

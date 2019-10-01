@@ -102,6 +102,12 @@ available() {
 	command -v "$1" &>/dev/null
 }
 
+callable() {
+	local name=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $(type -t "$name" || true) == function ]]
+}
+
 piped() {
 	[[ ! -t 0 ]]
 }

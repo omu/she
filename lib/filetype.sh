@@ -41,7 +41,7 @@ filetype.is_() {
 
 	local func=filetype.is._"${type}"_
 
-	must.func "$func" "Unable to know type: $type"
+	must.callable "$func" "Unable to know type: $type"
 
 	"$func" "$file" "$@"
 }
