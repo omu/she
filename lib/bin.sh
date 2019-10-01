@@ -23,7 +23,7 @@ bin.install() {
 	fi
 
 	if is.file compressed "$bin"; then
-		blob.unpack "$bin" tempdir
+		zip.unpack "$bin" tempdir
 		bin=$tempdir
 	fi
 
