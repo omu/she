@@ -9,7 +9,6 @@ filetype.mime() {
 	flag.parse "$@"
 
 	local file=${_[1]?${FUNCNAME[0]}: missing value}
-
 	must.f "$file"
 
 	if flag.true zip; then
@@ -28,16 +27,16 @@ filetype.is() {
 
 	flag.parse "$@"
 
-	local -a args; flag.args args
+	local file=${_[1]?${FUNCNAME[0]}: missing value}
+	must.f "$file"
 
+	local -a args; flag.args args
 	filetype.is_ "${args[@]}"
 }
 
 filetype.is_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 	local type=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	must.f "$file"
 
 	local func=filetype.is._"${type}"_
 
@@ -63,9 +62,11 @@ filetype.is._mime_() {
 }
 
 filetype.is._program_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
 	local mime encoding
 
-	IFS='; ' read -r mime encoding < <(file --mime --brief "$1")
+	IFS='; ' read -r mime encoding < <(file --mime --brief "$file")
 
 	if [[ $encoding =~ binary$ ]]; then
 		if [[ $mime  =~ -executable$ ]]; then
@@ -83,13 +84,15 @@ filetype.is._program_() {
 }
 
 filetype.is._compressed_() {
-	local mime; mime=$(file --mime-type --brief "$1")
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime; mime=$(file --mime-type --brief "$file")
 
 	case $mime in
-	gzip|zip|x-xz|x-bzip2|x-zstd)
+	application/gzip|application/zip|application/x-xz|application/x-bzip2|application/x-zstd)
 		local zip=$mime; zip=${zip##*/}; zip=${zip##*-}
 
-		if [[ $(file --mime-type --brief --uncompress-noreport "$file") = tar ]]; then
+		if [[ $(file --mime-type --brief --uncompress-noreport "$file") = application/x-tar ]]; then
 			_[.file.zip]=tar.$zip
 		else
 			_[.file.zip]=$zip

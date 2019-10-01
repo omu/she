@@ -2,7 +2,7 @@
 
 # os.virtual: Which virtualization
 os.virtual() {
-	systemd-detect-virt
+	systemd-detect-virt || true
 }
 
 # os.distribution: Which distribution
