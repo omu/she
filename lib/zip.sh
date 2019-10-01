@@ -2,6 +2,7 @@
 zip.unpack() {
 	local -A _=(
 		[-force]=false
+		[-clean]=false
 	)
 
 	flag.parse "$@"
@@ -19,6 +20,10 @@ zip.unpack() {
 	must.callable "$func" "Unsupported compressed file: $in"
 
 	"$func" "$in" "$out"
+
+	if flag.true clean; then
+		rm -f -- "$in"
+	fi
 }
 
 zip._unpack_.tar.gz() {
