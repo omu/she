@@ -54,7 +54,12 @@ bug() {
 
 # bye: Print messages and exit successfully
 bye() {
-	say "$@"
+	local message
+
+	for message; do
+		echo -e >&2 "$message"
+	done
+
 	exit 0
 }
 
@@ -130,50 +135,6 @@ included() {
 	return 1
 }
 
-# Announce constant (readonly) environment variable
-const() {
-	local export=
-
-	while [[ $# -gt 0 ]]; do
-		case $1 in
-		-x|-export|--export)
-			export=
-			shift
-			;;
-		-*)
-			die "Unrecognized flag: $1"
-			;;
-		*)
-			break
-			;;
-		esac
-	done
-
-	local -n const_reference_=$1
-	shift
-
-	local value
-	for value; do
-		if [[ -n $value ]]; then
-			# shellcheck disable=2034
-			const_reference_=$value
-
-			declare -gr "${!const_reference_}"
-			[[ -z ${export:-} ]] || export "${!const_reference_}"
-
-			break
-		fi
-	done
-}
-
-# Ensure that the directory pointed by given environment variable exists
-ensured() {
-	local -n ensured_reference_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ -n $ensured_reference_ ]] || die "Blank environment value found: $ensured_reference_"
-	[[ -d $ensured_reference_ ]] || mkdir -p "$ensured_reference_" || die "Couldn't create directory: $ensured_reference_"
-}
-
 # Check timestamp of reference files against given expiry in minutes
 expired() {
 	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -192,23 +153,24 @@ expired() {
 
 # Initialize underscore system
 
+# shellcheck disable=2034
 .() {
 	# Program name
-	const PROGNAME "${0##*/}"
+	readonly PROGNAME=${0##*/}
 
 	# Core environment
 	if [[ ${EUID:-} -eq 0 ]]; then
-		const _RUN "${UNDERSCORE_VOLATILE_PREFIX:-}"   /run/_
-		const _USR "${UNDERSCORE_PERSISTENT_PREFIX:-}" /usr/local
-		const _ETC  /etc/_:"$_USR"/etc/_:"$_RUN"/etc
+		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
+		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
+		readonly _ETC=/etc/_:"$_USR"/etc/_:"$_RUN"/etc
 	else
-		const XDG_RUNTIME_DIR "${XDG_RUNTIME_DIR:-}" /run/"$EUID"
-		const XDG_CONFIG_HOME "${XDG_CONFIG_HOME:-}" "$HOME"/.config
-		const XDG_CACHE_HOME  "${XDG_CACHE_HOME:-}"  "$HOME"/.cache
+		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/"$EUID"}
+		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
+		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
 
-		const _RUN "${UNDERSCORE_VOLATILE_PREFIX:-}"   "$XDG_RUNTIME_DIR"/_
-		const _USR "${UNDERSCORE_PERSISTENT_PREFIX:-}" "$HOME"/.local
-		const _ETC  /etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc
+		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
+		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
+		readonly _ETC=/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc
 	fi
 
 	export PATH="$_RUN"/bin:"$PATH"
