@@ -22,11 +22,11 @@
 
 #:lib/os.sh
 
-#:lib/file.sh
-
 #:lib/url.sh
 
 #:lib/http.sh
+
+#:lib/file.sh
 
 #:lib/bin.sh
 

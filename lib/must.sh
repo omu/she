@@ -89,10 +89,9 @@ must.false() {
 }
 
 # Program must exist
-must.program() {
+must.available() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No program found: $arg"}
 
 	command -v "$arg" &>/dev/null || die "$message"
 }
-

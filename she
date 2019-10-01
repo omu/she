@@ -311,13 +311,12 @@ must.false() {
 }
 
 # Program must exist
-must.program() {
+must.available() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No program found: $arg"}
 
 	command -v "$arg" &>/dev/null || die "$message"
 }
-
 
 # self.sh - Functions related to program itself
 
@@ -874,6 +873,135 @@ os.is._vagrant() {
 	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
 }
 
+# uel.sh - URL processing
+
+# Parse URL
+# shellcheck disable=2034
+url.parse() {
+	local -n url_parse_=_
+	if [[ ${1:-} = -A ]]; then
+		shift
+		url_parse_=${1?${FUNCNAME[0]}: missing argument}; shift
+	fi
+
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	# shellcheck disable=1007
+	local proto= userinfo= host= port= path= frag=
+
+	if [[ $url =~ ^(/|./|file://) ]]; then
+		proto='file';  url=${url#*://}
+		tag=${url#*@}; url=${url%@*}
+		path=$url
+
+		# shellcheck disable=2209
+		url_parse_[.proto]=file
+		url_parse_[.path]=$path
+
+		return 0
+	fi
+
+	if [[ $url =~ ^.+:// ]]; then
+		proto=${url%%://*}; url=${url#*://}
+	fi
+
+	if [[ $url =~ ^[^@/]+@[^/:]+ ]]; then
+		userinfo=${url%%@*}; url=${url#*@}
+	fi
+
+	if [[ $url =~ ^[^:]+:[0-9]+ ]]; then
+		host=${url%%:*};      url=${url#$host:}
+		port=${url%%[^0-9]*}; url=${url#$port}
+	else
+		host=${url%%[/:]*};   url=${url#*[/:]}
+	fi
+
+	if [[ $url =~ ^: ]]; then
+		url=${url#*:}
+
+		if [[ -n $proto ]]; then
+			if [[ $proto != ssh ]]; then
+				# shellcheck disable=2154
+				url_parse_[.error]='protocol mismatch'
+				return 1
+			fi
+		else
+			proto=ssh
+		fi
+	else
+		url=${url#/}
+
+		if [[ -n $proto && $proto = ssh ]]; then
+			url_parse_[.error]='invalid SSH url'
+			return 1
+		fi
+	fi
+
+	if [[ -z $proto ]]; then
+		proto=https
+	fi
+
+	if [[ $url =~ [#].*$ ]]; then
+		frag=${url#*#}; url=${url%#*}
+	fi
+
+	path=$url
+
+	url_parse_[.frag]=$frag
+	url_parse_[.host]=$host
+	url_parse_[.path]=$path
+	url_parse_[.port]=$port
+	url_parse_[.proto]=$proto
+	url_parse_[.userinfo]=$userinfo
+}
+
+url.is() {
+	local url=${1?${FUNCNAME[0]}: missing argument};     shift
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	if [[ $feature = local ]]; then
+		[[ $url =~ ^(/|./|file://) ]]
+		return
+	fi
+
+	local -A _
+	url.parse "$url"
+
+	url.is_ "$feature" "$@"
+}
+
+url.is_() {
+	local feature=${1?${FUNCNAME[0]}: missing argument};  shift
+	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ ${_[.${feature}]} = "$expected" ]]
+}
+
+# https.sh - HTTP functions
+
+# http.get: Get URL
+http.get() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $url =~ ^.*:// ]] || url=https://$url
+
+	curl -fsSL "$url"
+}
+
+http.is() {
+	local url=${1?${FUNCNAME[0]}: missing argument};  shift
+	local code=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	if [[ ${code,,} = ok ]]; then
+		code=200
+	fi
+
+	local response
+	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
+
+	[[ $response = "$code" ]]
+}
+
 # file.sh - File related operations
 
 # file.install: Install file from URL
@@ -1048,135 +1176,6 @@ file._chogm_() {
 	[[ -z ${_[-mode]:-}  ]] || must.success chmod "${_[-mode]}"  "$dst"
 	[[ -z ${_[-owner]:-} ]] || must.success chown "${_[-owner]}" "$dst"
 	[[ -z ${_[-group]:-} ]] || must.success chgrp "${_[-group]}" "$dst"
-}
-
-# uel.sh - URL processing
-
-# Parse URL
-# shellcheck disable=2034
-url.parse() {
-	local -n url_parse_=_
-	if [[ ${1:-} = -A ]]; then
-		shift
-		url_parse_=${1?${FUNCNAME[0]}: missing argument}; shift
-	fi
-
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=1007
-	local proto= userinfo= host= port= path= frag=
-
-	if [[ $url =~ ^(/|./|file://) ]]; then
-		proto='file';  url=${url#*://}
-		tag=${url#*@}; url=${url%@*}
-		path=$url
-
-		# shellcheck disable=2209
-		url_parse_[.proto]=file
-		url_parse_[.path]=$path
-
-		return 0
-	fi
-
-	if [[ $url =~ ^.+:// ]]; then
-		proto=${url%%://*}; url=${url#*://}
-	fi
-
-	if [[ $url =~ ^[^@/]+@[^/:]+ ]]; then
-		userinfo=${url%%@*}; url=${url#*@}
-	fi
-
-	if [[ $url =~ ^[^:]+:[0-9]+ ]]; then
-		host=${url%%:*};      url=${url#$host:}
-		port=${url%%[^0-9]*}; url=${url#$port}
-	else
-		host=${url%%[/:]*};   url=${url#*[/:]}
-	fi
-
-	if [[ $url =~ ^: ]]; then
-		url=${url#*:}
-
-		if [[ -n $proto ]]; then
-			if [[ $proto != ssh ]]; then
-				# shellcheck disable=2154
-				url_parse_[.error]='protocol mismatch'
-				return 1
-			fi
-		else
-			proto=ssh
-		fi
-	else
-		url=${url#/}
-
-		if [[ -n $proto && $proto = ssh ]]; then
-			url_parse_[.error]='invalid SSH url'
-			return 1
-		fi
-	fi
-
-	if [[ -z $proto ]]; then
-		proto=https
-	fi
-
-	if [[ $url =~ [#].*$ ]]; then
-		frag=${url#*#}; url=${url%#*}
-	fi
-
-	path=$url
-
-	url_parse_[.frag]=$frag
-	url_parse_[.host]=$host
-	url_parse_[.path]=$path
-	url_parse_[.port]=$port
-	url_parse_[.proto]=$proto
-	url_parse_[.userinfo]=$userinfo
-}
-
-url.is() {
-	local url=${1?${FUNCNAME[0]}: missing argument};     shift
-	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	if [[ $feature = local ]]; then
-		[[ $url =~ ^(/|./|file://) ]]
-		return
-	fi
-
-	local -A _
-	url.parse "$url"
-
-	url.is_ "$feature" "$@"
-}
-
-url.is_() {
-	local feature=${1?${FUNCNAME[0]}: missing argument};  shift
-	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ ${_[.${feature}]} = "$expected" ]]
-}
-
-# https.sh - HTTP functions
-
-# http.get: Get URL
-http.get() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ $url =~ ^.*:// ]] || url=https://$url
-
-	curl -fsSL "$url"
-}
-
-http.is() {
-	local url=${1?${FUNCNAME[0]}: missing argument};  shift
-	local code=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	if [[ ${code,,} = ok ]]; then
-		code=200
-	fi
-
-	local response
-	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
-
-	[[ $response = "$code" ]]
 }
 
 # bin.sh - Executable files
@@ -1945,25 +1944,25 @@ blob._unpack.tar.gz() {
 }
 
 blob._unpack.tar.bz2() {
-	must.program bzip2
+	must.available bzip2
 
 	tar --strip-components=1 -jxvf "$1" -C "$2"
 }
 
 blob._unpack.tar.xz() {
-	must.program xz
+	must.available xz
 
 	tar --strip-components=1 -Jxvf "$1" -C "$2"
 }
 
 blob._unpack.tar.zst() {
-	must.program zstd
+	must.available zstd
 
 	tar --strip-components=1 --zstd -xvf "$1" -C "$2"
 }
 
 blob._unpack.zip() {
-	must.program unzip
+	must.available unzip
 
 	unzip -q -d "$2" "$1"
 }
@@ -1976,7 +1975,7 @@ blob._unpack.gz() {
 }
 
 blob._unpack.bz2() {
-	must.program bzcat
+	must.available bzcat
 
 	local tempfile
 	temp.file tempfile
@@ -1985,7 +1984,7 @@ blob._unpack.bz2() {
 }
 
 blob._unpack.xz() {
-	must.program unxz
+	must.available unxz
 
 	local tempfile
 	temp.file tempfile
@@ -1994,7 +1993,7 @@ blob._unpack.xz() {
 }
 
 blob._unpack.zst() {
-	must.program zstdcat
+	must.available zstdcat
 
 	local tempfile
 	temp.file tempfile
@@ -2017,8 +2016,8 @@ declare -Ag help=(
 	['os distribution']='Which distribution'
 	['os codename']='Which distribution release'
 	['os is']='Detect OS feature'
-	['file install']='Install file from URL'
 	['http get']='Get URL'
+	['file install']='Install file from URL'
 	['bin install']='Install program to path'
 	['bin use']='Use program'
 	['src install']='Install to a known location'
@@ -2077,8 +2076,8 @@ declare -Ag command=(
 	['os distribution']='os.distribution'
 	['os codename']='os.codename'
 	['os is']='os.is'
-	['file install']='file.install'
 	['http get']='http.get'
+	['file install']='file.install'
 	['bin install']='bin.install'
 	['bin use']='bin.use'
 	['src install']='src.install'
