@@ -40,7 +40,7 @@
 
 #:lib/filetype.sh
 
-#:lib/blob.sh
+#:lib/zip.sh
 
 #/help/
 
