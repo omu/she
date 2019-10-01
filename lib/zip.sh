@@ -1,7 +1,7 @@
 # unzip: Unpack compressed file
 zip.unpack() {
-	local in=${1?${FUNCNAME[0]}: missing argument};   shift
-	local out=${1?${FUNCNAME[0]}: missing argument};  shift
+	local in=${1?${FUNCNAME[0]}: missing argument};  shift
+	local out=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	must.f "$in"
 
