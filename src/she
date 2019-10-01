@@ -20,11 +20,7 @@
 
 #:lib/temp.sh
 
-#:lib/what.sh
-
-#:lib/is.sh
-
-#:lib/has.sh
+#:lib/os.sh
 
 #:lib/file.sh
 
@@ -41,6 +37,8 @@
 #:lib/deb.sh
 
 #:lib/text.sh
+
+#:lib/filetype.sh
 
 #:lib/blob.sh
 

@@ -93,6 +93,18 @@ bool() {
 	esac
 }
 
+available() {
+	command -v "$1" &>/dev/null
+}
+
+piped() {
+	[[ ! -t 0 ]]
+}
+
+interactive() {
+	[[ ! -t 1 ]]
+}
+
 included() {
 	local needle=${1?${FUNCNAME[0]}: missing argument}; shift
 

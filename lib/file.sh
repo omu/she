@@ -153,7 +153,7 @@ file.install_() {
 
 	local tempfile=
 
-	if [[ $url =~ ^[.]*/ ]]; then
+	if url.is "$url" local; then
 		src=$url
 	else
 		temp.file tempfile

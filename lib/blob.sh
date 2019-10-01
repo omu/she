@@ -7,9 +7,9 @@ blob.unpack() {
 
 	local -A _
 
-	is.file_ compressed "$in" || die "Not a compressed file of known type: $in"
+	file.is_ compressed "$in" || die "Not a compressed file of known type: $in"
 
-	local func=blob._unpack.${_[file.zip]:-}
+	local func=blob._unpack.${_[.file.zip]:-}
 
 	must.func "$func" "Unsupported compressed file type: $zip"
 

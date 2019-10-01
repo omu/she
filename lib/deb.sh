@@ -130,7 +130,7 @@ deb.using() {
 deb._dist_valid() {
 	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	http.ok http://ftp.debian.org/debian/dists/"$dist"/
+	http.is OK http://ftp.debian.org/debian/dists/"$dist"/
 }
 
 deb._dist_added() {

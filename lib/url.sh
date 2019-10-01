@@ -79,3 +79,25 @@ url.parse() {
 	url_parse_[.proto]=$proto
 	url_parse_[.userinfo]=$userinfo
 }
+
+url.is() {
+	local url=${1?${FUNCNAME[0]}: missing argument};     shift
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	if [[ $feature = local ]]; then
+		[[ $url =~ ^(/|./|file://) ]]
+		return
+	fi
+
+	local -A _
+	url.parse "$url"
+
+	url.is_ "$feature" "$@"
+}
+
+url.is_() {
+	local feature=${1?${FUNCNAME[0]}: missing argument};  shift
+	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ ${_[.${feature}]} = "$expected" ]]
+}
