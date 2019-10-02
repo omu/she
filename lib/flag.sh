@@ -36,11 +36,11 @@ flag.parse_() {
 }
 
 flag.args_() {
-	_.select '^[1-9][0-9]*$' "$@"
+	_.values '^[1-9][0-9]*$' "$@"
 }
 
 flag.env_() {
-	_.select '^[[:alpha:]_][[:alnum:]_]*$' "$@"
+	_.values '^[[:alpha:]_][[:alnum:]_]*$' "$@"
 }
 
 flag.true() {

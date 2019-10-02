@@ -23,7 +23,7 @@ _.read() {
 	done
 }
 
-_.select() {
+_.values() {
 	local pattern=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local -a keys
@@ -38,13 +38,13 @@ _.select() {
 	local key
 
 	if [[ $# -gt 0 ]]; then
-		local -n _select_=$1
+		local -n _values_=$1
 
 		for key in "${keys[@]}"; do
-			_select_+=("${_[$key]}")
+			_values_+=("${_[$key]}")
 		done
 
-		_select_=("${_select_[@]}")
+		_values_=("${_values_[@]}")
 	else
 		for key in "${keys[@]}"; do
 			echo "${_[$key]}"
