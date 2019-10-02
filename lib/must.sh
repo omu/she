@@ -108,3 +108,18 @@ must.callable() {
 
 	callable "$arg" || die "$message"
 }
+
+# Stdin must exist
+# shellcheck disable=2120
+must.piped() {
+	local message=${1:-'No stdin data found'}
+
+	piped || die "$message"
+}
+
+# Stdout must exist
+must.interactive() {
+	local message=${1:-'No stdout found'}
+
+	interactive || die "$message"
+}

@@ -387,18 +387,33 @@ must.callable() {
 	callable "$arg" || die "$message"
 }
 
+# Stdin must exist
+# shellcheck disable=2120
+must.piped() {
+	local message=${1:-'No stdin data found'}
+
+	piped || die "$message"
+}
+
+# Stdout must exist
+must.interactive() {
+	local message=${1:-'No stdout found'}
+
+	interactive || die "$message"
+}
+
 # self.sh - Functions related to program itself
 
 # self.version: Print self version
 self.version() {
-	local -A _=([.argc]=0); flag.parse "$@"
+	local -A _=([.argc]=0); flag.parse
 
 	echo 0.0
 }
 
 # self.name: Print self name
 self.name() {
-	local -A _=([.argc]=0); flag.parse "$@"
+	local -A _=([.argc]=0); flag.parse
 
 	echo "$PROGNAME"
 }
@@ -406,7 +421,7 @@ self.name() {
 # self.path: Print self path
 # shellcheck disable=2120
 self.path() {
-	local -A _=([.argc]=0); flag.parse "$@"
+	local -A _=([.argc]=0); flag.parse
 
 	local self
 
@@ -429,7 +444,7 @@ self.install() {
 		[.argc]=0
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	_[1]=$(self.path)
 
@@ -437,7 +452,7 @@ self.install() {
 }
 
 self.usage() {
-	local -A _=([.argc]=0); flag.parse "$@"
+	local -A _=([.argc]=0); flag.parse
 
 	local message
 
@@ -451,7 +466,18 @@ self.usage() {
 
 # flag.sh - Flag handling
 
-flag.parse() {
+shopt -s expand_aliases
+
+# shellcheck disable=2142
+alias flag.parse='
+	local -a __flag_args__;
+	flag.parse_ "$@";
+	flag.args_ __flag_args__;
+	set -- "${__flag_args__[@]}";
+	unset -v __flag_args__
+'
+
+flag.parse_() {
 	local -A flag_parse_
 
 	_.reset flag_parse_
@@ -481,12 +507,12 @@ flag.parse() {
 	flag._post flag_parse_ "$i"
 }
 
-flag.env() {
-	_.select '^[[:alpha:]_][[:alnum:]_]*$' "$@"
+flag.args_() {
+	_.select '^[1-9][0-9]*$' "$@"
 }
 
-flag.args() {
-	_.select '^[1-9][0-9]*$' "$@"
+flag.env_() {
+	_.select '^[[:alpha:]_][[:alnum:]_]*$' "$@"
 }
 
 flag.true() {
@@ -848,7 +874,7 @@ os.virtual() {
 		[.argc]=0-
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	systemd-detect-virt || true
 }
@@ -856,7 +882,7 @@ os.virtual() {
 # os.dist: Distribution name
 # shellcheck disable=2120
 os.dist() {
-	local -A _=([.argc]=0); flag.parse "$@"
+	local -A _=([.argc]=0); flag.parse
 
 	# shellcheck disable=1091
 	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
@@ -865,7 +891,7 @@ os.dist() {
 # os.codename: Distribution codename
 # shellcheck disable=2120
 os.codename() {
-	local -A _=([.argc]=0); flag.parse "$@"
+	local -A _=([.argc]=0); flag.parse
 
 	lsb_release -sc
 }
@@ -877,17 +903,16 @@ os.is() {
 		[.argc]=1-
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local feature=${_[1]}
+	local feature=$1
+	shift
 
 	local func=os.is._"${feature}"
 
 	must.callable "$func" "Unable to detect: $feature"
 
-	local -a args; flag.args args
-
-	"$func" "${args[@]:1}"
+	"$func" "$@"
 }
 
 # os.sh - Private functions
@@ -954,7 +979,7 @@ url.is() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	local url=${_[1]} feature=${_[2]}
 
@@ -1066,7 +1091,7 @@ http.get() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	local url=${_[1]}
 
@@ -1082,7 +1107,7 @@ http.is() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	local url=${_[1]} code=${_[2]}
 
@@ -1111,10 +1136,9 @@ file.install() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local url=${_[1]}
-	local dst=${_[2]:-${url##*/}}
+	local url=$1 dst=${2:-${1##*/}}
 
 	file.install_ "$url" "$dst"
 }
@@ -1145,9 +1169,9 @@ file.chogm() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local dst=${_[1]}
+	local dst=$1
 
 	file.chogm_ "$dst"
 }
@@ -1267,9 +1291,9 @@ file._do_args_() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local src=${_[1]?${FUNCNAME[0]}: missing value} dst=${_[2]?${FUNCNAME[0]}: missing value}
+	local src=$1 dst=$2
 
 	file.do_ "$op" "$src" "$dst"
 }
@@ -1295,7 +1319,8 @@ bin.install() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
+
 	bin.install_
 }
 
@@ -1310,7 +1335,8 @@ bin.use() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
+
 	bin.install_
 }
 
@@ -1382,7 +1408,7 @@ git.update() {
 		[.argc]=0
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
 		git.must.clean
@@ -1518,7 +1544,7 @@ src.install() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	src.install_
 }
@@ -1535,7 +1561,7 @@ src.use() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	src.install_
 }
@@ -1552,7 +1578,7 @@ src.enter() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	src.install_ >/dev/null
 
@@ -1573,7 +1599,7 @@ src.run() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	src.install_
 
@@ -1670,7 +1696,7 @@ src.env_() {
 	# shellcheck disable=2034
 	local -n src_env_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	flag.env src_env_
+	flag.env_ src_env_
 }
 
 src.dst_() {
@@ -1756,12 +1782,9 @@ deb.install() {
 		[.help]='package...'
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local -a args
-	flag.args args
-
-	[[ ${#args[@]} -gt 0 ]] || return 0
+	[[ $# -gt 0 ]] || return 0
 
 	local -a opts=(
 		--yes
@@ -1771,7 +1794,7 @@ deb.install() {
 	local -a packages urls non_urls
 
 	local arg
-	for arg in "${args[@]}"; do
+	for arg; do
 		if is.url "$arg"; then
 			urls+=("$arg")
 		else
@@ -1817,7 +1840,7 @@ deb.uninstall() {
 		[.help]='package...'
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	local -a packages
 
@@ -1836,7 +1859,7 @@ deb.missings() {
 		[.help]='package...'
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	local -a missings
 	deb._missings missings "$@"
@@ -1854,7 +1877,7 @@ deb.update() {
 		[.help]=
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	expired 60 /var/cache/apt/pkgcache.bin || apt-get update -y
 }
@@ -1867,11 +1890,11 @@ deb.repository() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	local name=${_[1]} url=${_[2]:-}
 
-	has.stdin || die 'Required stdin data'
+	must.piped
 
 	if [[ -n ${url:-} ]]; then
 		deb._apt_key_add "$url" || return 0
@@ -1888,12 +1911,10 @@ deb.using() {
 		[.help]='dist...'
 	)
 
-	flag.parse "$@"
-
-	local -a args; flag.args args
+	flag.parse
 
 	local dist
-	for dist in "${args[@]}"; do
+	for dist; do
 		case $dist in
 		stable|testing|unstable|sid|experimental)
 			;;
@@ -1987,9 +2008,9 @@ text.fix() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local file=${_[1]}
+	local file=$1
 	must.f "$file"
 
 	text._unfix "$file"
@@ -2008,9 +2029,9 @@ text.unfix() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local file=${_[1]}
+	local file=$1
 	must.f "$file"
 
 	text._unfix "$file"
@@ -2037,9 +2058,9 @@ filetype.mime() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local file=${_[1]}
+	local file=$1
 	must.f "$file"
 
 	if flag.true zip; then
@@ -2059,9 +2080,9 @@ filetype.is() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local file=${_[1]}
+	local file=$1
 	must.f "$file"
 
 	local -a args; flag.args args
@@ -2152,7 +2173,7 @@ zip.unpack() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 	flag.dump
 
 	local in=${_[1]:-} out=${_[2]:-}

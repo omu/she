@@ -12,12 +12,9 @@ deb.install() {
 		[.help]='package...'
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local -a args
-	flag.args args
-
-	[[ ${#args[@]} -gt 0 ]] || return 0
+	[[ $# -gt 0 ]] || return 0
 
 	local -a opts=(
 		--yes
@@ -27,7 +24,7 @@ deb.install() {
 	local -a packages urls non_urls
 
 	local arg
-	for arg in "${args[@]}"; do
+	for arg; do
 		if is.url "$arg"; then
 			urls+=("$arg")
 		else
@@ -73,7 +70,7 @@ deb.uninstall() {
 		[.help]='package...'
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	local -a packages
 
@@ -92,7 +89,7 @@ deb.missings() {
 		[.help]='package...'
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	local -a missings
 	deb._missings missings "$@"
@@ -110,7 +107,7 @@ deb.update() {
 		[.help]=
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	expired 60 /var/cache/apt/pkgcache.bin || apt-get update -y
 }
@@ -123,11 +120,11 @@ deb.repository() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	local name=${_[1]} url=${_[2]:-}
 
-	has.stdin || die 'Required stdin data'
+	must.piped
 
 	if [[ -n ${url:-} ]]; then
 		deb._apt_key_add "$url" || return 0
@@ -144,12 +141,10 @@ deb.using() {
 		[.help]='dist...'
 	)
 
-	flag.parse "$@"
-
-	local -a args; flag.args args
+	flag.parse
 
 	local dist
-	for dist in "${args[@]}"; do
+	for dist; do
 		case $dist in
 		stable|testing|unstable|sid|experimental)
 			;;

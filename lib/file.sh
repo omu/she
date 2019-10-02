@@ -13,10 +13,9 @@ file.install() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local url=${_[1]}
-	local dst=${_[2]:-${url##*/}}
+	local url=$1 dst=${2:-${1##*/}}
 
 	file.install_ "$url" "$dst"
 }
@@ -47,9 +46,9 @@ file.chogm() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local dst=${_[1]}
+	local dst=$1
 
 	file.chogm_ "$dst"
 }
@@ -169,9 +168,9 @@ file._do_args_() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local src=${_[1]?${FUNCNAME[0]}: missing value} dst=${_[2]?${FUNCNAME[0]}: missing value}
+	local src=$1 dst=$2
 
 	file.do_ "$op" "$src" "$dst"
 }

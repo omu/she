@@ -8,7 +8,7 @@ zip.unpack() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 	flag.dump
 
 	local in=${_[1]:-} out=${_[2]:-}

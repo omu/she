@@ -7,7 +7,7 @@ url.is() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	local url=${_[1]} feature=${_[2]}
 

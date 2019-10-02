@@ -8,7 +8,7 @@ git.update() {
 		[.argc]=0
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
 		git.must.clean

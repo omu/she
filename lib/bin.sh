@@ -11,7 +11,8 @@ bin.install() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
+
 	bin.install_
 }
 
@@ -26,7 +27,8 @@ bin.use() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
+
 	bin.install_
 }
 

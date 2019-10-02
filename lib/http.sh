@@ -7,7 +7,7 @@ http.get() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	local url=${_[1]}
 
@@ -23,7 +23,7 @@ http.is() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	local url=${_[1]} code=${_[2]}
 

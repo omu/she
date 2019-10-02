@@ -1,6 +1,17 @@
 # flag.sh - Flag handling
 
-flag.parse() {
+shopt -s expand_aliases
+
+# shellcheck disable=2142
+alias flag.parse='
+	local -a __flag_args__;
+	flag.parse_ "$@";
+	flag.args_ __flag_args__;
+	set -- "${__flag_args__[@]}";
+	unset -v __flag_args__
+'
+
+flag.parse_() {
 	local -A flag_parse_
 
 	_.reset flag_parse_
@@ -30,12 +41,12 @@ flag.parse() {
 	flag._post flag_parse_ "$i"
 }
 
-flag.env() {
-	_.select '^[[:alpha:]_][[:alnum:]_]*$' "$@"
+flag.args_() {
+	_.select '^[1-9][0-9]*$' "$@"
 }
 
-flag.args() {
-	_.select '^[1-9][0-9]*$' "$@"
+flag.env_() {
+	_.select '^[[:alpha:]_][[:alnum:]_]*$' "$@"
 }
 
 flag.true() {

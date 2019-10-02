@@ -11,7 +11,7 @@ src.install() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	src.install_
 }
@@ -28,7 +28,7 @@ src.use() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	src.install_
 }
@@ -45,7 +45,7 @@ src.enter() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	src.install_ >/dev/null
 
@@ -66,7 +66,7 @@ src.run() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
 	src.install_
 
@@ -163,7 +163,7 @@ src.env_() {
 	# shellcheck disable=2034
 	local -n src_env_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	flag.env src_env_
+	flag.env_ src_env_
 }
 
 src.dst_() {

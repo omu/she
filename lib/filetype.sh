@@ -9,9 +9,9 @@ filetype.mime() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local file=${_[1]}
+	local file=$1
 	must.f "$file"
 
 	if flag.true zip; then
@@ -31,9 +31,9 @@ filetype.is() {
 		[.argc]=1
 	)
 
-	flag.parse "$@"
+	flag.parse
 
-	local file=${_[1]}
+	local file=$1
 	must.f "$file"
 
 	local -a args; flag.args args
