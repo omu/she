@@ -1,11 +1,11 @@
 # unzip: Unpack compressed file
 zip.unpack() {
 	local -A _=(
-		[.help]='zip: foo bar baz'
-		[.argc]=1
-
 		[-force]=false
 		[-clean]=false
+
+		[.help]='file'
+		[.argc]=1
 	)
 
 	flag.parse "$@"

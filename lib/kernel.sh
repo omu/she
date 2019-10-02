@@ -11,19 +11,35 @@ say() {
 
 # cry: Print warning messages on standard error
 cry() {
-	local message
+	if [[ $# -eq 0 ]]; then
+		echo >&2 ""
 
-	for message; do
-		echo >&2 "W: $message"
+		return
+	fi
+
+	echo >&2 "W: $1"
+	shift
+
+	while [[ $# -gt 0 ]]; do
+		echo >&2 "$1"
+		shift
 	done
 }
 
 # die: Print error messages and exit failure
 die() {
-	local message
+	if [[ $# -eq 0 ]]; then
+		echo >&2 ""
 
-	for message; do
-		echo >&2 "E: $message"
+		return
+	fi
+
+	echo >&2 "E: $1"
+	shift
+
+	while [[ $# -gt 0 ]]; do
+		echo >&2 "$1"
+		shift
 	done
 
         exit 1
@@ -31,13 +47,21 @@ die() {
 
 # bug: Report bug and exit failure
 bug() {
-	local message
+	if [[ $# -eq 0 ]]; then
+		echo >&2 ""
 
-	for message; do
-		echo >&2 "B: ${BASH_LINENO[0]}: $message"
+		return
+	fi
+
+	echo >&2 "B: $1"
+	shift
+
+	while [[ $# -gt 0 ]]; do
+		echo >&2 "$1"
+		shift
 	done
 
-	exit 127
+        exit 127
 }
 
 # bye: Print messages and exit successfully

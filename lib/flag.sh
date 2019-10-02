@@ -27,19 +27,7 @@ flag.parse() {
 		shift
 	done
 
-	if [[ -v flag_parse_[.argc] ]] && [[ $i -ne ${flag_parse_[.argc]} ]]; then
-		local -a messages
-
-		if   [[ $i -lt ${flag_parse_[.argc]} ]]; then
-			messages+=('Too few arguments')
-		elif [[ $i -gt ${flag_parse_[.argc]} ]]; then
-			message+=('Too many arguments')
-		fi
-
-		[[ ! -v flag_parse_[.help] ]] || messages+=("${flag_parse_[.help]}")
-
-		die "${messages[@]}"
-	fi
+	flag._post flag_parse_ "$i"
 }
 
 flag.env() {
@@ -47,7 +35,7 @@ flag.env() {
 }
 
 flag.args() {
-	_.select '^[1-9][0-9]+$' "$@"
+	_.select '^[1-9][0-9]*$' "$@"
 }
 
 flag.true() {
@@ -60,4 +48,39 @@ flag.false() {
 
 flag.dump() {
 	_.dump
+}
+
+flag._post() {
+	local -n flag_post_=${1?missing argument}; shift
+	local    i=${1?missing argument};          shift
+
+	local argc=${flag_post_[.argc]:-}; [[ -n $argc ]] || return 0
+
+	local lo hi
+
+	if [[ $argc =~ ^[0*9]+$ ]]; then
+		lo=$argc; hi=$argc
+	elif [[ $argc =~ ^[0-9]*-[0-9]*$ ]]; then
+		IFS=- read -r lo hi <<<"$argc"
+	else
+		bug "Incorrect range: $argc"
+	fi
+
+	local -a messages
+
+	if   [[ -n ${lo:-} ]] && [[ $i -lt $lo ]]; then
+		messages+=('Too few arguments')
+	elif [[ -n ${hi:-} ]] && [[ $i -gt $hi ]]; then
+		messages+=('Too many arguments')
+	else
+		return 0
+	fi
+
+	if [[ -n ${flag_post_[.help]:-} ]]; then
+		messages+=("" "Usage: ${COMMAND:-} ${flag_post_[.help]}")
+	else
+		messages+=("" "Usage: ${COMMAND:-}")
+	fi
+
+	die "${messages[@]}"
 }

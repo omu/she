@@ -98,6 +98,9 @@
 		func=${command["$key"]:-}
 
 		if [[ -n $func ]]; then
+			# shellcheck disable=2034
+			readonly COMMAND=$key
+
 			"$func" "$@"
 			return $?
 		fi

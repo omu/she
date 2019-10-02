@@ -28,10 +28,21 @@ _.select() {
 	local -n _select_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local key
-	for key in "${!_[@]}"; do
-		[[ $key =~ $pattern ]] || continue
+
+	local -a keys
+
+	mapfile -t keys < <(
+		for key in "${!_[@]}"; do
+			[[ $key =~ $pattern ]] || continue
+			echo "$key"
+		done | sort -u
+	)
+
+	for key in "${keys[@]}"; do
 		_select_+=("${_[$key]}")
 	done
+
+	_select_=("${_select_[@]}")
 }
 
 _.reset() {

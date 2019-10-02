@@ -3,14 +3,18 @@
 # os.virtual: Virtualization type
 # shellcheck disable=2120
 os.virtual() {
-	local -A _=([.argc]=0); flag.parse "$@"
+	local -A _=(
+		[.argc]=0-
+	)
+
+	flag.parse "$@"
 
 	systemd-detect-virt || true
 }
 
-# os.distribution: Distribution name
+# os.dist: Distribution name
 # shellcheck disable=2120
-os.distribution() {
+os.dist() {
 	local -A _=([.argc]=0); flag.parse "$@"
 
 	# shellcheck disable=1091
@@ -29,7 +33,7 @@ os.codename() {
 os.is() {
 	local -A _=(
 		[.help]='feature'
-		[.argc]=1
+		[.argc]=1-
 	)
 
 	flag.parse "$@"
@@ -40,16 +44,17 @@ os.is() {
 
 	must.callable "$func" "Unable to detect: $feature"
 
-	"$func"
+	local -a args; flag.args args
+
+	"$func" "${args[@]:1}"
 }
 
 # os.sh - Private functions
 
-# is.virtual: Detect given virtualization
 # shellcheck disable=2120
 os.is._virtual() {
 	if [[ $# -gt 0 ]]; then
-		[[ "$(os.virtual)" = "$1" ]]
+		[[ $(os.virtual) = "$1" ]]
 	else
 		[[ -z ${CI:-} ]] || return 0
 		[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
@@ -58,7 +63,6 @@ os.is._virtual() {
 	fi
 }
 
-# is.debian: Detect Debian or its given release
 os.is._debian() {
 	if [[ $# -gt 0 ]]; then
 		case $1 in
@@ -77,7 +81,6 @@ os.is._debian() {
 	fi
 }
 
-# is.ubuntu: Detect Ubuntu or its given release
 os.is._ubuntu() {
 	if [[ $# -gt 0 ]]; then
 		[[ "$(os.codename)" = "$1" ]]
@@ -86,15 +89,17 @@ os.is._ubuntu() {
 	fi
 }
 
-# is.proxmox: Detect Proxmox
 os.is._proxmox() {
 	available pveversion && uname -a | grep -q -i pve
 }
 
-# is.vagrant: Detect Vagrant
 os.is._vagrant() {
 	# shellcheck disable=2119
 	os.is._virtual || return 1
 
 	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
+}
+
+os.is._physical() {
+	! systemd-detect-virt -q
 }
