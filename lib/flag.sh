@@ -3,13 +3,7 @@
 shopt -s expand_aliases
 
 # shellcheck disable=2142
-alias flag.parse='
-	local -a __flag_args__;
-	flag.parse_ "$@";
-	flag.args_ __flag_args__;
-	set -- "${__flag_args__[@]}";
-	unset -v __flag_args__
-'
+alias flag.parse='flag.parse_ "$@"; set -- $(flag.args_)'
 
 flag.parse_() {
 	local -A flag_parse_

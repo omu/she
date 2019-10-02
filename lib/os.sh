@@ -76,7 +76,7 @@ os.is._debian() {
 			;;
 		esac
 	else
-		[[ "$(os.distribution)" = 'debian' ]]
+		[[ "$(os.dist)" = 'debian' ]]
 	fi
 }
 
@@ -84,7 +84,7 @@ os.is._ubuntu() {
 	if [[ $# -gt 0 ]]; then
 		[[ "$(os.codename)" = "$1" ]]
 	else
-		[[ "$(os.distribution)" = 'ubuntu' ]]
+		[[ "$(os.dist)" = 'ubuntu' ]]
 	fi
 }
 

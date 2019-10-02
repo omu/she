@@ -24,10 +24,7 @@ _.read() {
 }
 
 _.select() {
-	local    pattern=${1?${FUNCNAME[0]}: missing argument};  shift
-	local -n _select_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
+	local pattern=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local -a keys
 
@@ -38,11 +35,21 @@ _.select() {
 		done | sort -u
 	)
 
-	for key in "${keys[@]}"; do
-		_select_+=("${_[$key]}")
-	done
+	local key
 
-	_select_=("${_select_[@]}")
+	if [[ $# -gt 0 ]]; then
+		local -n _select_=$1
+
+		for key in "${keys[@]}"; do
+			_select_+=("${_[$key]}")
+		done
+
+		_select_=("${_select_[@]}")
+	else
+		for key in "${keys[@]}"; do
+			echo "${_[$key]}"
+		done
+	fi
 }
 
 _.reset() {

@@ -237,10 +237,7 @@ _.read() {
 }
 
 _.select() {
-	local    pattern=${1?${FUNCNAME[0]}: missing argument};  shift
-	local -n _select_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
+	local pattern=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local -a keys
 
@@ -251,11 +248,21 @@ _.select() {
 		done | sort -u
 	)
 
-	for key in "${keys[@]}"; do
-		_select_+=("${_[$key]}")
-	done
+	local key
 
-	_select_=("${_select_[@]}")
+	if [[ $# -gt 0 ]]; then
+		local -n _select_=$1
+
+		for key in "${keys[@]}"; do
+			_select_+=("${_[$key]}")
+		done
+
+		_select_=("${_select_[@]}")
+	else
+		for key in "${keys[@]}"; do
+			echo "${_[$key]}"
+		done
+	fi
 }
 
 _.reset() {
@@ -469,13 +476,7 @@ self.usage() {
 shopt -s expand_aliases
 
 # shellcheck disable=2142
-alias flag.parse='
-	local -a __flag_args__;
-	flag.parse_ "$@";
-	flag.args_ __flag_args__;
-	set -- "${__flag_args__[@]}";
-	unset -v __flag_args__
-'
+alias flag.parse='flag.parse_ "$@"; set -- $(flag.args_)'
 
 flag.parse_() {
 	local -A flag_parse_
@@ -943,7 +944,7 @@ os.is._debian() {
 			;;
 		esac
 	else
-		[[ "$(os.distribution)" = 'debian' ]]
+		[[ "$(os.dist)" = 'debian' ]]
 	fi
 }
 
@@ -951,7 +952,7 @@ os.is._ubuntu() {
 	if [[ $# -gt 0 ]]; then
 		[[ "$(os.codename)" = "$1" ]]
 	else
-		[[ "$(os.distribution)" = 'ubuntu' ]]
+		[[ "$(os.dist)" = 'ubuntu' ]]
 	fi
 }
 
