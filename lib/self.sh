@@ -2,14 +2,14 @@
 
 # self.version: Print self version
 self.version() {
-	local -A _=([.argc]=0); flag.parse
+	local -A _; flag.parse
 
 	echo 0.0
 }
 
 # self.name: Print self name
 self.name() {
-	local -A _=([.argc]=0); flag.parse
+	local -A _; flag.parse
 
 	echo "$PROGNAME"
 }
@@ -17,7 +17,7 @@ self.name() {
 # self.path: Print self path
 # shellcheck disable=2120
 self.path() {
-	local -A _=([.argc]=0); flag.parse
+	local -A _; flag.parse
 
 	local self
 
@@ -48,7 +48,7 @@ self.install() {
 }
 
 self.usage() {
-	local -A _=([.argc]=0); flag.parse
+	local -A _; flag.parse
 
 	local message
 

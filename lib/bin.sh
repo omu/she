@@ -13,7 +13,7 @@ bin.install() {
 
 	flag.parse
 
-	bin.install_
+	bin.install_ "$@"
 }
 
 # bin.use: Use program
@@ -29,18 +29,18 @@ bin.use() {
 
 	flag.parse
 
-	bin.install_
+	bin.install_ "$@"
 }
 
 # bin.sh - Protected functions
 
 bin.install_() {
-	local url=${_[1]}
+	local url=$1
 
 	# shellcheck disable=1007
 	local bin= tempfile= tempdir=
 
-	if [[ $url =~ ^[.]*/ ]]; then
+	if url.is "$url" local; then
 		bin=$url
 	else
 		file.download tempfile

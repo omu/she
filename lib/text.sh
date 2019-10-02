@@ -9,8 +9,7 @@ text.fix() {
 
 	flag.parse
 
-	local file=$1
-	must.f "$file"
+	local file=$1; must.f "$file"
 
 	text._unfix "$file"
 
@@ -30,8 +29,7 @@ text.unfix() {
 
 	flag.parse
 
-	local file=$1
-	must.f "$file"
+	local file=$1; must.f "$file"
 
 	text._unfix "$file"
 }

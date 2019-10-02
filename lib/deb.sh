@@ -105,6 +105,7 @@ deb.update() {
 	# shellcheck disable=2192
 	local -A _=(
 		[.help]=
+		[.argc]=0
 	)
 
 	flag.parse
@@ -117,12 +118,12 @@ deb.repository() {
 	# shellcheck disable=2192
 	local -A _=(
 		[.help]='name [url]'
-		[.argc]=1
+		[.argc]=1-
 	)
 
 	flag.parse
 
-	local name=${_[1]} url=${_[2]:-}
+	local name=$1 url=${2:-}
 
 	must.piped
 
@@ -139,6 +140,7 @@ deb.using() {
 	# shellcheck disable=2192
 	local -A _=(
 		[.help]='dist...'
+		[.argc]=1-
 	)
 
 	flag.parse
@@ -216,6 +218,7 @@ deb._missings() {
 
 deb._install_from_urls() {
 	local url
+
 	for url; do
 		local deb
 

@@ -13,7 +13,7 @@ src.install() {
 
 	flag.parse
 
-	src.install_
+	src.install_ "$@"
 }
 
 # src.use: Install src into the runtime tree
@@ -30,7 +30,7 @@ src.use() {
 
 	flag.parse
 
-	src.install_
+	src.install_ "$@"
 }
 
 # enter: Get src from URL and enter to the directory
@@ -47,7 +47,7 @@ src.enter() {
 
 	flag.parse
 
-	src.install_ >/dev/null
+	src.install_ "$@" >/dev/null
 
 	echo "$PWD"
 }
@@ -68,7 +68,7 @@ src.run() {
 
 	flag.parse
 
-	src.install_
+	src.install_ "$@"
 
 	src.run_ "${_[.dir]}"
 	flag.false test || src.test_ "${_[.dir]}"
@@ -111,7 +111,7 @@ src.managed_() {
 }
 
 src.install_() {
-	local url=${_[1]}
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	url.parse_ "$url" || die "Error parsing URL: ${_[.error]}: $url"
 
@@ -149,8 +149,7 @@ src.test_() {
 src.exe_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local -a env
-	src.env_ env
+	local -a env; src.env_ env
 
 	if [[ -x $file ]]; then
 		env "${env[@]}" "$file"

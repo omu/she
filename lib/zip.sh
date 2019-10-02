@@ -5,15 +5,12 @@ zip.unpack() {
 		[-clean]=false
 
 		[.help]='file'
-		[.argc]=1
+		[.argc]=1-
 	)
 
 	flag.parse
-	flag.dump
 
-	local in=${_[1]:-} out=${_[2]:-}
-
-	[[ -n $in ]] || die "Missing input file: $in"
+	local in=$1 out=${2:-}
 
 	must.f "$in"
 
@@ -31,7 +28,7 @@ zip.unpack() {
 }
 
 zip._unpack_.tar.gz() {
-	local in=${_[1]?${FUNCNAME[0]}: missing value}; out=${_[2]:-}
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	zip._prep_untar_
 
@@ -39,7 +36,7 @@ zip._unpack_.tar.gz() {
 }
 
 zip._unpack_.tar.bz2() {
-	local in=${_[1]?${FUNCNAME[0]}: missing value}; out=${_[2]:-}
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	zip._prep_untar_ bzip2
 
@@ -47,7 +44,7 @@ zip._unpack_.tar.bz2() {
 }
 
 zip._unpack_.tar.xz() {
-	local in=${_[1]?${FUNCNAME[0]}: missing value}; out=${_[2]:-}
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	zip._prep_untar_ xz
 
@@ -55,7 +52,7 @@ zip._unpack_.tar.xz() {
 }
 
 zip._unpack_.tar.zst() {
-	local in=${_[1]?${FUNCNAME[0]}: missing value}; out=${_[2]:-}
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	zip._prep_untar_ zstd
 
@@ -63,7 +60,7 @@ zip._unpack_.tar.zst() {
 }
 
 zip._unpack_.zip() {
-	local in=${_[1]?${FUNCNAME[0]}: missing value}; out=${_[2]:-}
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	zip._prep_unzip_ unzip
 
@@ -71,7 +68,7 @@ zip._unpack_.zip() {
 }
 
 zip._unpack_.gz() {
-	local in=${_[1]?${FUNCNAME[0]}: missing value}; out=${_[2]:-}
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	zip._prep_unzip_ zcat
 
@@ -82,7 +79,7 @@ zip._unpack_.gz() {
 }
 
 zip._unpack_.bz2() {
-	local in=${_[1]?${FUNCNAME[0]}: missing value}; out=${_[2]:-}
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	zip._prep_unzip_ bzcat
 
@@ -93,7 +90,7 @@ zip._unpack_.bz2() {
 }
 
 zip._unpack_.xz() {
-	local in=${_[1]?${FUNCNAME[0]}: missing value}; out=${_[2]:-}
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	zip._prep_unzip_ unxz
 
@@ -104,7 +101,7 @@ zip._unpack_.xz() {
 }
 
 zip._unpack_.zst() {
-	local in=${_[1]?${FUNCNAME[0]}: missing value}; out=${_[2]:-}
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	zip._prep_unzip_ zstdcat
 
@@ -115,7 +112,7 @@ zip._unpack_.zst() {
 }
 
 zip._prep_unzip_() {
-	local in=${_[1]?${FUNCNAME[0]}: missing value}; out=${_[2]:-}
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	local prog
 	for prog; do
@@ -134,7 +131,7 @@ zip._prep_unzip_() {
 }
 
 zip._prep_untar_() {
-	local in=${_[1]?${FUNCNAME[0]}: missing value}; out=${_[2]:-}
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	local prog
 	for prog; do

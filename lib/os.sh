@@ -15,7 +15,7 @@ os.virtual() {
 # os.dist: Distribution name
 # shellcheck disable=2120
 os.dist() {
-	local -A _=([.argc]=0); flag.parse
+	local -A _; flag.parse
 
 	# shellcheck disable=1091
 	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
@@ -24,7 +24,7 @@ os.dist() {
 # os.codename: Distribution codename
 # shellcheck disable=2120
 os.codename() {
-	local -A _=([.argc]=0); flag.parse
+	local -A _; flag.parse
 
 	lsb_release -sc
 }

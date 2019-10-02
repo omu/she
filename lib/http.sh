@@ -9,7 +9,7 @@ http.get() {
 
 	flag.parse
 
-	local url=${_[1]}
+	local url=$1
 
 	[[ $url =~ ^.*:// ]] || url=https://$url
 
@@ -20,12 +20,12 @@ http.get() {
 http.is() {
 	local -A _=(
 		[.help]='url code'
-		[.argc]=1
+		[.argc]=2
 	)
 
 	flag.parse
 
-	local url=${_[1]} code=${_[2]}
+	local url=$1 code=$2
 
 	if [[ ${code,,} = ok ]]; then
 		code=200

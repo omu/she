@@ -11,8 +11,7 @@ filetype.mime() {
 
 	flag.parse
 
-	local file=$1
-	must.f "$file"
+	local file=$1; must.f "$file"
 
 	if flag.true zip; then
 		file --mime-type --brief --uncompress-noreport "$file"
@@ -33,11 +32,9 @@ filetype.is() {
 
 	flag.parse
 
-	local file=$1
-	must.f "$file"
+	local file=$1; must.f "$file"
 
-	local -a args; flag.args args
-	filetype.is_ "${args[@]}"
+	filetype.is_ "$@"
 }
 
 # filetype.sh - Protected functions

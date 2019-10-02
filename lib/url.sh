@@ -4,12 +4,12 @@
 url.is() {
 	local -A _=(
 		[.help]='local|(proto|host|port|path|userinfo|frag) value'
-		[.argc]=1
+		[.argc]=2-
 	)
 
 	flag.parse
 
-	local url=${_[1]} feature=${_[2]}
+	local url=$1 feature=$2
 
 	if [[ $feature = local ]]; then
 		[[ $url =~ ^(/|./|file://) ]]

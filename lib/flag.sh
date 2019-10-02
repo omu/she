@@ -59,7 +59,9 @@ flag._post() {
 	local -n flag_post_=${1?missing argument}; shift
 	local    i=${1?missing argument};          shift
 
-	local argc=${flag_post_[.argc]:-}; [[ -n $argc ]] || return 0
+	local argc=${flag_post_[.argc]:-0}
+
+	[[ $argc = '-' ]] || return 0
 
 	local lo hi
 
