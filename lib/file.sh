@@ -171,8 +171,7 @@ file._do_args_() {
 
 	flag.parse "$@"
 
-	local src=${_[1]?${FUNCNAME[0]}: missing value}
-	local dst=${_[2]?${FUNCNAME[0]}: missing value}
+	local src=${_[1]?${FUNCNAME[0]}: missing value} dst=${_[2]?${FUNCNAME[0]}: missing value}
 
 	file.do_ "$op" "$src" "$dst"
 }

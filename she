@@ -1206,8 +1206,7 @@ file._do_args_() {
 
 	flag.parse "$@"
 
-	local src=${_[1]?${FUNCNAME[0]}: missing value}
-	local dst=${_[2]?${FUNCNAME[0]}: missing value}
+	local src=${_[1]?${FUNCNAME[0]}: missing value} dst=${_[2]?${FUNCNAME[0]}: missing value}
 
 	file.do_ "$op" "$src" "$dst"
 }
@@ -1296,7 +1295,7 @@ bin.install_() {
 # bin.sh - Private functions
 
 bin._inspect() {
-	local bin=${1?${FUNCNAME[0]}: missing argument};             shift
+	local    bin=${1?${FUNCNAME[0]}: missing argument};          shift
 	local -n bin_inspect_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	if [[ -d $bin ]]; then
@@ -1807,8 +1806,7 @@ deb.repository() {
 
 	flag.parse "$@"
 
-	local name=${_[1]}
-	local url=${_[2]:-}
+	local name=${_[1]} url=${_[2]:-}
 
 	has.stdin || die 'Required stdin data'
 

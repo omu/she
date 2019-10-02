@@ -74,7 +74,7 @@ bin.install_() {
 # bin.sh - Private functions
 
 bin._inspect() {
-	local bin=${1?${FUNCNAME[0]}: missing argument};             shift
+	local    bin=${1?${FUNCNAME[0]}: missing argument};          shift
 	local -n bin_inspect_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	if [[ -d $bin ]]; then

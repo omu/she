@@ -125,8 +125,7 @@ deb.repository() {
 
 	flag.parse "$@"
 
-	local name=${_[1]}
-	local url=${_[2]:-}
+	local name=${_[1]} url=${_[2]:-}
 
 	has.stdin || die 'Required stdin data'
 
