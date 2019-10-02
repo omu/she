@@ -180,7 +180,6 @@ expired() {
 	fi
 
 	export PATH="$_RUN"/bin:"$PATH"
-	declare -gA _=()
 
 	unset -f "${FUNCNAME[0]}"
 }
@@ -188,8 +187,63 @@ expired() {
 # init
 .
 
+# _.sh - Default result variable
+
+declare -gA _=()
+
+_.read() {
+	local -i i=1
+
+	while [[ $# -gt 0 ]]; do
+		local key value
+
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+			key=${1%%=*}; value=${1#*=}
+		elif [[ $1 == '--' ]]; then
+			shift
+			break
+		else
+			key=$((i++)); value=$1
+		fi
+
+		_["$key"]=${value:-${_["$key"]:-}}
+
+		shift
+	done
+}
+
+_.select() {
+	local    pattern=${1?${FUNCNAME[0]}: missing argument};  shift
+	local -n _select_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!_[@]}"; do
+		[[ $key =~ $pattern ]] || continue
+		_select_+=("${_[$key]}")
+	done
+}
+
+_.reset() {
+	if [[ -n ${1:-} ]]; then
+		local -n _reset_=$1
+
+		local key
+		for key in "${!_[@]}"; do
+			# shellcheck disable=2034
+			_reset_[$key]=${_[$key]}
+		done
+	fi
+
+	_=()
+}
+
+_.dump() {
+	hmm _
+}
+
 # must.sh - Guard functions
 
+# Test -e
 must.e() {
 	local arg=${1?${FUNCNAME[0]}: missing argument};       shift
 	local message=${1:-"No such file or directory: $arg"}
@@ -197,6 +251,7 @@ must.e() {
 	[[ -e $arg ]] || die "$message"
 }
 
+# Test -f
 must.f() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such file: $arg"}
@@ -204,6 +259,7 @@ must.f() {
 	[[ -f $arg ]] || die "$message"
 }
 
+# Test -d
 must.d() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such directory: $arg"}
@@ -211,6 +267,7 @@ must.d() {
 	[[ -d $arg ]] || die "$message"
 }
 
+# Test -x
 must.x() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"Not executable: $arg"}
@@ -218,6 +275,7 @@ must.x() {
 	[[ -x $arg ]] || die "$message"
 }
 
+# Test -r
 must.r() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such file: $arg"}
@@ -225,6 +283,7 @@ must.r() {
 	[[ -r $arg ]] || die "$message"
 }
 
+# Test -w
 must.w() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such file: $arg"}
@@ -232,6 +291,7 @@ must.w() {
 	[[ -w $arg ]] || die "$message"
 }
 
+# Test -n
 must.n() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"Empty value: $arg"}
@@ -239,11 +299,17 @@ must.n() {
 	[[ -n $arg ]] || die "$message"
 }
 
+# Test -z
 must.z() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"Empty value: $arg"}
 
 	[[ -z $arg ]] || die "$message"
+}
+
+# Must be root
+must.root() {
+	[[ ${EUID:-} -eq 0 ]]
 }
 
 # Command must success
@@ -286,21 +352,27 @@ must.callable() {
 	callable "$arg" || die "$message"
 }
 
-
 # self.sh - Functions related to program itself
 
 # self.version: Print self version
 self.version() {
+	local -A _=([.argc]=0); flag.parse "$@"
+
 	echo 0.0
 }
 
 # self.name: Print self name
 self.name() {
-	echo she
+	local -A _=([.argc]=0); flag.parse "$@"
+
+	echo "$PROGNAME"
 }
 
 # self.path: Print self path
+# shellcheck disable=2120
 self.path() {
+	local -A _=([.argc]=0); flag.parse "$@"
+
 	local self
 
 	self=${BASH_SOURCE[0]}
@@ -311,7 +383,27 @@ self.path() {
 	esac
 }
 
+# self.install: Install self
+self.install() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-prefix]="$_USR"/bin
+		[-name]=$PROGNAME
+
+		[.help]=
+		[.argc]=0
+	)
+
+	flag.parse "$@"
+
+	_[1]=$(self.path)
+
+	bin.install_
+}
+
 self.usage() {
+	local -A _=([.argc]=0); flag.parse "$@"
+
 	local message
 
 	for message;  do
@@ -325,42 +417,53 @@ self.usage() {
 # flag.sh - Flag handling
 
 flag.parse() {
-	if [[ ${#_[@]} -gt 1 ]]; then
-		flag.parse_strict_ "$@"
-	else
-		flag.parse_loose_ "$@"
+	local -A flag_parse_
+
+	_.reset flag_parse_
+
+	local -i i=0
+
+	while [[ $# -gt 0 ]]; do
+		local key value
+
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+			key=${1%%=*}; value=${1#*=}
+			if [[ $key =~ ^-.+$ ]] && [[ ! -v flag_parse_[$key] ]]; then
+				die "Unrecognized flag: $key"
+			fi
+		elif [[ $1 == '--' ]]; then
+			shift
+			break
+		else
+			key=$((++i)); value=$1
+		fi
+
+		_["$key"]=${value:-${_["$key"]:-}}
+
+		shift
+	done
+
+	if [[ -v flag_parse_[.argc] ]] && [[ $i -ne ${flag_parse_[.argc]} ]]; then
+		local -a messages
+
+		if   [[ $i -lt ${flag_parse_[.argc]} ]]; then
+			messages+=('Too few arguments')
+		elif [[ $i -gt ${flag_parse_[.argc]} ]]; then
+			message+=('Too many arguments')
+		fi
+
+		[[ ! -v flag_parse_[.help] ]] || messages+=("${flag_parse_[.help]}")
+
+		die "${messages[@]}"
 	fi
 }
 
 flag.env() {
-	local -n flag_env_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!_[@]}"; do
-		if [[ $key =~ ^[[:alpha:]_][[:alnum:]_]*$ ]]; then
-			flag_env_+=("$key='${_[$key]}'")
-		fi
-	done
+	_.select '^[[:alpha:]_][[:alnum:]_]*$' "$@"
 }
 
 flag.args() {
-	local -n flag_args_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!_[@]}"; do
-		[[ $key =~ ^[1-9][0-9]+$ ]] || continue
-		flag_args_+=("${_[$key]}")
-	done
-}
-
-flag.vars() {
-	local -n flag_vars_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!_[@]}"; do
-		[[ $key =~ ^[.].+$ ]] || continue
-		flag_vars_+=("${_[$key]}")
-	done
+	_.select '^[1-9][0-9]+$' "$@"
 }
 
 flag.true() {
@@ -372,104 +475,14 @@ flag.false() {
 }
 
 flag.dump() {
-	hmm _
-}
-
-flag.overlay() {
-	local -i i=1
-
-	while [[ $# -gt 0 ]]; do
-		local key value
-
-		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
-			key=${1%%=*}; value=${1#*=}
-			_["$key"]=$value
-		elif [[ $1 == '--' ]]; then
-			shift
-			break
-		else
-			# shellcheck disable=2154
-			_[error]="Non flag or key: $1"
-			return 1
-		fi
-
-		shift
-	done
-}
-
-flag.underlay() {
-	local -i i=1
-
-	while [[ $# -gt 0 ]]; do
-		local key value
-
-		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
-			key=${1%%=*}; value=${1#*=}
-			[[ -v _[$key] ]] || _["$key"]=$value
-		elif [[ $1 == '--' ]]; then
-			shift
-			break
-		else
-			_[error]="Non flag or key: $1"
-			return 1
-		fi
-
-		shift
-	done
-}
-
-flag.parse_strict_() {
-	local -i i=1
-
-	while [[ $# -gt 0 ]]; do
-		local key value
-
-		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
-			key=${1%%=*}; value=${1#*=}
-			if [[ $key =~ ^-.+$ ]] && [[ ! -v _[$key] ]]; then
-				_[error]="Unrecognized flag: $key"
-
-				return 1
-			fi
-		elif [[ $1 == '--' ]]; then
-			shift
-			break
-		else
-			key=$((i++)); value=$1
-		fi
-
-		_["$key"]=$value
-
-		shift
-	done
-}
-
-flag.parse_loose_() {
-	local -i i=1
-
-	while [[ $# -gt 0 ]]; do
-		local key value
-
-		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
-			key=${1%%=*}; value=${1#*=}
-		elif [[ $1 == '--' ]]; then
-			shift
-			break
-		else
-			key=$((i++)); value=$1
-		fi
-
-		_["$key"]=$value
-
-		shift
-	done
+	_.dump
 }
 
 # string.sh - String manipulation
 
 string.has_prefix_deleted() {
-	local -n string_has_prefix_deleted_=$1
-	local prefix=$2
+	local -n string_has_prefix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    prefix=${1?${FUNCNAME[0]}: missing argument};                     shift
 
 	if [[ $string_has_prefix_deleted_ =~ ^$prefix ]]; then
 		string_has_prefix_deleted_=${string_has_prefix_deleted_#$prefix}
@@ -485,8 +498,8 @@ string.delete_prefix() {
 }
 
 string.has_suffix_deleted() {
-	local -n string_has_suffix_deleted_=$1
-	local suffix=$2
+	local -n string_has_suffix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    suffix=${1?${FUNCNAME[0]}: missing argument};                     shift
 
 	if [[ $string_has_suffix_deleted_ =~ $suffix$ ]]; then
 		string_has_suffix_deleted_=${string_has_suffix_deleted_%$suffix}
@@ -531,20 +544,25 @@ array.included() {
 
 # path.sh - Path management
 
-path.is_volatile() {
-	df -t tmpfs "$1" &>/dev/null
+path.is.volatile() {
+	local path=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	df -t tmpfs "$path" &>/dev/null
 }
 
-path.is_equal() {
-	[[ $(realpath -m "$1") = $(realpath -m "$2") ]]
+path.is.equal() {
+	local actual=${1?${FUNCNAME[0]}: missing argument};   shift
+	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $(realpath -m "$actual") = $(realpath -m "$expected") ]]
 }
 
-path.is_inside() {
-	local given=${1?${FUNCNAME[0]}: missing argument}; shift
-	local path=${1?${FUNCNAME[0]}: missing argument};  shift
+path.is.inside() {
+	local path=${1?${FUNCNAME[0]}: missing argument};      shift
+	local periphery=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local relative
-	relative=$(realpath --relative-to "$given" "$path" 2>/dev/null) || return
+	relative=$(realpath --relative-to "$path" "$periphery" 2>/dev/null) || return
 
 	[[ ! $relative =~ ^[.] ]]
 }
@@ -609,9 +627,28 @@ path.subext() {
 	esac
 }
 
+path.suffixize() {
+	local -n path_suffixize_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    suffix=${1?${FUNCNAME[0]}: missing argument};          shift
+
+	local -A _
+	path.parse_ "$path_suffixize_"
+
+	printf -v path_suffixize_ "%s/%s${suffix}%s" "${_[.dir]:-.}" "${_[.name]}" "${_[.dotext]}"
+}
+
+path.normalize() {
+	local -n path_normalize_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	while [[ $path_normalize_ =~ //+ ]]; do
+		path_normalize_=${path_normalize_/\/\//\/}
+	done
+}
+
 # shellcheck disable=2034
-path.parse() {
+path.parse_() {
 	local -n path_parse_=_
+
 	if [[ ${1:-} = -A ]]; then
 		shift
 		path_parse_=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -638,29 +675,29 @@ path.parse() {
 	fi
 }
 
-path.suffixize() {
-	local -n path_suffixize_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    suffix=${1?${FUNCNAME[0]}: missing argument};          shift
-
-	local -A _
-	path.parse "$path_suffixize_"
-
-	printf -v path_suffixize_ "%s/%s${suffix}%s" "${_[.dir]:-.}" "${_[.name]}" "${_[.dotext]}"
-}
-
-path.normalize() {
-	local -n path_normalize_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	while [[ $path_normalize_ =~ //+ ]]; do
-		path_normalize_=${path_normalize_/\/\//\/}
-	done
-}
 
 # trap.sh - Trap setup
 
 declare -ag _at_exit_funcs_=()
 
 declare -ag _at_exit_files_=()
+
+# shellcheck disable=2120
+trap.setup() {
+	local -a signals=(EXIT HUP INT QUIT TERM)
+
+	[[ $# -eq 0 ]] || signals=("$@")
+
+	# shellcheck disable=2154,2218
+	builtin trap _exit_ "${signals[@]}"
+
+	at_exit _at_exit_cleanup_
+}
+
+# Prevent using trap
+trap() {
+	bug 'Using trap is forbidden; please use at_exit to register hooks.'
+}
 
 # Register hooks at exit
 at_exit() {
@@ -678,6 +715,8 @@ at_exit_files() {
 	_at_exit_files_+=("$@")
 }
 
+# trap.sh - Private functions
+
 _exit_() {
 	local err=$?
 
@@ -689,27 +728,10 @@ _exit_() {
 	return "$err"
 }
 
-# Prevent using trap
-trap() {
-	bug 'Using trap is forbidden; please use at_exit to register hooks.'
-}
-
 _at_exit_cleanup_() {
 	[[ ${#_at_exit_files_[@]} -gt 0 ]] || return 0
 
 	rm -rf -- "${_at_exit_files_[@]}"
-}
-
-# shellcheck disable=2120
-trap.setup() {
-	local -a signals=(EXIT HUP INT QUIT TERM)
-
-	[[ $# -eq 0 ]] || signals=("$@")
-
-	# shellcheck disable=2154,2218
-	builtin trap _exit_ "${signals[@]}"
-
-	at_exit _at_exit_cleanup_
 }
 
 # temp.sh - Functions involving temporary directories or files
@@ -761,25 +783,41 @@ temp.clean() {
 
 # os.sh - OS related functions
 
-# os.virtual: Which virtualization
+# os.virtual: Virtualization type
+# shellcheck disable=2120
 os.virtual() {
+	local -A _=([.argc]=0); flag.parse "$@"
+
 	systemd-detect-virt || true
 }
 
-# os.distribution: Which distribution
+# os.distribution: Distribution name
+# shellcheck disable=2120
 os.distribution() {
+	local -A _=([.argc]=0); flag.parse "$@"
+
 	# shellcheck disable=1091
 	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
 }
 
-# os.codename: Which distribution release
+# os.codename: Distribution codename
+# shellcheck disable=2120
 os.codename() {
+	local -A _=([.argc]=0); flag.parse "$@"
+
 	lsb_release -sc
 }
 
 # os.is: Detect OS feature
 os.is() {
-	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -A _=(
+		[.help]='feature'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+
+	local feature=${_[1]}
 
 	local func=os.is._"${feature}"
 
@@ -787,6 +825,8 @@ os.is() {
 
 	"$func"
 }
+
+# os.sh - Private functions
 
 # is.virtual: Detect given virtualization
 # shellcheck disable=2120
@@ -842,12 +882,35 @@ os.is._vagrant() {
 	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
 }
 
-# uel.sh - URL processing
+# url.sh - URL processing
+
+# url.is: Assert URL feature
+url.is() {
+	local -A _=(
+		[.help]='local|(proto|host|port|path|userinfo|frag) value'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+
+	local url=${_[1]} feature=${_[2]}
+
+	if [[ $feature = local ]]; then
+		[[ $url =~ ^(/|./|file://) ]]
+		return
+	fi
+
+	url.parse_ "$url"
+	url.is_ "$feature" "$@"
+}
+
+# url.sh - Protected functions
 
 # Parse URL
 # shellcheck disable=2034
-url.parse() {
+url.parse_() {
 	local -n url_parse_=_
+
 	if [[ ${1:-} = -A ]]; then
 		shift
 		url_parse_=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -924,21 +987,6 @@ url.parse() {
 	url_parse_[.userinfo]=$userinfo
 }
 
-url.is() {
-	local url=${1?${FUNCNAME[0]}: missing argument};     shift
-	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	if [[ $feature = local ]]; then
-		[[ $url =~ ^(/|./|file://) ]]
-		return
-	fi
-
-	local -A _
-	url.parse "$url"
-
-	url.is_ "$feature" "$@"
-}
-
 url.is_() {
 	local feature=${1?${FUNCNAME[0]}: missing argument};  shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -950,16 +998,30 @@ url.is_() {
 
 # http.get: Get URL
 http.get() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -A _=(
+		[.help]='url'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+
+	local url=${_[1]}
 
 	[[ $url =~ ^.*:// ]] || url=https://$url
 
 	curl -fsSL "$url"
 }
 
+# http.is: Assert URL response
 http.is() {
-	local url=${1?${FUNCNAME[0]}: missing argument};  shift
-	local code=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -A _=(
+		[.help]='url code'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+
+	local url=${_[1]} code=${_[2]}
 
 	if [[ ${code,,} = ok ]]; then
 		code=200
@@ -981,11 +1043,14 @@ file.install() {
 		[-mode]=
 		[-owner]=
 		[-prefix]=
+
+		[.help]='[-(group|mode|owner|prefix)=value] url [dst]'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
 
-	local url=${_[1]?${FUNCNAME[0]}: missing value}
+	local url=${_[1]}
 	local dst=${_[2]:-${url##*/}}
 
 	file.install_ "$url" "$dst"
@@ -1012,14 +1077,19 @@ file.chogm() {
 		[-group]=
 		[-mode]=
 		[-owner]=
+
+		[.help]='[-(group|mode|owner)=value] dst'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
 
-	local dst=${_[1]?${FUNCNAME[0]}: missing value}
+	local dst=${_[1]}
 
 	file.chogm_ "$dst"
 }
+
+# file.sh - Protected functions
 
 file.ln() {
 	local src=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -1054,27 +1124,6 @@ file.download() {
 
 	# shellcheck disable=2034
 	file_download_dst_=$tempfile
-}
-
-# file.sh - Private functions
-
-file._do_args_() {
-	local op=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=2192
-	local -A _=(
-		[-group]=
-		[-mode]=
-		[-owner]=
-		[-prefix]=
-	)
-
-	flag.parse "$@"
-
-	local src=${_[1]?${FUNCNAME[0]}: missing value}
-	local dst=${_[2]?${FUNCNAME[0]}: missing value}
-
-	file.do_ "$op" "$src" "$dst"
 }
 
 file.do_() {
@@ -1139,6 +1188,30 @@ file.install_() {
 	temp.clean tempfile
 }
 
+# file.sh - Private functions
+
+file._do_args_() {
+	local op=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	# shellcheck disable=2192
+	local -A _=(
+		[-group]=
+		[-mode]=
+		[-owner]=
+		[-prefix]=
+
+		[.help]='[-(group|mode|owner|prefix)=value] src [dst]'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+
+	local src=${_[1]?${FUNCNAME[0]}: missing value}
+	local dst=${_[2]?${FUNCNAME[0]}: missing value}
+
+	file.do_ "$op" "$src" "$dst"
+}
+
 file._chogm_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -1155,11 +1228,34 @@ bin.install() {
 	local -A _=(
 		[-prefix]="$_USR"/bin
 		[-name]=
+
+		[.help]='url|file'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
+	bin.install_
+}
 
-	local url=${_[1]?${FUNCNAME[0]}: missing value}
+# bin.use: Use program
+bin.use() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-prefix]="$_RUN"/bin
+		[-name]=
+
+		[.help]='url|file'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+	bin.install_
+}
+
+# bin.sh - Protected functions
+
+bin.install_() {
+	local url=${_[1]}
 
 	# shellcheck disable=1007
 	local bin= tempfile= tempdir=
@@ -1197,10 +1293,7 @@ bin.install() {
 	temp.clean tempfile tempdir
 }
 
-# bin.use: Use program
-bin.use() {
-	bin.install -prefix="$_RUN"/bin "$@"
-}
+# bin.sh - Private functions
 
 bin._inspect() {
 	local bin=${1?${FUNCNAME[0]}: missing argument};             shift
@@ -1219,26 +1312,44 @@ bin._inspect() {
 
 # git.sh - Git functions
 
-git.is_git() {
+git.update() {
+	local -A _=(
+		[-expiry]=3
+
+		[.help]='[-expiry=value (minutes)]'
+		[.argc]=0
+	)
+
+	flag.parse "$@"
+
+	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
+		git.must.clean
+		git pull --quiet origin
+	fi
+}
+
+# git.sh - Protected functions
+
+git.is.git() {
 	local path=${1:-.}
 
 	[[ -d $path/.git ]] && git rev-parse --resolve-git-dir "$path/.git" &>/dev/null
 }
 
-git.must_sane() {
-	git rev-parse --is-inside-work-tree &>/dev/null || die "Must be inside a git work tree: $PWD"
-	git rev-parse --verify HEAD >/dev/null          || die "Unverified git HEAD: $PWD"
-}
-
-git.is_clean() {
+git.is.clean() {
 	git rev-parse --verify HEAD >/dev/null &&
 	git update-index -q --ignore-submodules --refresh &&
 	git diff-files --quiet --ignore-submodules &&
 	git diff-index --cached --quiet --ignore-submodules HEAD --
 }
 
-git.must_clean() {
-	git.is_clean || die "Must be a clean git work tree: $PWD"
+git.must.sane() {
+	git rev-parse --is-inside-work-tree &>/dev/null || die "Must be inside a git work tree: $PWD"
+	git rev-parse --verify HEAD >/dev/null          || die "Unverified git HEAD: $PWD"
+}
+
+git.must.clean() {
+	git.is.clean || die "Must be a clean git work tree: $PWD"
 }
 
 git.topdir() {
@@ -1248,13 +1359,13 @@ git.topdir() {
 }
 
 git.top() {
-	git.must_sane
+	git.must.sane
 
 	must.success cd "$(git.topdir)"
 }
 
 git.default_branch() {
-	git.must_sane
+	git.must.sane
 
 	git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'
 }
@@ -1267,24 +1378,11 @@ git.switch() {
 	git checkout --quiet "$branch"
 }
 
-git.update() {
-	local -A _=(
-		[-expiry]=3
-	)
-
-	flag.parse "$@"
-
-	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
-		git.must_clean
-		git pull --quiet origin
-	fi
-}
-
 git.dst_() {
 	file.dst_ "$@"
 }
 
-git.exist_() {
+git.is.exist_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.dst_ dst
@@ -1301,7 +1399,7 @@ git.enter_() {
 
 	must.success pushd "$dst" >/dev/null
 
-	git.is_git . || die "Not a git repository: $PWD"
+	git.is.git . || die "Not a git repository: $PWD"
 
 	file.enter "${_[.dir]:-}"
 }
@@ -1310,7 +1408,7 @@ git.clone_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	! git.exist_ "$dst" || die "Destination already exist: $dst"
+	! git.is.exist_ "$dst" || die "Destination already exist: $dst"
 
 	local -a opt
 
@@ -1336,7 +1434,7 @@ git.update_() {
 
 	local -i expiry=${_[-expiry]:-3}
 	if expired "$expiry" .git/FETCH_HEAD; then
-		git.must_clean
+		git.must.clean
 
 		say 'Updating repository...'
 		git pull --quiet origin
@@ -1353,6 +1451,9 @@ src.install() {
 	local -A _=(
 		[-expiry]=
 		[-prefix]="$_USR"/src
+
+		[.help]='[-(expiry|prefix)=value] url'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
@@ -1367,6 +1468,9 @@ src.use() {
 		[-expiry]=
 		[-prefix]="$_RUN"/src
 		[-shallow]=false
+
+		[.help]='[-(expiry|prefix|shallow)=value] url'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
@@ -1376,7 +1480,19 @@ src.use() {
 
 # enter: Get src from URL and enter to the directory
 src.enter() {
-	src.use "$@" >/dev/null
+	# shellcheck disable=2192
+	local -A _=(
+		[-expiry]=
+		[-prefix]="$_RUN"/src
+		[-shallow]=false
+
+		[.help]='[-(expiry|prefix|shallow)=value] url'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+
+	src.install_ >/dev/null
 
 	echo "$PWD"
 }
@@ -1390,6 +1506,9 @@ src.run() {
 		[-pwd]=
 		[-shallow]=false
 		[-test]=false
+
+		[.help]='[-(expiry|prefix|pwd|shallow|test)=value] url'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
@@ -1400,20 +1519,50 @@ src.run() {
 	flag.false test || src.test_ "${_[.dir]}"
 }
 
+# src.sh - Protected functions
+
+src.interprete() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local ext=$file
+	path.ext ext
+
+	if [[ -z $ext ]]; then
+		# shellcheck disable=2209
+		ext=sh
+		file=$file.$ext
+	fi
+
+	[[ -f $file ]] || die "Not file found to interprete: $file"
+
+	local interpreter
+	case $ext in
+	sh)  interpreter=bash   ;;
+	rb)  interpreter=ruby   ;;
+	py)  interpreter=python ;;
+	pl)  interpreter=perl   ;;
+	js)  interpreter=node   ;;
+	php) interpreter=php    ;;
+	*)   die "Unsupported interpreter for extension: $ext" ;;
+	esac
+
+	env "$@" "$interpreter" "$file"
+}
+
 src.managed_() {
 	local path=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	git.is_git "$path" && git -C "$path" config underscore.name &>/dev/null
+	git.is.git "$path" && git -C "$path" config underscore.name &>/dev/null
 }
 
 src.install_() {
-	local url=${_[1]?${FUNCNAME[0]}: missing value}
+	local url=${_[1]}
 
-	url.parse "$url" || die "Error parsing URL: ${_[.error]}: $url"
+	url.parse_ "$url" || die "Error parsing URL: ${_[.error]}: $url"
 
 	src._plan_ || die "Error planning URL: ${_[.error]}: $url"
 
-	local src=${_[1]} dst=${_[2]}
+	local src=${_[1]} dst=${_[2]:-}
 
 	if src.exist_ "$dst"; then
 		src.update_ "$dst"
@@ -1455,40 +1604,34 @@ src.exe_() {
 	fi
 }
 
-src.interprete() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local ext=$file
-	path.ext ext
-
-	if [[ -z $ext ]]; then
-		# shellcheck disable=2209
-		ext=sh
-		file=$file.$ext
-	fi
-
-	[[ -f $file ]] || die "Not file found to interprete: $file"
-
-	local interpreter
-	case $ext in
-	sh)  interpreter=bash   ;;
-	rb)  interpreter=ruby   ;;
-	py)  interpreter=python ;;
-	pl)  interpreter=perl   ;;
-	js)  interpreter=node   ;;
-	php) interpreter=php    ;;
-	*)   die "Unsupported interpreter for extension: $ext" ;;
-	esac
-
-	env "$@" "$interpreter" "$file"
-}
-
 src.env_() {
 	# shellcheck disable=2034
 	local -n src_env_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	flag.env src_env_
 }
+
+src.dst_() {
+	git.dst_ "$@"
+}
+
+src.exist_() {
+	git.is.exist_ "$@"
+}
+
+src.get_() {
+	git.clone_ "$@"
+}
+
+src.update_() {
+	git.update_ "$@"
+}
+
+src.enter_() {
+	git.enter_ "$@"
+}
+
+# src.sh - Private functions
 
 src._plan_() {
 	local owner repo auth path
@@ -1536,25 +1679,6 @@ src._plan_() {
 	_[2]=${_[.name]}
 }
 
-src.dst_() {
-	git.dst_ "$@"
-}
-
-src.exist_() {
-	git.exist_ "$@"
-}
-
-src.get_() {
-	git.clone_ "$@"
-}
-
-src.update_() {
-	git.update_ "$@"
-}
-
-src.enter_() {
-	git.enter_ "$@"
-}
 
 # deb.sh - Debian package management
 
@@ -1566,11 +1690,8 @@ deb.install() {
 	local -A _=(
 		[-missings]=false
 		[-shiny]=false
-	)
 
-	local -a opts=(
-		--yes
-		--no-install-recommends
+		[.help]='package...'
 	)
 
 	flag.parse "$@"
@@ -1579,6 +1700,11 @@ deb.install() {
 	flag.args args
 
 	[[ ${#args[@]} -gt 0 ]] || return 0
+
+	local -a opts=(
+		--yes
+		--no-install-recommends
+	)
 
 	local -a packages urls non_urls
 
@@ -1624,6 +1750,13 @@ deb.install() {
 
 # deb.uninstall: Uninstall Debian packages
 deb.uninstall() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='package...'
+	)
+
+	flag.parse "$@"
+
 	local -a packages
 
 	deb._missings packages "$@"
@@ -1636,6 +1769,13 @@ deb.uninstall() {
 
 # deb.missings: Print missing packages among given packages
 deb.missings() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='package...'
+	)
+
+	flag.parse "$@"
+
 	local -a missings
 	deb._missings missings "$@"
 
@@ -1645,14 +1785,30 @@ deb.missings() {
 }
 
 # deb.update: Update Debian package index
+# shellcheck disable=2120
 deb.update() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]=
+	)
+
+	flag.parse "$@"
+
 	expired 60 /var/cache/apt/pkgcache.bin || apt-get update -y
 }
 
 # deb.repository: Add Debian repository
 deb.repository() {
-	local name=${1?${FUNCNAME[0]}: missing argument}; shift
-	local url=${1:-}
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='name [url]'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+
+	local name=${_[1]}
+	local url=${_[2]:-}
 
 	has.stdin || die 'Required stdin data'
 
@@ -1666,9 +1822,17 @@ deb.repository() {
 
 # deb.using: Use given official Debian distributions
 deb.using() {
-	local dist
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='dist...'
+	)
 
-	for dist; do
+	flag.parse "$@"
+
+	local -a args; flag.args args
+
+	local dist
+	for dist in "${args[@]}"; do
 		case $dist in
 		stable|testing|unstable|sid|experimental)
 			;;
@@ -1757,9 +1921,17 @@ deb._install_from_urls() {
 
 # text.fix: Append stdin content to the target file
 text.fix() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -A _=(
+		[.help]='file'
+		[.argc]=1
+	)
 
-	text.unfix "$file"
+	flag.parse "$@"
+
+	local file=${_[1]}
+	must.f "$file"
+
+	text._unfix "$file"
 
 	{
 		echo '# BEGIN FIX'
@@ -1768,23 +1940,29 @@ text.fix() {
 	} >>"$file"
 }
 
-# text.fix: Remove appended content
+# text.unfix: Remove appended content
 text.unfix() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -A _=(
+		[.help]='file'
+		[.argc]=1
+	)
 
-	text.fixed "$file" || return 0
+	flag.parse "$@"
 
-	[[ -w $file ]] || die "File not writable: $file"
+	local file=${_[1]}
+	must.f "$file"
 
-	sed -i '/BEGIN FIX/,/END FIX/d' "$file"
+	text._unfix "$file"
 }
 
-text.fixed() {
+# text.sh - Private functions
+
+text._unfix() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ -f $file ]] || die "File not found: $file"
-
-	grep -qE '(BEGIN|END) FIX' "$file"
+	grep -qE '(BEGIN|END) FIX' "$file" || return 0
+	must.w "$file"
+	sed -i '/BEGIN FIX/,/END FIX/d' "$file"
 }
 
 # filetype.sh - Filetype detection
@@ -1793,11 +1971,14 @@ text.fixed() {
 filetype.mime() {
 	local -A _=(
 		[-zip]=false
+
+		[.help]='file'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
 
-	local file=${_[1]?${FUNCNAME[0]}: missing value}
+	local file=${_[1]}
 	must.f "$file"
 
 	if flag.true zip; then
@@ -1812,16 +1993,21 @@ filetype.mime() {
 filetype.is() {
 	local -A _=(
 		[-zip]=false
+
+		[.help]='file'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
 
-	local file=${_[1]?${FUNCNAME[0]}: missing value}
+	local file=${_[1]}
 	must.f "$file"
 
 	local -a args; flag.args args
 	filetype.is_ "${args[@]}"
 }
+
+# filetype.sh - Protected functions
 
 filetype.is_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -1833,6 +2019,8 @@ filetype.is_() {
 
 	"$func" "$file" "$@"
 }
+
+# filetype.sh - Private functions
 
 filetype.is._mime_() {
 	local file=${1?${FUNCNAME[0]}: missing argument};     shift
@@ -1896,11 +2084,15 @@ filetype.is._compressed_() {
 # unzip: Unpack compressed file
 zip.unpack() {
 	local -A _=(
+		[.help]='zip: foo bar baz'
+		[.argc]=1
+
 		[-force]=false
 		[-clean]=false
 	)
 
 	flag.parse "$@"
+	flag.dump
 
 	local in=${_[1]:-} out=${_[2]:-}
 
@@ -2056,12 +2248,15 @@ declare -Ag help=(
 	['self version']='Print self version'
 	['self name']='Print self name'
 	['self path']='Print self path'
+	['self install']='Install self'
 	['temp inside']='Execute command in temp dir'
-	['os virtual']='Which virtualization'
-	['os distribution']='Which distribution'
-	['os codename']='Which distribution release'
+	['os virtual']='Virtualization type'
+	['os distribution']='Distribution name'
+	['os codename']='Distribution codename'
 	['os is']='Detect OS feature'
+	['url is']='Assert URL feature'
 	['http get']='Get URL'
+	['http is']='Assert URL response'
 	['file install']='Install file from URL'
 	['bin install']='Install program to path'
 	['bin use']='Use program'
@@ -2076,7 +2271,7 @@ declare -Ag help=(
 	['deb repository']='Add Debian repository'
 	['deb using']='Use given official Debian distributions'
 	['text fix']='Append stdin content to the target file'
-	['text fix']='Remove appended content'
+	['text unfix']='Remove appended content'
 	['filetype mime']='What mime type'
 	['is file']='Detect file type'
 	['unzip']='Unpack compressed file'
@@ -2116,12 +2311,15 @@ declare -Ag command=(
 	['self version']='self.version'
 	['self name']='self.name'
 	['self path']='self.path'
+	['self install']='self.install'
 	['temp inside']='temp.inside'
 	['os virtual']='os.virtual'
 	['os distribution']='os.distribution'
 	['os codename']='os.codename'
 	['os is']='os.is'
+	['url is']='url.is'
 	['http get']='http.get'
+	['http is']='http.is'
 	['file install']='file.install'
 	['bin install']='bin.install'
 	['bin use']='bin.use'
@@ -2136,7 +2334,7 @@ declare -Ag command=(
 	['deb repository']='deb.repository'
 	['deb using']='deb.using'
 	['text fix']='text.fix'
-	['text fix']='text.unfix'
+	['text unfix']='text.unfix'
 	['filetype mime']='filetype.mime'
 	['is file']='filetype.is'
 	['unzip']='zip.unpack'

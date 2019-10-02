@@ -1,9 +1,32 @@
-# uel.sh - URL processing
+# url.sh - URL processing
+
+# url.is: Assert URL feature
+url.is() {
+	local -A _=(
+		[.help]='local|(proto|host|port|path|userinfo|frag) value'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+
+	local url=${_[1]} feature=${_[2]}
+
+	if [[ $feature = local ]]; then
+		[[ $url =~ ^(/|./|file://) ]]
+		return
+	fi
+
+	url.parse_ "$url"
+	url.is_ "$feature" "$@"
+}
+
+# url.sh - Protected functions
 
 # Parse URL
 # shellcheck disable=2034
-url.parse() {
+url.parse_() {
 	local -n url_parse_=_
+
 	if [[ ${1:-} = -A ]]; then
 		shift
 		url_parse_=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -78,21 +101,6 @@ url.parse() {
 	url_parse_[.port]=$port
 	url_parse_[.proto]=$proto
 	url_parse_[.userinfo]=$userinfo
-}
-
-url.is() {
-	local url=${1?${FUNCNAME[0]}: missing argument};     shift
-	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	if [[ $feature = local ]]; then
-		[[ $url =~ ^(/|./|file://) ]]
-		return
-	fi
-
-	local -A _
-	url.parse "$url"
-
-	url.is_ "$feature" "$@"
 }
 
 url.is_() {

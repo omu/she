@@ -168,7 +168,6 @@ expired() {
 	fi
 
 	export PATH="$_RUN"/bin:"$PATH"
-	declare -gA _=()
 
 	unset -f "${FUNCNAME[0]}"
 }

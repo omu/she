@@ -6,11 +6,34 @@ bin.install() {
 	local -A _=(
 		[-prefix]="$_USR"/bin
 		[-name]=
+
+		[.help]='url|file'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
+	bin.install_
+}
 
-	local url=${_[1]?${FUNCNAME[0]}: missing value}
+# bin.use: Use program
+bin.use() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-prefix]="$_RUN"/bin
+		[-name]=
+
+		[.help]='url|file'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+	bin.install_
+}
+
+# bin.sh - Protected functions
+
+bin.install_() {
+	local url=${_[1]}
 
 	# shellcheck disable=1007
 	local bin= tempfile= tempdir=
@@ -48,10 +71,7 @@ bin.install() {
 	temp.clean tempfile tempdir
 }
 
-# bin.use: Use program
-bin.use() {
-	bin.install -prefix="$_RUN"/bin "$@"
-}
+# bin.sh - Private functions
 
 bin._inspect() {
 	local bin=${1?${FUNCNAME[0]}: missing argument};             shift

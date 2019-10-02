@@ -1,19 +1,24 @@
 # path.sh - Path management
 
-path.is_volatile() {
-	df -t tmpfs "$1" &>/dev/null
+path.is.volatile() {
+	local path=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	df -t tmpfs "$path" &>/dev/null
 }
 
-path.is_equal() {
-	[[ $(realpath -m "$1") = $(realpath -m "$2") ]]
+path.is.equal() {
+	local actual=${1?${FUNCNAME[0]}: missing argument};   shift
+	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $(realpath -m "$actual") = $(realpath -m "$expected") ]]
 }
 
-path.is_inside() {
-	local given=${1?${FUNCNAME[0]}: missing argument}; shift
-	local path=${1?${FUNCNAME[0]}: missing argument};  shift
+path.is.inside() {
+	local path=${1?${FUNCNAME[0]}: missing argument};      shift
+	local periphery=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local relative
-	relative=$(realpath --relative-to "$given" "$path" 2>/dev/null) || return
+	relative=$(realpath --relative-to "$path" "$periphery" 2>/dev/null) || return
 
 	[[ ! $relative =~ ^[.] ]]
 }
@@ -78,9 +83,28 @@ path.subext() {
 	esac
 }
 
+path.suffixize() {
+	local -n path_suffixize_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    suffix=${1?${FUNCNAME[0]}: missing argument};          shift
+
+	local -A _
+	path.parse_ "$path_suffixize_"
+
+	printf -v path_suffixize_ "%s/%s${suffix}%s" "${_[.dir]:-.}" "${_[.name]}" "${_[.dotext]}"
+}
+
+path.normalize() {
+	local -n path_normalize_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	while [[ $path_normalize_ =~ //+ ]]; do
+		path_normalize_=${path_normalize_/\/\//\/}
+	done
+}
+
 # shellcheck disable=2034
-path.parse() {
+path.parse_() {
 	local -n path_parse_=_
+
 	if [[ ${1:-} = -A ]]; then
 		shift
 		path_parse_=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -107,20 +131,3 @@ path.parse() {
 	fi
 }
 
-path.suffixize() {
-	local -n path_suffixize_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    suffix=${1?${FUNCNAME[0]}: missing argument};          shift
-
-	local -A _
-	path.parse "$path_suffixize_"
-
-	printf -v path_suffixize_ "%s/%s${suffix}%s" "${_[.dir]:-.}" "${_[.name]}" "${_[.dotext]}"
-}
-
-path.normalize() {
-	local -n path_normalize_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	while [[ $path_normalize_ =~ //+ ]]; do
-		path_normalize_=${path_normalize_/\/\//\/}
-	done
-}

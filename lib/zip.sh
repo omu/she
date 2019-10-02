@@ -1,11 +1,15 @@
 # unzip: Unpack compressed file
 zip.unpack() {
 	local -A _=(
+		[.help]='zip: foo bar baz'
+		[.argc]=1
+
 		[-force]=false
 		[-clean]=false
 	)
 
 	flag.parse "$@"
+	flag.dump
 
 	local in=${_[1]:-} out=${_[2]:-}
 

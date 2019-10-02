@@ -1,5 +1,6 @@
 # must.sh - Guard functions
 
+# Test -e
 must.e() {
 	local arg=${1?${FUNCNAME[0]}: missing argument};       shift
 	local message=${1:-"No such file or directory: $arg"}
@@ -7,6 +8,7 @@ must.e() {
 	[[ -e $arg ]] || die "$message"
 }
 
+# Test -f
 must.f() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such file: $arg"}
@@ -14,6 +16,7 @@ must.f() {
 	[[ -f $arg ]] || die "$message"
 }
 
+# Test -d
 must.d() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such directory: $arg"}
@@ -21,6 +24,7 @@ must.d() {
 	[[ -d $arg ]] || die "$message"
 }
 
+# Test -x
 must.x() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"Not executable: $arg"}
@@ -28,6 +32,7 @@ must.x() {
 	[[ -x $arg ]] || die "$message"
 }
 
+# Test -r
 must.r() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such file: $arg"}
@@ -35,6 +40,7 @@ must.r() {
 	[[ -r $arg ]] || die "$message"
 }
 
+# Test -w
 must.w() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such file: $arg"}
@@ -42,6 +48,7 @@ must.w() {
 	[[ -w $arg ]] || die "$message"
 }
 
+# Test -n
 must.n() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"Empty value: $arg"}
@@ -49,11 +56,17 @@ must.n() {
 	[[ -n $arg ]] || die "$message"
 }
 
+# Test -z
 must.z() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"Empty value: $arg"}
 
 	[[ -z $arg ]] || die "$message"
+}
+
+# Must be root
+must.root() {
+	[[ ${EUID:-} -eq 0 ]]
 }
 
 # Command must success
@@ -95,4 +108,3 @@ must.callable() {
 
 	callable "$arg" || die "$message"
 }
-

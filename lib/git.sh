@@ -1,25 +1,43 @@
 # git.sh - Git functions
 
-git.is_git() {
+git.update() {
+	local -A _=(
+		[-expiry]=3
+
+		[.help]='[-expiry=value (minutes)]'
+		[.argc]=0
+	)
+
+	flag.parse "$@"
+
+	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
+		git.must.clean
+		git pull --quiet origin
+	fi
+}
+
+# git.sh - Protected functions
+
+git.is.git() {
 	local path=${1:-.}
 
 	[[ -d $path/.git ]] && git rev-parse --resolve-git-dir "$path/.git" &>/dev/null
 }
 
-git.must_sane() {
-	git rev-parse --is-inside-work-tree &>/dev/null || die "Must be inside a git work tree: $PWD"
-	git rev-parse --verify HEAD >/dev/null          || die "Unverified git HEAD: $PWD"
-}
-
-git.is_clean() {
+git.is.clean() {
 	git rev-parse --verify HEAD >/dev/null &&
 	git update-index -q --ignore-submodules --refresh &&
 	git diff-files --quiet --ignore-submodules &&
 	git diff-index --cached --quiet --ignore-submodules HEAD --
 }
 
-git.must_clean() {
-	git.is_clean || die "Must be a clean git work tree: $PWD"
+git.must.sane() {
+	git rev-parse --is-inside-work-tree &>/dev/null || die "Must be inside a git work tree: $PWD"
+	git rev-parse --verify HEAD >/dev/null          || die "Unverified git HEAD: $PWD"
+}
+
+git.must.clean() {
+	git.is.clean || die "Must be a clean git work tree: $PWD"
 }
 
 git.topdir() {
@@ -29,13 +47,13 @@ git.topdir() {
 }
 
 git.top() {
-	git.must_sane
+	git.must.sane
 
 	must.success cd "$(git.topdir)"
 }
 
 git.default_branch() {
-	git.must_sane
+	git.must.sane
 
 	git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'
 }
@@ -48,24 +66,11 @@ git.switch() {
 	git checkout --quiet "$branch"
 }
 
-git.update() {
-	local -A _=(
-		[-expiry]=3
-	)
-
-	flag.parse "$@"
-
-	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
-		git.must_clean
-		git pull --quiet origin
-	fi
-}
-
 git.dst_() {
 	file.dst_ "$@"
 }
 
-git.exist_() {
+git.is.exist_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.dst_ dst
@@ -82,7 +87,7 @@ git.enter_() {
 
 	must.success pushd "$dst" >/dev/null
 
-	git.is_git . || die "Not a git repository: $PWD"
+	git.is.git . || die "Not a git repository: $PWD"
 
 	file.enter "${_[.dir]:-}"
 }
@@ -91,7 +96,7 @@ git.clone_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	! git.exist_ "$dst" || die "Destination already exist: $dst"
+	! git.is.exist_ "$dst" || die "Destination already exist: $dst"
 
 	local -a opt
 
@@ -117,7 +122,7 @@ git.update_() {
 
 	local -i expiry=${_[-expiry]:-3}
 	if expired "$expiry" .git/FETCH_HEAD; then
-		git.must_clean
+		git.must.clean
 
 		say 'Updating repository...'
 		git pull --quiet origin

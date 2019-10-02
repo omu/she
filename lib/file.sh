@@ -8,11 +8,14 @@ file.install() {
 		[-mode]=
 		[-owner]=
 		[-prefix]=
+
+		[.help]='[-(group|mode|owner|prefix)=value] url [dst]'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
 
-	local url=${_[1]?${FUNCNAME[0]}: missing value}
+	local url=${_[1]}
 	local dst=${_[2]:-${url##*/}}
 
 	file.install_ "$url" "$dst"
@@ -39,14 +42,19 @@ file.chogm() {
 		[-group]=
 		[-mode]=
 		[-owner]=
+
+		[.help]='[-(group|mode|owner)=value] dst'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
 
-	local dst=${_[1]?${FUNCNAME[0]}: missing value}
+	local dst=${_[1]}
 
 	file.chogm_ "$dst"
 }
+
+# file.sh - Protected functions
 
 file.ln() {
 	local src=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -81,27 +89,6 @@ file.download() {
 
 	# shellcheck disable=2034
 	file_download_dst_=$tempfile
-}
-
-# file.sh - Private functions
-
-file._do_args_() {
-	local op=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=2192
-	local -A _=(
-		[-group]=
-		[-mode]=
-		[-owner]=
-		[-prefix]=
-	)
-
-	flag.parse "$@"
-
-	local src=${_[1]?${FUNCNAME[0]}: missing value}
-	local dst=${_[2]?${FUNCNAME[0]}: missing value}
-
-	file.do_ "$op" "$src" "$dst"
 }
 
 file.do_() {
@@ -164,6 +151,30 @@ file.install_() {
 	file.do_ copy "$src" "$dst"
 
 	temp.clean tempfile
+}
+
+# file.sh - Private functions
+
+file._do_args_() {
+	local op=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	# shellcheck disable=2192
+	local -A _=(
+		[-group]=
+		[-mode]=
+		[-owner]=
+		[-prefix]=
+
+		[.help]='[-(group|mode|owner|prefix)=value] src [dst]'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+
+	local src=${_[1]?${FUNCNAME[0]}: missing value}
+	local dst=${_[2]?${FUNCNAME[0]}: missing value}
+
+	file.do_ "$op" "$src" "$dst"
 }
 
 file._chogm_() {

@@ -1,8 +1,8 @@
 # string.sh - String manipulation
 
 string.has_prefix_deleted() {
-	local -n string_has_prefix_deleted_=$1
-	local prefix=$2
+	local -n string_has_prefix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    prefix=${1?${FUNCNAME[0]}: missing argument};                     shift
 
 	if [[ $string_has_prefix_deleted_ =~ ^$prefix ]]; then
 		string_has_prefix_deleted_=${string_has_prefix_deleted_#$prefix}
@@ -18,8 +18,8 @@ string.delete_prefix() {
 }
 
 string.has_suffix_deleted() {
-	local -n string_has_suffix_deleted_=$1
-	local suffix=$2
+	local -n string_has_suffix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    suffix=${1?${FUNCNAME[0]}: missing argument};                     shift
 
 	if [[ $string_has_suffix_deleted_ =~ $suffix$ ]]; then
 		string_has_suffix_deleted_=${string_has_suffix_deleted_%$suffix}

@@ -12,7 +12,7 @@ module Fmt
   }.freeze
 
   refine String do
-    def fmt(**options)
+    def fmt(**options) # rubocop:disable Metrics/AbcSize
       options = DEFAULT_FMT_OPTIONS.merge options
 
       out = dup

@@ -6,6 +6,9 @@ src.install() {
 	local -A _=(
 		[-expiry]=
 		[-prefix]="$_USR"/src
+
+		[.help]='[-(expiry|prefix)=value] url'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
@@ -20,6 +23,9 @@ src.use() {
 		[-expiry]=
 		[-prefix]="$_RUN"/src
 		[-shallow]=false
+
+		[.help]='[-(expiry|prefix|shallow)=value] url'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
@@ -29,7 +35,19 @@ src.use() {
 
 # enter: Get src from URL and enter to the directory
 src.enter() {
-	src.use "$@" >/dev/null
+	# shellcheck disable=2192
+	local -A _=(
+		[-expiry]=
+		[-prefix]="$_RUN"/src
+		[-shallow]=false
+
+		[.help]='[-(expiry|prefix|shallow)=value] url'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+
+	src.install_ >/dev/null
 
 	echo "$PWD"
 }
@@ -43,6 +61,9 @@ src.run() {
 		[-pwd]=
 		[-shallow]=false
 		[-test]=false
+
+		[.help]='[-(expiry|prefix|pwd|shallow|test)=value] url'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
@@ -53,20 +74,50 @@ src.run() {
 	flag.false test || src.test_ "${_[.dir]}"
 }
 
+# src.sh - Protected functions
+
+src.interprete() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local ext=$file
+	path.ext ext
+
+	if [[ -z $ext ]]; then
+		# shellcheck disable=2209
+		ext=sh
+		file=$file.$ext
+	fi
+
+	[[ -f $file ]] || die "Not file found to interprete: $file"
+
+	local interpreter
+	case $ext in
+	sh)  interpreter=bash   ;;
+	rb)  interpreter=ruby   ;;
+	py)  interpreter=python ;;
+	pl)  interpreter=perl   ;;
+	js)  interpreter=node   ;;
+	php) interpreter=php    ;;
+	*)   die "Unsupported interpreter for extension: $ext" ;;
+	esac
+
+	env "$@" "$interpreter" "$file"
+}
+
 src.managed_() {
 	local path=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	git.is_git "$path" && git -C "$path" config underscore.name &>/dev/null
+	git.is.git "$path" && git -C "$path" config underscore.name &>/dev/null
 }
 
 src.install_() {
-	local url=${_[1]?${FUNCNAME[0]}: missing value}
+	local url=${_[1]}
 
-	url.parse "$url" || die "Error parsing URL: ${_[.error]}: $url"
+	url.parse_ "$url" || die "Error parsing URL: ${_[.error]}: $url"
 
 	src._plan_ || die "Error planning URL: ${_[.error]}: $url"
 
-	local src=${_[1]} dst=${_[2]}
+	local src=${_[1]} dst=${_[2]:-}
 
 	if src.exist_ "$dst"; then
 		src.update_ "$dst"
@@ -108,40 +159,34 @@ src.exe_() {
 	fi
 }
 
-src.interprete() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local ext=$file
-	path.ext ext
-
-	if [[ -z $ext ]]; then
-		# shellcheck disable=2209
-		ext=sh
-		file=$file.$ext
-	fi
-
-	[[ -f $file ]] || die "Not file found to interprete: $file"
-
-	local interpreter
-	case $ext in
-	sh)  interpreter=bash   ;;
-	rb)  interpreter=ruby   ;;
-	py)  interpreter=python ;;
-	pl)  interpreter=perl   ;;
-	js)  interpreter=node   ;;
-	php) interpreter=php    ;;
-	*)   die "Unsupported interpreter for extension: $ext" ;;
-	esac
-
-	env "$@" "$interpreter" "$file"
-}
-
 src.env_() {
 	# shellcheck disable=2034
 	local -n src_env_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	flag.env src_env_
 }
+
+src.dst_() {
+	git.dst_ "$@"
+}
+
+src.exist_() {
+	git.is.exist_ "$@"
+}
+
+src.get_() {
+	git.clone_ "$@"
+}
+
+src.update_() {
+	git.update_ "$@"
+}
+
+src.enter_() {
+	git.enter_ "$@"
+}
+
+# src.sh - Private functions
 
 src._plan_() {
 	local owner repo auth path
@@ -189,22 +234,3 @@ src._plan_() {
 	_[2]=${_[.name]}
 }
 
-src.dst_() {
-	git.dst_ "$@"
-}
-
-src.exist_() {
-	git.exist_ "$@"
-}
-
-src.get_() {
-	git.clone_ "$@"
-}
-
-src.update_() {
-	git.update_ "$@"
-}
-
-src.enter_() {
-	git.enter_ "$@"
-}

@@ -4,11 +4,14 @@
 filetype.mime() {
 	local -A _=(
 		[-zip]=false
+
+		[.help]='file'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
 
-	local file=${_[1]?${FUNCNAME[0]}: missing value}
+	local file=${_[1]}
 	must.f "$file"
 
 	if flag.true zip; then
@@ -23,16 +26,21 @@ filetype.mime() {
 filetype.is() {
 	local -A _=(
 		[-zip]=false
+
+		[.help]='file'
+		[.argc]=1
 	)
 
 	flag.parse "$@"
 
-	local file=${_[1]?${FUNCNAME[0]}: missing value}
+	local file=${_[1]}
 	must.f "$file"
 
 	local -a args; flag.args args
 	filetype.is_ "${args[@]}"
 }
+
+# filetype.sh - Protected functions
 
 filetype.is_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -44,6 +52,8 @@ filetype.is_() {
 
 	"$func" "$file" "$@"
 }
+
+# filetype.sh - Private functions
 
 filetype.is._mime_() {
 	local file=${1?${FUNCNAME[0]}: missing argument};     shift

@@ -1,0 +1,53 @@
+# _.sh - Default result variable
+
+declare -gA _=()
+
+_.read() {
+	local -i i=1
+
+	while [[ $# -gt 0 ]]; do
+		local key value
+
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+			key=${1%%=*}; value=${1#*=}
+		elif [[ $1 == '--' ]]; then
+			shift
+			break
+		else
+			key=$((i++)); value=$1
+		fi
+
+		_["$key"]=${value:-${_["$key"]:-}}
+
+		shift
+	done
+}
+
+_.select() {
+	local    pattern=${1?${FUNCNAME[0]}: missing argument};  shift
+	local -n _select_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!_[@]}"; do
+		[[ $key =~ $pattern ]] || continue
+		_select_+=("${_[$key]}")
+	done
+}
+
+_.reset() {
+	if [[ -n ${1:-} ]]; then
+		local -n _reset_=$1
+
+		local key
+		for key in "${!_[@]}"; do
+			# shellcheck disable=2034
+			_reset_[$key]=${_[$key]}
+		done
+	fi
+
+	_=()
+}
+
+_.dump() {
+	hmm _
+}

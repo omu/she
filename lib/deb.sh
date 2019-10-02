@@ -8,11 +8,8 @@ deb.install() {
 	local -A _=(
 		[-missings]=false
 		[-shiny]=false
-	)
 
-	local -a opts=(
-		--yes
-		--no-install-recommends
+		[.help]='package...'
 	)
 
 	flag.parse "$@"
@@ -21,6 +18,11 @@ deb.install() {
 	flag.args args
 
 	[[ ${#args[@]} -gt 0 ]] || return 0
+
+	local -a opts=(
+		--yes
+		--no-install-recommends
+	)
 
 	local -a packages urls non_urls
 
@@ -66,6 +68,13 @@ deb.install() {
 
 # deb.uninstall: Uninstall Debian packages
 deb.uninstall() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='package...'
+	)
+
+	flag.parse "$@"
+
 	local -a packages
 
 	deb._missings packages "$@"
@@ -78,6 +87,13 @@ deb.uninstall() {
 
 # deb.missings: Print missing packages among given packages
 deb.missings() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='package...'
+	)
+
+	flag.parse "$@"
+
 	local -a missings
 	deb._missings missings "$@"
 
@@ -87,14 +103,30 @@ deb.missings() {
 }
 
 # deb.update: Update Debian package index
+# shellcheck disable=2120
 deb.update() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]=
+	)
+
+	flag.parse "$@"
+
 	expired 60 /var/cache/apt/pkgcache.bin || apt-get update -y
 }
 
 # deb.repository: Add Debian repository
 deb.repository() {
-	local name=${1?${FUNCNAME[0]}: missing argument}; shift
-	local url=${1:-}
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='name [url]'
+		[.argc]=1
+	)
+
+	flag.parse "$@"
+
+	local name=${_[1]}
+	local url=${_[2]:-}
 
 	has.stdin || die 'Required stdin data'
 
@@ -108,9 +140,17 @@ deb.repository() {
 
 # deb.using: Use given official Debian distributions
 deb.using() {
-	local dist
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='dist...'
+	)
 
-	for dist; do
+	flag.parse "$@"
+
+	local -a args; flag.args args
+
+	local dist
+	for dist in "${args[@]}"; do
 		case $dist in
 		stable|testing|unstable|sid|experimental)
 			;;

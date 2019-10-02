@@ -1,42 +1,53 @@
 # flag.sh - Flag handling
 
 flag.parse() {
-	if [[ ${#_[@]} -gt 1 ]]; then
-		flag.parse_strict_ "$@"
-	else
-		flag.parse_loose_ "$@"
+	local -A flag_parse_
+
+	_.reset flag_parse_
+
+	local -i i=0
+
+	while [[ $# -gt 0 ]]; do
+		local key value
+
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+			key=${1%%=*}; value=${1#*=}
+			if [[ $key =~ ^-.+$ ]] && [[ ! -v flag_parse_[$key] ]]; then
+				die "Unrecognized flag: $key"
+			fi
+		elif [[ $1 == '--' ]]; then
+			shift
+			break
+		else
+			key=$((++i)); value=$1
+		fi
+
+		_["$key"]=${value:-${_["$key"]:-}}
+
+		shift
+	done
+
+	if [[ -v flag_parse_[.argc] ]] && [[ $i -ne ${flag_parse_[.argc]} ]]; then
+		local -a messages
+
+		if   [[ $i -lt ${flag_parse_[.argc]} ]]; then
+			messages+=('Too few arguments')
+		elif [[ $i -gt ${flag_parse_[.argc]} ]]; then
+			message+=('Too many arguments')
+		fi
+
+		[[ ! -v flag_parse_[.help] ]] || messages+=("${flag_parse_[.help]}")
+
+		die "${messages[@]}"
 	fi
 }
 
 flag.env() {
-	local -n flag_env_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!_[@]}"; do
-		if [[ $key =~ ^[[:alpha:]_][[:alnum:]_]*$ ]]; then
-			flag_env_+=("$key='${_[$key]}'")
-		fi
-	done
+	_.select '^[[:alpha:]_][[:alnum:]_]*$' "$@"
 }
 
 flag.args() {
-	local -n flag_args_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!_[@]}"; do
-		[[ $key =~ ^[1-9][0-9]+$ ]] || continue
-		flag_args_+=("${_[$key]}")
-	done
-}
-
-flag.vars() {
-	local -n flag_vars_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!_[@]}"; do
-		[[ $key =~ ^[.].+$ ]] || continue
-		flag_vars_+=("${_[$key]}")
-	done
+	_.select '^[1-9][0-9]+$' "$@"
 }
 
 flag.true() {
@@ -48,95 +59,5 @@ flag.false() {
 }
 
 flag.dump() {
-	hmm _
-}
-
-flag.overlay() {
-	local -i i=1
-
-	while [[ $# -gt 0 ]]; do
-		local key value
-
-		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
-			key=${1%%=*}; value=${1#*=}
-			_["$key"]=$value
-		elif [[ $1 == '--' ]]; then
-			shift
-			break
-		else
-			# shellcheck disable=2154
-			_[error]="Non flag or key: $1"
-			return 1
-		fi
-
-		shift
-	done
-}
-
-flag.underlay() {
-	local -i i=1
-
-	while [[ $# -gt 0 ]]; do
-		local key value
-
-		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
-			key=${1%%=*}; value=${1#*=}
-			[[ -v _[$key] ]] || _["$key"]=$value
-		elif [[ $1 == '--' ]]; then
-			shift
-			break
-		else
-			_[error]="Non flag or key: $1"
-			return 1
-		fi
-
-		shift
-	done
-}
-
-flag.parse_strict_() {
-	local -i i=1
-
-	while [[ $# -gt 0 ]]; do
-		local key value
-
-		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
-			key=${1%%=*}; value=${1#*=}
-			if [[ $key =~ ^-.+$ ]] && [[ ! -v _[$key] ]]; then
-				_[error]="Unrecognized flag: $key"
-
-				return 1
-			fi
-		elif [[ $1 == '--' ]]; then
-			shift
-			break
-		else
-			key=$((i++)); value=$1
-		fi
-
-		_["$key"]=$value
-
-		shift
-	done
-}
-
-flag.parse_loose_() {
-	local -i i=1
-
-	while [[ $# -gt 0 ]]; do
-		local key value
-
-		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
-			key=${1%%=*}; value=${1#*=}
-		elif [[ $1 == '--' ]]; then
-			shift
-			break
-		else
-			key=$((i++)); value=$1
-		fi
-
-		_["$key"]=$value
-
-		shift
-	done
+	_.dump
 }

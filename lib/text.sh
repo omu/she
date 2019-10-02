@@ -2,9 +2,17 @@
 
 # text.fix: Append stdin content to the target file
 text.fix() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -A _=(
+		[.help]='file'
+		[.argc]=1
+	)
 
-	text.unfix "$file"
+	flag.parse "$@"
+
+	local file=${_[1]}
+	must.f "$file"
+
+	text._unfix "$file"
 
 	{
 		echo '# BEGIN FIX'
@@ -13,21 +21,27 @@ text.fix() {
 	} >>"$file"
 }
 
-# text.fix: Remove appended content
+# text.unfix: Remove appended content
 text.unfix() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -A _=(
+		[.help]='file'
+		[.argc]=1
+	)
 
-	text.fixed "$file" || return 0
+	flag.parse "$@"
 
-	[[ -w $file ]] || die "File not writable: $file"
+	local file=${_[1]}
+	must.f "$file"
 
-	sed -i '/BEGIN FIX/,/END FIX/d' "$file"
+	text._unfix "$file"
 }
 
-text.fixed() {
+# text.sh - Private functions
+
+text._unfix() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ -f $file ]] || die "File not found: $file"
-
-	grep -qE '(BEGIN|END) FIX' "$file"
+	grep -qE '(BEGIN|END) FIX' "$file" || return 0
+	must.w "$file"
+	sed -i '/BEGIN FIX/,/END FIX/d' "$file"
 }
