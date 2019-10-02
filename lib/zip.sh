@@ -10,9 +10,7 @@ zip.unpack() {
 
 	flag.parse
 
-	local in=$1 out=${2:-}
-
-	must.f "$in"
+	local in=$1 out=${2:-};	must.f "$in"
 
 	filetype.is_ "$in" compressed || die "Not a compressed file of known type: $in"
 
