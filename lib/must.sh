@@ -2,7 +2,7 @@
 
 # Test -e
 must.e() {
-	local arg=${1?${FUNCNAME[0]}: missing argument};       shift
+	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such file or directory: $arg"}
 
 	[[ -e $arg ]] || die "$message"
