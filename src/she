@@ -107,13 +107,13 @@
 		die "No command found: ${args[*]}"
 	fi
 
+	PROGNAME+=("$cmd"); readonly PROGNAME
+
 	if [[ -n ${help:-} ]]; then
 		say "${_help[$cmd]}" ""
 
 		"$fun" -help
 	else
-		PROGNAME+=("$cmd"); readonly PROGNAME
-
 		"$fun" "$@"
 	fi
 }
