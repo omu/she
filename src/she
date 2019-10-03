@@ -84,7 +84,7 @@
 
 		if [[ $# -eq 0 ]]; then
 			.usage
-			die 'Help topic required.'
+			die 'Help topic required'
 		fi
 	fi
 
@@ -188,7 +188,7 @@ EOF
 	return 1
 }
 
-main() {
+.main() {
 	if .sourced "$@"; then
 		.source "$@"
 	else
@@ -196,4 +196,4 @@ main() {
 	fi
 }
 
-[[ "${BASH_SOURCE[0]}" != "$0" ]] || main "$@"
+[[ "${BASH_SOURCE[0]}" != "$0" ]] || .main "$@"
