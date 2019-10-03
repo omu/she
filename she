@@ -2547,7 +2547,7 @@ declare -Ag _command=(
 		die "No command found: ${args[*]}"
 	fi
 
-	PROGNAME+=("$cmd"); readonly PROGNAME
+	readonly PROGNAME+=("$cmd")
 
 	if [[ -n ${help:-} ]]; then
 		say "${_help[$cmd]}" ""
