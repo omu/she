@@ -91,8 +91,8 @@
 		try+=("$1")
 		shift
 
-		if [[ -n ${_command["${try[*]}"]:-} ]]; then
-			cmd="${try[*]}"; fun=${_command[$cmd]}
+		if [[ -n ${_command[${try[*]}]:-} ]]; then
+			cmd=${try[*]}; fun=${_command[$cmd]}
 			break
 		fi
 	done
