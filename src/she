@@ -50,6 +50,10 @@
 
 #/_command/
 
+.init() {
+	trap.setup
+}
+
 .usage() {
 	local cmd
 
@@ -64,6 +68,8 @@
 }
 
 .execute() {
+	.init
+
 	if [[ $# -eq 0 ]]; then
 		.usage
 		die 'Command required'
@@ -182,15 +188,10 @@ EOF
 	return 1
 }
 
-.init() {
-	trap.setup
-}
-
 main() {
 	if .sourced "$@"; then
 		.source "$@"
 	else
-		.init
 		.execute "$@"
 	fi
 }
