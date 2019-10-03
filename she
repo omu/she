@@ -389,18 +389,6 @@ flag._help() {
 	fi
 }
 
-# help: Display help
-help() {
-	local -A _=(
-		[.help]='COMMAND...'
-		[.argc]=0-
-	)
-
-	flag.parse
-
-	.help "$@"
-}
-
 # ui.sh - UI functions
 
 # say: Print messages on standard error
@@ -2196,7 +2184,7 @@ filetype.mime() {
 }
 
 
-# is.file: Detect file type
+# filetype.is: Detect file type
 filetype.is() {
 	local -A _=(
 		[-zip]=false
@@ -2439,7 +2427,6 @@ zip._prep_untar_() {
 }
 
 declare -Ag _help=(
-	['help']='Display help'
 	['say']='Print messages on standard error'
 	['die']='Print error messages and exit failure'
 	['cry']='Print warning messages on standard error'
@@ -2473,12 +2460,11 @@ declare -Ag _help=(
 	['text fix']='Append stdin content to the target file'
 	['text unfix']='Remove appended content'
 	['filetype mime']='What mime type'
-	['is file']='Detect file type'
+	['filetype is']='Detect file type'
 	['unzip']='Unpack compressed file'
 )
 
 declare -Ag _command=(
-	['help']='help'
 	['say']='ui.say'
 	['die']='ui.die'
 	['cry']='ui.cry'
@@ -2512,7 +2498,7 @@ declare -Ag _command=(
 	['text fix']='text.fix'
 	['text unfix']='text.unfix'
 	['filetype mime']='filetype.mime'
-	['is file']='filetype.is'
+	['filetype is']='filetype.is'
 	['unzip']='zip.unpack'
 )
 

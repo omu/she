@@ -21,7 +21,7 @@ filetype.mime() {
 }
 
 
-# is.file: Detect file type
+# filetype.is: Detect file type
 filetype.is() {
 	local -A _=(
 		[-zip]=false
