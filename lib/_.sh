@@ -31,6 +31,7 @@ _.values() {
 	mapfile -t keys < <(
 		for key in "${!_[@]}"; do
 			[[ $key =~ $pattern ]] || continue
+
 			echo "$key"
 		done | sort -u
 	)
