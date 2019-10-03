@@ -67,7 +67,7 @@ bye() {
 		local message
 
 		for message; do
-			echo -e >&2 "B: $message"
+			echo -e >&2 "$message"
 		done
 	fi
 
