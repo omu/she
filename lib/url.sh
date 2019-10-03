@@ -3,7 +3,7 @@
 # url.is: Assert URL feature
 url.is() {
 	local -A _=(
-		[.help]='local|(proto|host|port|path|userinfo|frag) VALUE'
+		[.help]='URL local|((proto|host|port|path|userinfo|frag) VALUE)'
 		[.argc]=2-
 	)
 
@@ -107,5 +107,5 @@ url.is_() {
 	local feature=${1?${FUNCNAME[0]}: missing argument};  shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ ${_[.${feature}]} = "$expected" ]]
+	[[ ${_[.${feature}]:-} = "$expected" ]]
 }

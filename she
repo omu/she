@@ -1089,7 +1089,7 @@ os.is._physical() {
 # url.is: Assert URL feature
 url.is() {
 	local -A _=(
-		[.help]='local|(proto|host|port|path|userinfo|frag) VALUE'
+		[.help]='URL local|((proto|host|port|path|userinfo|frag) VALUE)'
 		[.argc]=2-
 	)
 
@@ -1193,7 +1193,7 @@ url.is_() {
 	local feature=${1?${FUNCNAME[0]}: missing argument};  shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ ${_[.${feature}]} = "$expected" ]]
+	[[ ${_[.${feature}]:-} = "$expected" ]]
 }
 
 # https.sh - HTTP functions
@@ -2506,7 +2506,7 @@ declare -Ag _command=(
 	local cmd
 
 	# shellcheck disable=2128
-	say "$PROGNAME COMMAND [SUBCOMMAND...] [-FLAG=VALUE...] [ARGS]"
+	say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
 	say "Commands:"
 
 	# shellcheck disable=2154

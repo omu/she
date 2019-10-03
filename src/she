@@ -54,7 +54,7 @@
 	local cmd
 
 	# shellcheck disable=2128
-	say "$PROGNAME COMMAND [SUBCOMMAND...] [-FLAG=VALUE...] [ARGS]"
+	say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
 	say "Commands:"
 
 	# shellcheck disable=2154
