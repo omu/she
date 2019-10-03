@@ -50,7 +50,7 @@ flag.parse_() {
 
 	flag._post_ $argc
 
-	array.dup _ flag_result_
+	_.load flag_result_
 }
 
 flag.args_() {

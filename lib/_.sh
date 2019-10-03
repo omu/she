@@ -23,6 +23,13 @@ _.read() {
 	done
 }
 
+_.load() {
+	# shellcheck disable=2034
+	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	array.dup _ _load_src_
+}
+
 _.values() {
 	local pattern=${1?${FUNCNAME[0]}: missing argument}; shift
 
