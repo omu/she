@@ -5,43 +5,52 @@ shopt -s expand_aliases
 # shellcheck disable=2142
 alias flag.parse='flag.parse_ "$@"; local -a __a; flag.args_ __a; set -- "${__a[@]}"; unset -v __a'
 
+flag.usage_() {
+	if [[ -n ${_[.help]:-} ]]; then
+		# shellcheck disable=2128
+		say "Usage: ${PROGNAME[*]} ${_[.help]}"
+	else
+		# shellcheck disable=2128
+		say "Usage: ${PROGNAME[*]}"
+	fi
+
+	[[ $# -gt 0 ]] || return 0
+
+	exit "$1"
+}
+
+# shellcheck disable=2034
 flag.parse_() {
-	local -A flag_parse_
+	if included -help "$@"; then
+		flag.usage_ 0
+	fi
 
-	_.reset flag_parse_
+	local -A flag_result_
 
-	local -i i=0
-
+	local -i argc=0
 	while [[ $# -gt 0 ]]; do
 		local key value
 
-		if [[ $1 = -help ]]; then
-			flag.usage_ flag_parse_
-			exit 0
-		elif [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
 			key=${1%%=*}; value=${1#*=}
-			if [[ $key =~ ^-.+$ ]] && [[ ! -v flag_parse_[$key] ]]; then
+			if [[ $key =~ ^-.+$ ]] && [[ ! -v _[$key] ]]; then
 				die "Unrecognized flag: $key"
 			fi
 		elif [[ $1 == '--' ]]; then
 			shift
 			break
 		else
-			key=$((++i)); value=$1
+			key=$((++argc)); value=$1
 		fi
 
-		_["$key"]=${value:-${_["$key"]:-}}
+		flag_result_["$key"]=${value:-${_["$key"]:-}}
 
 		shift
 	done
 
-	flag._post flag_parse_ "$i"
-}
+	flag._post_ $argc
 
-flag.usage_() {
-	local -n flag_usage_=${1:-_}
-
-	say "Usage: ${PROGNAME[*]} ${flag_usage_[.help]:-}"
+	array.dup _ flag_result_
 }
 
 flag.args_() {
@@ -64,11 +73,10 @@ flag.dump() {
 	_.dump
 }
 
-flag._post() {
-	local -n flag_post_=${1?missing argument}; shift
-	local    i=${1?missing argument};          shift
+flag._post_() {
+	local n=${1?missing argument}
 
-	local argc=${flag_post_[.argc]:-0}
+	local argc=${_[.argc]:-0}
 
 	[[ $argc != '-' ]] || return 0
 
@@ -82,27 +90,13 @@ flag._post() {
 		bug "Incorrect range: $argc"
 	fi
 
-	if   [[ -n ${lo:-} ]] && [[ $i -lt $lo ]]; then
+	if   [[ -n ${lo:-} ]] && [[ $n -lt $lo ]]; then
 		die- 'Too few arguments'
-	elif [[ -n ${hi:-} ]] && [[ $i -gt $hi ]]; then
+	elif [[ -n ${hi:-} ]] && [[ $n -gt $hi ]]; then
 		die- 'Too many arguments'
 	else
 		return 0
 	fi
 
-	die-
-	flag.usage_ flag_post_
-	exit 1
-}
-
-flag._help() {
-	local -n flag_help_=${1?missing argument}; shift
-
-	if [[ -n ${flag_help_[.help]:-} ]]; then
-		# shellcheck disable=2128
-		echo "Usage: ${PROGNAME[*]} ${flag_help_[.help]}"
-	else
-		# shellcheck disable=2128
-		echo "Usage: ${PROGNAME[*]}"
-	fi
+	flag.usage_ 1
 }

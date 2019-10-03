@@ -52,20 +52,6 @@ _.values() {
 	fi
 }
 
-_.reset() {
-	if [[ -n ${1:-} ]]; then
-		local -n _reset_=$1
-
-		local key
-		for key in "${!_[@]}"; do
-			# shellcheck disable=2034
-			_reset_[$key]=${_[$key]}
-		done
-	fi
-
-	_=()
-}
-
 _.dump() {
 	hmm _
 }
