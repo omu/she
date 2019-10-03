@@ -3,7 +3,7 @@
 shopt -s expand_aliases
 
 # shellcheck disable=2142
-alias flag.parse='flag.parse_ "$@"; set -- $(flag.args_)'
+alias flag.parse='flag.parse_ "$@"; local -a __a; flag.args_ __a; set -- "${__a[@]}"; unset -v __a'
 
 flag.parse_() {
 	local -A flag_parse_
@@ -15,7 +15,10 @@ flag.parse_() {
 	while [[ $# -gt 0 ]]; do
 		local key value
 
-		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+		if [[ $1 = -help ]]; then
+			flag.usage_ flag_parse_
+			exit 0
+		elif [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
 			key=${1%%=*}; value=${1#*=}
 			if [[ $key =~ ^-.+$ ]] && [[ ! -v flag_parse_[$key] ]]; then
 				die "Unrecognized flag: $key"
@@ -33,6 +36,12 @@ flag.parse_() {
 	done
 
 	flag._post flag_parse_ "$i"
+}
+
+flag.usage_() {
+	local -n flag_usage_=${1:-_}
+
+	say "Usage: ${PROGNAME[*]} ${flag_usage_[.help]:-}"
 }
 
 flag.args_() {
@@ -61,7 +70,7 @@ flag._post() {
 
 	local argc=${flag_post_[.argc]:-0}
 
-	[[ $argc = '-' ]] || return 0
+	[[ $argc != '-' ]] || return 0
 
 	local lo hi
 
@@ -73,21 +82,27 @@ flag._post() {
 		bug "Incorrect range: $argc"
 	fi
 
-	local -a messages
-
 	if   [[ -n ${lo:-} ]] && [[ $i -lt $lo ]]; then
-		messages+=('Too few arguments')
+		die- 'Too few arguments'
 	elif [[ -n ${hi:-} ]] && [[ $i -gt $hi ]]; then
-		messages+=('Too many arguments')
+		die- 'Too many arguments'
 	else
 		return 0
 	fi
 
-	if [[ -n ${flag_post_[.help]:-} ]]; then
-		messages+=("" "Usage: ${COMMAND:-} ${flag_post_[.help]}")
-	else
-		messages+=("" "Usage: ${COMMAND:-}")
-	fi
+	die-
+	flag.usage_ flag_post_
+	exit 1
+}
 
-	die "${messages[@]}"
+flag._help() {
+	local -n flag_help_=${1?missing argument}; shift
+
+	if [[ -n ${flag_help_[.help]:-} ]]; then
+		# shellcheck disable=2128
+		echo "Usage: ${PROGNAME[*]} ${flag_help_[.help]}"
+	else
+		# shellcheck disable=2128
+		echo "Usage: ${PROGNAME[*]}"
+	fi
 }

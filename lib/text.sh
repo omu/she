@@ -3,7 +3,7 @@
 # text.fix: Append stdin content to the target file
 text.fix() {
 	local -A _=(
-		[.help]='file'
+		[.help]='FILE'
 		[.argc]=1
 	)
 
@@ -23,7 +23,7 @@ text.fix() {
 # text.unfix: Remove appended content
 text.unfix() {
 	local -A _=(
-		[.help]='file'
+		[.help]='FILE'
 		[.argc]=1
 	)
 

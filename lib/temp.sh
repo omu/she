@@ -6,6 +6,7 @@ temp.file() {
 
 	local file
 
+	# shellcheck disable=2128
 	file=$(mktemp -p "${TMPDIR:-/tmp}" "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
 	at_exit_files "$file"
 
@@ -18,6 +19,8 @@ temp.dir() {
 	local -n temp_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local dir
+
+	# shellcheck disable=2128
 	dir=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
 	at_exit_files "$dir"
 

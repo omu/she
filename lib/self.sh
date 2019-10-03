@@ -11,6 +11,7 @@ self.version() {
 self.name() {
 	local -A _; flag.parse
 
+	# shellcheck disable=2128
 	echo "$PROGNAME"
 }
 
@@ -31,7 +32,7 @@ self.path() {
 
 # self.install: Install self
 self.install() {
-	# shellcheck disable=2192
+	# shellcheck disable=2192,2128
 	local -A _=(
 		[-prefix]="$_USR"/bin
 		[-name]=$PROGNAME
@@ -45,17 +46,4 @@ self.install() {
 	_[1]=$(self.path)
 
 	bin.install_
-}
-
-self.usage() {
-	local -A _; flag.parse
-
-	local message
-
-	for message;  do
-		echo >&2 "$message"
-	done
-
-	echo >&2 "Usage: $(self.path) CMD [ARGS]..."
-	exit 1
 }

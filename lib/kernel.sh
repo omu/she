@@ -1,93 +1,91 @@
 # kernel.sh - Core functions
 
-# say: Print messages on standard error
 say() {
-	local message
+	if [[ $# -eq 0 ]]; then
+		echo >&2 ""
+	else
+		local message
 
-	for message; do
-		echo -e >&2 "$message"
-	done
+		for message; do
+			echo -e >&2 "$message"
+		done
+	fi
 }
 
-# cry: Print warning messages on standard error
 cry() {
 	if [[ $# -eq 0 ]]; then
 		echo >&2 ""
+	else
+		local message
 
-		return
+		for message; do
+			echo -e >&2 "W: $message"
+		done
 	fi
-
-	echo >&2 "W: $1"
-	shift
-
-	while [[ $# -gt 0 ]]; do
-		echo >&2 "$1"
-		shift
-	done
 }
 
-# die: Print error messages and exit failure
+die-() {
+	if [[ $# -eq 0 ]]; then
+		echo >&2 ""
+	else
+		local message
+
+		for message; do
+			echo -e >&2 "E: $message"
+		done
+	fi
+}
+
 die() {
-	if [[ $# -eq 0 ]]; then
-		echo >&2 ""
+	die- "$@"
 
-		return
-	fi
-
-	echo >&2 "E: $1"
-	shift
-
-	while [[ $# -gt 0 ]]; do
-		echo >&2 "$1"
-		shift
-	done
-
-        exit 1
+	exit 1
 }
 
-# bug: Report bug and exit failure
+bug-() {
+	if [[ $# -eq 0 ]]; then
+		echo >&2 ""
+	else
+		local message
+
+		for message; do
+			echo -e >&2 "B: $message"
+		done
+	fi
+}
+
 bug() {
-	if [[ $# -eq 0 ]]; then
-		echo >&2 ""
+	bug- "$@"
 
-		return
-	fi
-
-	echo >&2 "B: $1"
-	shift
-
-	while [[ $# -gt 0 ]]; do
-		echo >&2 "$1"
-		shift
-	done
-
-        exit 127
+	exit 127
 }
 
-# bye: Print messages and exit successfully
 bye() {
-	local message
+	if [[ $# -eq 0 ]]; then
+		echo >&2 ""
+	else
+		local message
 
-	for message; do
-		echo -e >&2 "$message"
-	done
+		for message; do
+			echo -e >&2 "B: $message"
+		done
+	fi
 
 	exit 0
 }
 
-# hey: Print colored messages
 hey() {
-	local message=$1
-	shift
+	if [[ $# -eq 0 ]]; then
+		echo >&2 ""
+	else
+		local message
 
-	echo -e >&2 "\\e[38;5;14m-->\\e[0m\\e[1m $message\\e[0m"
-
-	for message; do
-		echo -e >&2 "    $message"
-	done
+		for message; do
+			echo -e >&2 "\\e[38;5;14m-->\\e[0m\\e[1m $message\\e[0m"
+		done
+	fi
 }
 
-# Dump an array variable
 hmm() {
 	while [[ $# -gt 0 ]]; do
 		# shellcheck disable=2178,2155
@@ -153,7 +151,6 @@ included() {
 	return 1
 }
 
-# Check timestamp of reference files against given expiry in minutes
 expired() {
 	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -174,7 +171,7 @@ expired() {
 # shellcheck disable=2034
 .() {
 	# Program name
-	readonly PROGNAME=${0##*/}
+	declare -ag PROGNAME=("${0##*/}")
 
 	# Core environment
 	if [[ ${EUID:-} -eq 0 ]]; then

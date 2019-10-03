@@ -3,7 +3,7 @@
 # http.get: Get URL
 http.get() {
 	local -A _=(
-		[.help]='url'
+		[.help]='URL'
 		[.argc]=1
 	)
 
@@ -19,7 +19,7 @@ http.get() {
 # http.is: Assert URL response
 http.is() {
 	local -A _=(
-		[.help]='url code'
+		[.help]='URL CODE'
 		[.argc]=2
 	)
 

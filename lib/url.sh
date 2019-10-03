@@ -3,7 +3,7 @@
 # url.is: Assert URL feature
 url.is() {
 	local -A _=(
-		[.help]='local|(proto|host|port|path|userinfo|frag) value'
+		[.help]='local|(proto|host|port|path|userinfo|frag) VALUE'
 		[.argc]=2-
 	)
 

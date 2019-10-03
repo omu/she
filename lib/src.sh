@@ -7,7 +7,7 @@ src.install() {
 		[-expiry]=
 		[-prefix]="$_USR"/src
 
-		[.help]='[-(expiry|prefix)=value] url'
+		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL'
 		[.argc]=1
 	)
 
@@ -24,7 +24,7 @@ src.use() {
 		[-prefix]="$_RUN"/src
 		[-shallow]=false
 
-		[.help]='[-(expiry|prefix|shallow)=value] url'
+		[.help]='[-(expiry=MINUTES|prefix=DIR|shallow=BOOL)] URL'
 		[.argc]=1
 	)
 
@@ -41,7 +41,7 @@ src.enter() {
 		[-prefix]="$_RUN"/src
 		[-shallow]=false
 
-		[.help]='[-(expiry|prefix|shallow)=value] url'
+		[.help]='[-(expiry=MINUTES|prefix=DIR|shallow=BOOL)] URL'
 		[.argc]=1
 	)
 
@@ -62,7 +62,7 @@ src.run() {
 		[-shallow]=false
 		[-test]=false
 
-		[.help]='[-(expiry|prefix|pwd|shallow|test)=value] url'
+		[.help]='[-(expiry=MINUTES|prefix=DIR|pwd=DIR|shallow=BOOL|test=BOOL)] url'
 		[.argc]=1
 	)
 

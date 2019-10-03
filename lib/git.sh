@@ -4,7 +4,7 @@ git.update() {
 	local -A _=(
 		[-expiry]=3
 
-		[.help]='[-expiry=value (minutes)]'
+		[.help]='[-expiry=MINUTES]'
 		[.argc]=0
 	)
 

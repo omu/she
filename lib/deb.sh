@@ -9,7 +9,7 @@ deb.install() {
 		[-missings]=false
 		[-shiny]=false
 
-		[.help]='package...'
+		[.help]='PACKAGE...'
 	)
 
 	flag.parse
@@ -67,7 +67,7 @@ deb.install() {
 deb.uninstall() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='package...'
+		[.help]='PACKAGE...'
 	)
 
 	flag.parse
@@ -86,7 +86,7 @@ deb.uninstall() {
 deb.missings() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='package...'
+		[.help]='PACKAGE...'
 	)
 
 	flag.parse
@@ -117,7 +117,7 @@ deb.update() {
 deb.repository() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='name [url]'
+		[.help]='NAME [URL]'
 		[.argc]=1-
 	)
 
@@ -139,7 +139,7 @@ deb.repository() {
 deb.using() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='dist...'
+		[.help]='DIST...'
 		[.argc]=1-
 	)
 

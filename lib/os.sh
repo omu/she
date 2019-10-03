@@ -32,7 +32,7 @@ os.codename() {
 # os.is: Detect OS feature
 os.is() {
 	local -A _=(
-		[.help]='feature'
+		[.help]='FEATURE'
 		[.argc]=1-
 	)
 

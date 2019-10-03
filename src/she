@@ -6,11 +6,15 @@
 
 #:lib/_.sh
 
+#:lib/flag.sh
+
+#:lib/help.sh
+
+#:lib/ui.sh
+
 #:lib/must.sh
 
 #:lib/self.sh
-
-#:lib/flag.sh
 
 #:lib/string.sh
 
@@ -44,69 +48,70 @@
 
 #:lib/zip.sh
 
-#/help/
+#/_help/
+
+#/_command/
 
 .usage() {
 	local cmd
 
-	say "Usage:    $0 commands ..."
+	# shellcheck disable=2128
+	say "$PROGNAME COMMAND [SUBCOMMAND...] [-FLAG=VALUE...] [ARGS]"
 	say "Commands:"
 
 	# shellcheck disable=2154
-	for cmd in "${!help[@]}"; do
-		printf "\\t%-24s  %s\n" "$cmd" "${help[$cmd]}"
+	for cmd in "${!_help[@]}"; do
+		printf "\\t%-24s  %s\n" "$cmd" "${_help[$cmd]}"
 	done | sort >&2
 }
 
-.help() {
+.execute() {
 	if [[ $# -eq 0 ]]; then
 		.usage
-		die 'Help topic required.'
+		die 'Command required'
 	fi
 
-	local subject=${help["${*}"]:-}
-
-	[[ -n ${subject:-} ]] || die "E: No help found: ${*}."
-	bye "$subject"
-}
-
-#/command/
-
-.dispatch() {
-	local -a args=("$@")
-
-	if [[ $# -eq 0 ]]; then
-		.usage
-		die 'Command required.'
-	fi
+	local help=
 
 	if [[ $1 = help ]]; then
+		help=true
+
 		shift
 
-		.help "$@"
-		exit
+		if [[ $# -eq 0 ]]; then
+			.usage
+			die 'Help topic required.'
+		fi
 	fi
 
-	local -a try
+	local -a args=("$@")
+
+	local fun
+	local try cmd
+
 	while [[ $# -gt 0 ]]; do
 		try+=("$1")
 		shift
 
-		local key="${try[*]}"
-
-		local func
-		func=${command["$key"]:-}
-
-		if [[ -n $func ]]; then
-			# shellcheck disable=2034
-			readonly COMMAND=$key
-
-			"$func" "$@"
-			return $?
+		if [[ -n ${_command["${try[*]}"]:-} ]]; then
+			cmd="${try[*]}"; fun=${_command[$cmd]}
+			break
 		fi
 	done
 
-	die "No command found: ${args[*]}."
+	if [[ -z ${fun:-} ]]; then
+		die "No command found: ${args[*]}"
+	fi
+
+	if [[ -n ${help:-} ]]; then
+		say "${_help[$cmd]}" ""
+
+		"$fun" -help
+	else
+		PROGNAME+=("$cmd"); readonly PROGNAME
+
+		"$fun" "$@"
+	fi
 }
 
 .source() {
@@ -127,6 +132,10 @@
 
 	_.die() {
 		"$UNDERSCORE" die "$@"; exit $?
+	}
+
+	_.cry() {
+		"$UNDERSCORE" cry "$@"; exit $?
 	}
 
 	_.bye() {
@@ -156,7 +165,7 @@ _() {
 	local cmd=$1
 
 	case $cmd in
-	die|bye|bug|enter|leave) shift; _."$cmd" "$@" ;;
+	die|cry|bye|bug|enter|leave) shift; _."$cmd" "$@" ;;
 	*)                       "$UNDERSCORE" "$@"   ;;
 	esac
 }
@@ -184,7 +193,7 @@ main() {
 		.source "$@"
 	else
 		.init
-		.dispatch "$@"
+		.execute "$@"
 	fi
 }
 

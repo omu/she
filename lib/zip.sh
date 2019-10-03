@@ -4,7 +4,7 @@ zip.unpack() {
 		[-force]=false
 		[-clean]=false
 
-		[.help]='file'
+		[.help]='[-(force|clean)=BOOL] FILE'
 		[.argc]=1-
 	)
 

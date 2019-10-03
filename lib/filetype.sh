@@ -5,7 +5,7 @@ filetype.mime() {
 	local -A _=(
 		[-zip]=false
 
-		[.help]='file'
+		[.help]='FILE'
 		[.argc]=1
 	)
 
@@ -26,7 +26,7 @@ filetype.is() {
 	local -A _=(
 		[-zip]=false
 
-		[.help]='file'
+		[.help]='FILE'
 		[.argc]=1
 	)
 

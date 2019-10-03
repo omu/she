@@ -9,7 +9,7 @@ file.install() {
 		[-owner]=
 		[-prefix]=
 
-		[.help]='[-(group|mode|owner|prefix)=value] url [dst]'
+		[.help]='[-(group|mode|owner|prefix)=VALUE] URL [FILE]'
 		[.argc]=1
 	)
 
@@ -42,7 +42,7 @@ file.chogm() {
 		[-mode]=
 		[-owner]=
 
-		[.help]='[-(group|mode|owner)=value] dst'
+		[.help]='[-(group|mode|owner)=VALUE] URL [FILE]'
 		[.argc]=1
 	)
 
@@ -164,7 +164,7 @@ file._do_args_() {
 		[-owner]=
 		[-prefix]=
 
-		[.help]='[-(group|mode|owner|prefix)=value] src [dst]'
+		[.help]='[-(GROUP|MODE|OWNER|PREFIX)=VALUE] SRC [DST]'
 		[.argc]=1
 	)
 
