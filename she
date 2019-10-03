@@ -2551,7 +2551,6 @@ declare -Ag _command=(
 
 	if [[ -n ${help:-} ]]; then
 		say "${_help[$cmd]}" ""
-
 		"$fun" -help
 	else
 		"$fun" "$@"
