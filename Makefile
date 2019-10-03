@@ -3,10 +3,11 @@ default: generate
 .PHONY: generate
 
 # Generate she
-generate: she
+generate: underscore
 .PHONY: generate
 
-she: src/she $(wildcard lib/*.sh) bin/compile
+underscore: src/underscore $(wildcard lib/*.sh) bin/compile
 	bin/compile $< >$@
+	chmod +x $@
 	bash -n $@
 	shellcheck "$@"
