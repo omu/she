@@ -142,7 +142,7 @@
 	}
 
 	_.cry() {
-		"$UNDERSCORE" cry "$@"; exit $?
+		"$UNDERSCORE" cry "$@"
 	}
 
 	_.bye() {
@@ -184,11 +184,11 @@ EOF
 .main() {
 	# shellcheck disable=2128
 	case $PROGNAME in
+	underscore|i)
+		.execute "$@"
+		;;
 	_)
 		.builtin "$@"
-		;;
-	i)
-		.execute "$@"
 		;;
 	she)
 		.source "$@"
