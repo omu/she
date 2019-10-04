@@ -177,15 +177,15 @@ expired() {
 	if [[ ${EUID:-} -eq 0 ]]; then
 		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
 		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
-		readonly _ETC=/etc/_:"$_USR"/etc/_:"$_RUN"/etc
+		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
 	else
-		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/"$EUID"}
+		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
 		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
 		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
 
 		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
 		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
-		readonly _ETC=/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc
+		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
 	fi
 
 	export PATH="$_RUN"/bin:"$PATH"

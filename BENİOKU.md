@@ -1,19 +1,32 @@
-Betikleme araç seti
-===================
+Kabuk genişletmeleri
+====================
 
-TODO
-----
+Ortam
+-----
 
-- [ ] manuel test
-- [X] API overhaul ve ekleme/düzeltmeler
-- [ ] Stil/tutarlılık bakımı
-- [X] blob unpack
-- [X] bin unpack desteği
-- [ ] README asgari dokümantasyonu
-- [ ] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
-- [ ] scripts aracının yeni sürümü
-- [ ] etc'nin durumu
-- [X] Fikir: builtin olmayan versiyonu `i` olarak isimlendir
+Kullanıcı için `XDG_*` ortam değişkenleri için öntanımlı değerler
+
+| Değişken               | Öntanımlı              |
+| ---------------------- | ---------------------- |
+| `$XDG_RUNTIME_DIR`     | `/run/user/$EUID`      |
+| `$XDG_CONFIG_HOME`     | `$HOME/.config/_`      |
+| `$XDG_CACHE_HOME`      | `$HOME/.cache/_`       |
+
+Çalışma ortamı
+
+| Tür                    | İç değişken  | Kontrol eden değişken          | Öntanımlı kullanıcı değeri                             | Öntanımlı sistem değeri
+| ---------------------- | ------------ | ------------------------------ | ------------------------------------------------------ | ------------------------------------
+| Geçici dizin ağacı     | `_RUN`       | `UNDERSCORE_VOLATILE_PREFIX`   | `$XDG_RUNTIME_DIR/_`                                   | `/run/_`
+| Kalıcı dizin ağacı     | `_USR`       | `UNDERSCORE_PERSISTENT_PREFIX` | `$HOME/.local`                                         | `/usr/local`
+| Yapılandırma dizinleri | `_ETC`       | `UNDERSCORE_CONFIG_PATH`       | `/etc/_:/usr/local/etc/_:$XDG_CONFIG_HOME/_:$_RUN/etc` | `/etc/_:$_USR/etc/_:$_RUN/etc`
+
+Buna göre tipik dizin değerleri
+
+| Tür                                           | İç değişken  | Tipik kullanıcı değeri                                     | Tipik sistem değeri
+| --------------------------------------------- | ------------ | ---------------------------------------------------------- | -------------------------
+| Programlar için geçici kurulum dizini         | `_RUN/bin`   | `/run/user/1000/bin`                                       | `/run/_/bin`
+| Programlar için kalıcı kurulum dizini         | `_USR/bin`   | `~/.local/bin`                                             | `/usr/local/bin`
+| Yapılandırmalar (sondaki en yüksek öncelikli) | `_ETC`       | `/etc/_:/usr/local/etc/_:~/.config/_:/run/user/1000/_/etc` | `/etc/_:/usr/local/etc/_:/run/_/etc`
 
 Stil
 ----
@@ -66,187 +79,16 @@ Stil
 
 - Sadece bang versiyon olarak backtick'ten kaçınan fonksiyonlara izin var.  Bu fonksiyonlarda girdi aynı zamanda çıktıdır.
 
-Ortam
------
+TODO
+----
 
-| Tür                 | İç değişken  | Baskın değişken        | Geçerli değişken | Öntanımlı kullanıcı dizini | Öntanımlı sistem dizinleri
-| ------------------- | ------------ | ---------------------- | ---------------- | -------------------------- | ---------------------------
-| Programlar          | `_BIN_DIR`   | `UNDERSCORE_BIN_DIR`   | `BINDIR`         | `$HOME/.local/bin`         | `/run/_/bin`
-| İndirilen kaynaklar | `_SRC_DIR`   | `UNDERSCORE_SRC_DIR`   | `SRCDIR`         | `$HOME/.local/src`         | `/run/_/src`
-| Geçici dosyalar     | `_TMP_DIR`   | `UNDERSCORE_TMP_DIR`   | `TMPDIR`         | `/tmp`                     | `/tmp`
-| Yapılandırmalar     | `_ETC_DIR`   | `UNDERSCORE_ETC_DIR`   | `ETCDIR`         | `$XDG_CONFIG_HOME/_`       | `/usr/local/etc/_` `/etc/_`
-| Önbellek            | `_CACHE_DIR` | `UNDERSCORE_CACHE_DIR` | `CACHEDIR`       | `$XDG_CACHE_HOME/_`        | `/run/_/cache`
-| Değişken dosyalar   | `_VAR_DIR`   | `UNDERSCORE_VAR_DIR`   | `VARDIR`         | `$XDG_RUNTIME_DIR/_/var`   | `/run/_/var`
-
-Kullanıcı için `XDG_*` ortam değişkenleri için öntanımlı değerler
-
-| Değişken            | Öntanımlı              |
-| ------------------- | ---------------------- |
-| `$XDG_RUNTIME_DIR`  | `/run/$EUID/_`         |
-| `$XDG_CONFIG_HOME`  | `$HOME/.config/_`      |
-| `$XDG_CACHE_HOME`   | `$HOME/.cache/_`       |
-
-Standard
----------
-
-        array (alias: args)
-                join
-                include
-                uniq
-                reverse
-                sort
-                shuffle
-
-        blob
-                zip
-                unzip
-                verify
-                sign
-                encrypt
-                decrypt
-
-        color
-
-        data (alias: ayaml)
-                read
-                        -json
-                        -yaml (default)
-                write
-                        -json
-                        -yaml (default)
-
-        deb
-                using
-                        *-backports|experimental|stable|testing|unstable|sid
-                install
-                        -shiny
-                        -missings
-                update
-                uninstall
-
-        etc
-
-        file
-                download
-                install
-
-                run
-                        -test
-                enter
-                leave
-
-                render
-
-        bin
-                use
-                install
-
-        git
-                ...
-
-        http
-                get
-                post
-
-        has/hasnt
-                # which set
-
-        is/isnt
-                # which set
-
-        path
-                dir
-                        -map
-                ext
-                        -map
-                name
-                base
-                        -map
-                rel
-                abs
-
-        self
-                version
-                update
-                path
-                use
-
-        src
-                install
-                use
-
-        string (alias: arg)
-                prefix
-                suffix
-                split
-                downcase
-                upcase
-                titlecase
-                trim
-                reverse
-
-        text
-                fix/unfix
-                        -append/prepend
-                        -insert
-                fixed
-                out
-
-        template
-                render
-
-        ui
-                ask
-                say
-                die
-                cry
-                bye
-                bug
-                setup # colored
-
-        url
-                proto
-                host
-                user
-                pass
-                path
-                frag
-
-        which
-                virtual
-                        container
-                        vm
-                        lxc
-                        lxd
-                        docker
-                        kvm
-                        vmware
-                        virtualbox
-                debian
-                        buster
-                        stretch
-                        sid
-                ubuntu
-                gui
-                net
-                        ip
-                        interface
-                deb
-                bin
-
-Optional
---------
-
-        api
-                github
-                gitlab
-                slack
-
-        json
-                query
-
-        mail
-                send
-
-        yaml
-                query
+- [ ] manuel test
+- [X] API overhaul ve ekleme/düzeltmeler
+- [ ] Stil/tutarlılık bakımı
+- [X] blob unpack
+- [X] bin unpack desteği
+- [ ] README asgari dokümantasyonu
+- [ ] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
+- [ ] scripts aracının yeni sürümü
+- [ ] etc'nin durumu
+- [X] Fikir: builtin olmayan versiyonu `i` olarak isimlendir
