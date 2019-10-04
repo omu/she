@@ -46,9 +46,9 @@
 
 #:lib/zip.sh
 
-#/_help/
+#/help/
 
-#/_command/
+#/command/
 
 .init() {
 	trap.setup

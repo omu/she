@@ -343,8 +343,8 @@ module Main
   end
 
   SUBSTITUTIONS = {
-    '_command' => proc { |compiler| bash_array_lines(compiler.exports, '_command', :fun)   },
-    '_help'    => proc { |compiler| bash_array_lines(compiler.exports, '_help',    :label) }
+    'command' => proc { |compiler| bash_array_lines(compiler.exports, '_command', :fun)   },
+    'help'    => proc { |compiler| bash_array_lines(compiler.exports, '_help',    :label) }
   }.freeze
 
   def self.call(src, dst)
