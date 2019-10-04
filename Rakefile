@@ -362,21 +362,16 @@ file 'bin/underscore' => ['src/underscore', *Dir['lib/*.sh'], __FILE__] do |task
   mkdir_p File.dirname(dst)
   Main.(src, dst)
   chmod '+x', dst
+
+  sh 'bash', '-n', dst
+  sh 'shellcheck', dst
 end
 
 desc 'Generate programs'
-task generate: ['bin/underscore', :test] do |task|
+task generate: 'bin/underscore' do |task|
   src = task.prerequisites.first
 
-  BIN.each { |bin| ln(src, bin, force: true) unless src == bin }
-end
-
-desc 'Test'
-task test: 'bin/underscore' do |task|
-  src = task.prerequisites.first
-
-  sh 'bash', '-n', src
-  sh 'shellcheck', src
+  BIN.each { |bin| ln(src, bin, force: true) unless File.exist?(bin) || src == bin }
 end
 
 desc 'Clean'
