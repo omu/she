@@ -138,7 +138,7 @@ interactive() {
 	[[ ! -t 1 ]]
 }
 
-included() {
+contains() {
 	local needle=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local element

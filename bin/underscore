@@ -150,7 +150,7 @@ interactive() {
 	[[ ! -t 1 ]]
 }
 
-included() {
+contains() {
 	local needle=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local element
@@ -297,7 +297,7 @@ flag.usage_() {
 
 # shellcheck disable=2034
 flag.parse_() {
-	if included -help "$@"; then
+	if contains -help "$@"; then
 		flag.usage_ 0
 	fi
 
@@ -717,12 +717,12 @@ array.dup() {
 	done
 }
 
-# The element included in the given array
-array.included() {
-	local -n array_included_=${1?${FUNCNAME[0]}: missing argument}; shift
+# Array contains the given element
+array.contains() {
+	local -n array_contains_=${1?${FUNCNAME[0]}: missing argument}; shift
 	local    element=${1?${FUNCNAME[0]}: missing argument};         shift
 
-	included "$element" "${array_included_[@]}"
+	contains "$element" "${array_contains_[@]}"
 }
 
 # path.sh - Path management
@@ -2067,7 +2067,7 @@ deb._apt_key_add() {
 
 	local fingerprint
 	for fingerprint in "${questioned_fingerprints[@]}"; do
-		included "$fingerprint" "${installed_fingerprints[@]}" || return 1
+		contains "$fingerprint" "${installed_fingerprints[@]}" || return 1
 	done
 
 	apt-key add "$tempfile"

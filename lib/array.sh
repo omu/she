@@ -18,10 +18,10 @@ array.dup() {
 	done
 }
 
-# The element included in the given array
-array.included() {
-	local -n array_included_=${1?${FUNCNAME[0]}: missing argument}; shift
+# Array contains the given element
+array.contains() {
+	local -n array_contains_=${1?${FUNCNAME[0]}: missing argument}; shift
 	local    element=${1?${FUNCNAME[0]}: missing argument};         shift
 
-	included "$element" "${array_included_[@]}"
+	contains "$element" "${array_contains_[@]}"
 }

@@ -21,7 +21,7 @@ flag.usage_() {
 
 # shellcheck disable=2034
 flag.parse_() {
-	if included -help "$@"; then
+	if contains -help "$@"; then
 		flag.usage_ 0
 	fi
 

@@ -196,7 +196,7 @@ deb._apt_key_add() {
 
 	local fingerprint
 	for fingerprint in "${questioned_fingerprints[@]}"; do
-		included "$fingerprint" "${installed_fingerprints[@]}" || return 1
+		contains "$fingerprint" "${installed_fingerprints[@]}" || return 1
 	done
 
 	apt-key add "$tempfile"
