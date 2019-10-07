@@ -354,29 +354,30 @@ module Main
   end
 end
 
-BIN = %w[bin/underscore bin/_ bin/she bin/i].freeze
+BIN = %w[underscore overscore].freeze
 
-file 'bin/underscore' => ['src/underscore', *Dir['lib/*.sh'], __FILE__] do |task|
-  src, dst = task.prerequisites.first, task.name
+BIN.each do |bin|
+  file "bin/#{bin}" => ["src/#{bin}", *Dir['lib/*.sh'], __FILE__] do |task|
+    src, dst = task.prerequisites.first, task.name
 
-  mkdir_p File.dirname(dst)
-  Main.(src, dst)
-  chmod '+x', dst
+    mkdir_p File.dirname(dst)
+    Main.(src, dst)
+    chmod '+x', dst
 
-  sh 'bash', '-n', dst
-  sh 'shellcheck', dst
+    sh 'bash', '-n', dst
+    sh 'shellcheck', dst
+  end
+
+  desc "Generate #{bin}"
+  task bin.to_sym => "bin/#{bin}"
 end
 
 desc 'Generate programs'
-task generate: 'bin/underscore' do |task|
-  src = task.prerequisites.first
-
-  BIN.each { |bin| ln(src, bin, force: true) unless File.exist?(bin) || src == bin }
-end
+task generate: BIN
 
 desc 'Clean'
 task :clean do
-  rm_f BIN
+  rm_f(BIN.map { |bin| "bin/#{bin}" })
 end
 
 task default: :generate
