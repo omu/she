@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+
+#:lib/prelude.sh
+
+#:lib/kernel.sh
+
+#:lib/_.sh
+
+#:lib/flag.sh
+
+#:lib/ui.sh
+
+#:lib/must.sh
+
+#:lib/self.sh
+
+#:lib/string.sh
+
+#:lib/array.sh
+
+#:lib/path.sh
+
+#:lib/trap.sh
+
+#:lib/temp.sh
+
+#:lib/test.sh
+
+#/help/
+
+#/command/
+
+.init() {
+	trap.setup
+}
+
+.usage() {
+	local cmd
+
+	# shellcheck disable=2128
+	say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
+	say "Commands:"
+
+	# shellcheck disable=2154
+	for cmd in "${!_help[@]}"; do
+		printf "\\t%-24s  %s\n" "$cmd" "${_help[$cmd]}"
+	done | sort >&2
+}
+
+.execute() {
+	.init
+
+	if [[ $# -eq 0 ]]; then
+		.usage
+		die 'Command required'
+	fi
+
+	local help=
+
+	if [[ $1 = help ]]; then
+		help=true
+
+		shift
+
+		if [[ $# -eq 0 ]]; then
+			.usage
+			die 'Help topic required'
+		fi
+	fi
+
+	local -a args=("$@")
+
+	local fun
+	local try cmd
+
+	while [[ $# -gt 0 ]]; do
+		try+=("$1")
+		shift
+
+		if [[ -n ${_command[${try[*]}]:-} ]]; then
+			cmd=${try[*]}; fun=${_command[$cmd]}
+			break
+		fi
+	done
+
+	if [[ -z ${fun:-} ]]; then
+		die "No command found: ${args[*]}"
+	fi
+
+	readonly PROGNAME+=("$cmd")
+
+	if [[ -n ${help:-} ]]; then
+		say "${_help[$cmd]}" ""
+		"$fun" -help
+	else
+		"$fun" "$@"
+	fi
+}
+
+.builtin() {
+	echo "OVERSCORE=$(self.path)"
+	echo
+	cat <<'EOF'
+declare -grx OVERSCORE=$OVERSCORE
+
+t() {
+	"$OVERSCORE" "$@"
+}
+EOF
+}
+
+.main() {
+	# shellcheck disable=2128
+	case $PROGNAME in
+	overscore)
+		.execute "$@"
+		;;
+	t)
+		.builtin "$@"
+		;;
+	esac
+}
+
+[[ "${BASH_SOURCE[0]}" != "$0" ]] || .main "$@"
+
