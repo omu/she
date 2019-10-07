@@ -1,6 +1,6 @@
 # os.sh - OS related functions
 
-# os.virtual: Virtualization type
+# Virtualization type
 # shellcheck disable=2120
 os.virtual() {
 	local -A _=(
@@ -12,7 +12,7 @@ os.virtual() {
 	systemd-detect-virt || true
 }
 
-# os.dist: Distribution name
+# Distribution name
 # shellcheck disable=2120
 os.dist() {
 	local -A _; flag.parse
@@ -21,7 +21,7 @@ os.dist() {
 	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
 }
 
-# os.codename: Distribution codename
+# Distribution codename
 # shellcheck disable=2120
 os.codename() {
 	local -A _; flag.parse
@@ -29,7 +29,7 @@ os.codename() {
 	lsb_release -sc
 }
 
-# os.is: Detect OS feature
+# Detect OS feature
 os.is() {
 	local -A _=(
 		[.help]='FEATURE'
@@ -48,7 +48,7 @@ os.is() {
 	"$func" "$@"
 }
 
-# os.sh - Private functions
+# os - Private functions
 
 # shellcheck disable=2120
 os.is._virtual() {

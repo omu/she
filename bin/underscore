@@ -379,7 +379,7 @@ flag._post_() {
 
 # ui.sh - UI functions
 
-# say: Print messages on standard error
+# Print messages on standard error
 ui.say() {
 	local -A _=(
 		[.help]='[MESSAGE...]'
@@ -391,7 +391,7 @@ ui.say() {
 	ui._plain "$@"
 }
 
-# die: Print error messages and exit failure
+# Print error messages and exit failure
 ui.die() {
 	local -A _=(
 		[-unexit]=false
@@ -406,7 +406,7 @@ ui.die() {
 	flag.true unexit || exit 1
 }
 
-# cry: Print warning messages on standard error
+# Print warning messages on standard error
 ui.cry() {
 	local -A _=(
 		[.help]='[MESSAGE...]'
@@ -418,7 +418,7 @@ ui.cry() {
 	ui._warning "$@"
 }
 
-# bug: Report bug and exit failure
+# Report bug and exit failure
 ui.bug() {
 	local -A _=(
 		[-unexit]=false
@@ -433,7 +433,7 @@ ui.bug() {
 	flag.true unexit || exit 127
 }
 
-# hey: Print messages taking attention
+# Print messages taking attention
 ui.hey() {
 	local -A _=(
 		[.help]='[MESSAGE...]'
@@ -444,6 +444,8 @@ ui.hey() {
 
 	ui._hey "$@"
 }
+
+# ui - Private functions
 
 ui._plain() {
 	local message
@@ -613,14 +615,14 @@ must.interactive() {
 
 # self.sh - Functions related to program itself
 
-# self.version: Print self version
+# Print self version
 self.version() {
 	local -A _; flag.parse
 
 	echo 0.0
 }
 
-# self.name: Print self name
+# Print self name
 self.name() {
 	local -A _; flag.parse
 
@@ -628,7 +630,7 @@ self.name() {
 	echo "$PROGNAME"
 }
 
-# self.path: Print self path
+# Print self path
 # shellcheck disable=2120
 self.path() {
 	local -A _; flag.parse
@@ -643,7 +645,7 @@ self.path() {
 	esac
 }
 
-# self.install: Install self
+# Install self
 self.install() {
 	# shellcheck disable=2192,2128
 	local -A _=(
@@ -898,7 +900,7 @@ at_exit_files() {
 	_at_exit_files_+=("$@")
 }
 
-# trap.sh - Private functions
+# trap - Private functions
 
 _exit_() {
 	local err=$?
@@ -947,7 +949,7 @@ temp.dir() {
 	temp_dir_=$dir
 }
 
-# temp.inside: Execute command in temp dir
+# Execute command in temp dir
 temp.inside() {
 	local temp_dir orig_dir=$PWD
 	temp.dir temp_dir
@@ -969,7 +971,7 @@ temp.clean() {
 
 # os.sh - OS related functions
 
-# os.virtual: Virtualization type
+# Virtualization type
 # shellcheck disable=2120
 os.virtual() {
 	local -A _=(
@@ -981,7 +983,7 @@ os.virtual() {
 	systemd-detect-virt || true
 }
 
-# os.dist: Distribution name
+# Distribution name
 # shellcheck disable=2120
 os.dist() {
 	local -A _; flag.parse
@@ -990,7 +992,7 @@ os.dist() {
 	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
 }
 
-# os.codename: Distribution codename
+# Distribution codename
 # shellcheck disable=2120
 os.codename() {
 	local -A _; flag.parse
@@ -998,7 +1000,7 @@ os.codename() {
 	lsb_release -sc
 }
 
-# os.is: Detect OS feature
+# Detect OS feature
 os.is() {
 	local -A _=(
 		[.help]='FEATURE'
@@ -1017,7 +1019,7 @@ os.is() {
 	"$func" "$@"
 }
 
-# os.sh - Private functions
+# os - Private functions
 
 # shellcheck disable=2120
 os.is._virtual() {
@@ -1074,7 +1076,7 @@ os.is._physical() {
 
 # url.sh - URL processing
 
-# url.is: Assert URL feature
+# Assert URL feature
 url.is() {
 	local -A _=(
 		[.help]='URL local|((proto|host|port|path|userinfo|frag) VALUE)'
@@ -1094,7 +1096,7 @@ url.is() {
 	url.is_ "$feature" "$@"
 }
 
-# url.sh - Protected functions
+# url - Protected functions
 
 # Parse URL
 # shellcheck disable=2034
@@ -1186,7 +1188,7 @@ url.is_() {
 
 # https.sh - HTTP functions
 
-# http.get: Get URL
+# Get URL
 http.get() {
 	local -A _=(
 		[.help]='URL'
@@ -1202,7 +1204,7 @@ http.get() {
 	curl -fsSL "$url"
 }
 
-# http.is: Assert URL response
+# Assert URL response
 http.is() {
 	local -A _=(
 		[.help]='URL CODE'
@@ -1225,7 +1227,7 @@ http.is() {
 
 # file.sh - File related operations
 
-# file.install: Install file from URL
+# Install file from URL
 file.install() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1278,7 +1280,7 @@ file.chogm() {
 	file.chogm_ "$dst"
 }
 
-# file.sh - Protected functions
+# file - Protected functions
 
 file.ln() {
 	local src=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -1377,7 +1379,7 @@ file.install_() {
 	temp.clean tempfile
 }
 
-# file.sh - Private functions
+# Private functions
 
 file._do_args_() {
 	local op=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -1410,7 +1412,7 @@ file._chogm_() {
 
 # bin.sh - Executable files
 
-# bin.install: Install program to path
+# Install program to path
 bin.install() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1426,7 +1428,7 @@ bin.install() {
 	bin.install_ "$@"
 }
 
-# bin.use: Use program
+# Use program
 bin.use() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1442,7 +1444,7 @@ bin.use() {
 	bin.install_ "$@"
 }
 
-# bin.sh - Protected functions
+# bin - Protected functions
 
 bin.install_() {
 	local url=$1
@@ -1483,7 +1485,7 @@ bin.install_() {
 	temp.clean tempfile tempdir
 }
 
-# bin.sh - Private functions
+# bin - Private functions
 
 bin._inspect() {
 	local    bin=${1?${FUNCNAME[0]}: missing argument};          shift
@@ -1518,7 +1520,7 @@ git.update() {
 	fi
 }
 
-# git.sh - Protected functions
+# git - Protected functions
 
 git.is.git() {
 	local path=${1:-.}
@@ -1635,7 +1637,7 @@ git.update_() {
 
 # src.sh - Source management
 
-# src.install: Install to a known location
+# Install to a known location
 src.install() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1651,7 +1653,7 @@ src.install() {
 	src.install_ "$@"
 }
 
-# src.use: Install src into the runtime tree
+# Install src into the runtime tree
 src.use() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1668,7 +1670,7 @@ src.use() {
 	src.install_ "$@"
 }
 
-# enter: Get src from URL and enter to the directory
+# Get src from URL and enter to the directory
 src.enter() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1687,7 +1689,7 @@ src.enter() {
 	echo "$PWD"
 }
 
-# run: Run src from URL
+# Run src from URL
 src.run() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1709,7 +1711,7 @@ src.run() {
 	flag.false test || src.test_ "${_[.dir]}"
 }
 
-# src.sh - Protected functions
+# src - Protected functions
 
 src.interprete() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -1820,7 +1822,7 @@ src.enter_() {
 	git.enter_ "$@"
 }
 
-# src.sh - Private functions
+# src - Private functions
 
 src._plan_() {
 	local owner repo auth path
@@ -1873,7 +1875,7 @@ src._plan_() {
 
 export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
-# deb.install: Install Debian packages
+# Install Debian packages
 deb.install() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1934,7 +1936,7 @@ deb.install() {
 	[[ "${#urls[@]}" -eq 0     ]] || deb._install_from_urls "${urls[@]}"
 }
 
-# deb.uninstall: Uninstall Debian packages
+# Uninstall Debian packages
 deb.uninstall() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1953,7 +1955,7 @@ deb.uninstall() {
 	must.proceed apt-get autoremove -y && must.proceed apt-get autoclean -y
 }
 
-# deb.missings: Print missing packages among given packages
+# Print missing packages among given packages
 deb.missings() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1970,7 +1972,7 @@ deb.missings() {
 	done
 }
 
-# deb.update: Update Debian package index
+# Update Debian package index
 # shellcheck disable=2120
 deb.update() {
 	# shellcheck disable=2192
@@ -1984,7 +1986,7 @@ deb.update() {
 	expired 60 /var/cache/apt/pkgcache.bin || apt-get update -y
 }
 
-# deb.repository: Add Debian repository
+# Add Debian repository
 deb.repository() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -2006,7 +2008,7 @@ deb.repository() {
 	apt-get update -y
 }
 
-# deb.using: Use given official Debian distributions
+# Use given official Debian distributions
 deb.using() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -2032,7 +2034,7 @@ deb.using() {
 	done
 }
 
-# deb.sh - Private functions
+# deb - Private functions
 
 deb._dist_valid() {
 	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -2105,7 +2107,7 @@ deb._install_from_urls() {
 
 # text.sh - Text blob manipulations
 
-# text.fix: Append stdin content to the target file
+# Append stdin content to the target file
 text.fix() {
 	local -A _=(
 		[.help]='FILE'
@@ -2125,7 +2127,7 @@ text.fix() {
 	} >>"$file"
 }
 
-# text.unfix: Remove appended content
+# Remove appended content
 text.unfix() {
 	local -A _=(
 		[.help]='FILE'
@@ -2139,7 +2141,7 @@ text.unfix() {
 	text._unfix "$file"
 }
 
-# text.sh - Private functions
+# text - Private functions
 
 text._unfix() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -2151,7 +2153,7 @@ text._unfix() {
 
 # filetype.sh - Filetype detection
 
-# filetype.mime: What mime type
+# What mime type
 filetype.mime() {
 	local -A _=(
 		[-zip]=false
@@ -2172,7 +2174,7 @@ filetype.mime() {
 }
 
 
-# filetype.is: Detect file type
+# Detect file type
 filetype.is() {
 	local -A _=(
 		[-zip]=false
@@ -2188,7 +2190,7 @@ filetype.is() {
 	filetype.is_ "$@"
 }
 
-# filetype.sh - Protected functions
+# filetype - Protected functions
 
 filetype.is_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -2201,7 +2203,7 @@ filetype.is_() {
 	"$func" "$file" "$@"
 }
 
-# filetype.sh - Private functions
+# filetype - Private functions
 
 filetype.is._mime_() {
 	local file=${1?${FUNCNAME[0]}: missing argument};     shift
@@ -2262,7 +2264,9 @@ filetype.is._compressed_() {
 	esac
 }
 
-# unzip: Unpack compressed file
+# zip.sh - Compression/decompression functions
+
+# Unpack compressed file
 zip.unpack() {
 	local -A _=(
 		[-force]=false
@@ -2415,79 +2419,107 @@ zip._prep_untar_() {
 }
 
 declare -Ag _help=(
-	['say']='Print messages on standard error'
-	['die']='Print error messages and exit failure'
-	['cry']='Print warning messages on standard error'
-	['bug']='Report bug and exit failure'
-	['hey']='Print messages taking attention'
-	['self version']='Print self version'
-	['self name']='Print self name'
-	['self path']='Print self path'
-	['self install']='Install self'
-	['temp inside']='Execute command in temp dir'
-	['os virtual']='Virtualization type'
-	['os dist']='Distribution name'
-	['os codename']='Distribution codename'
-	['os is']='Detect OS feature'
-	['url is']='Assert URL feature'
-	['http get']='Get URL'
-	['http is']='Assert URL response'
-	['file install']='Install file from URL'
-	['bin install']='Install program to path'
-	['bin use']='Use program'
-	['src install']='Install to a known location'
-	['src use']='Install src into the runtime tree'
-	['enter']='Get src from URL and enter to the directory'
-	['run']='Run src from URL'
-	['deb install']='Install Debian packages'
-	['deb uninstall']='Uninstall Debian packages'
-	['deb missings']='Print missing packages among given packages'
-	['deb update']='Update Debian package index'
-	['deb repository']='Add Debian repository'
-	['deb using']='Use given official Debian distributions'
-	['text fix']='Append stdin content to the target file'
-	['text unfix']='Remove appended content'
-	['filetype mime']='What mime type'
-	['filetype is']='Detect file type'
-	['unzip']='Unpack compressed file'
+	['.']='shellcheck disable=2034'
+	['ui.say']='Print messages on standard error'
+	['ui.die']='Print error messages and exit failure'
+	['ui.cry']='Print warning messages on standard error'
+	['ui.bug']='Report bug and exit failure'
+	['ui.hey']='Print messages taking attention'
+	['must.e']='Test -e'
+	['must.f']='Test -f'
+	['must.d']='Test -d'
+	['must.x']='Test -x'
+	['must.r']='Test -r'
+	['must.w']='Test -w'
+	['must.n']='Test -n'
+	['must.z']='Test -z'
+	['must.root']='Must be root'
+	['must.success']='Command must success'
+	['must.proceed']='Command may fail but must proceed'
+	['must.true']='Condition must be true'
+	['must.false']='Condition must be false'
+	['must.available']='Program must exist'
+	['must.callable']='Function must exist'
+	['must.piped']='Stdin must exist'
+	['must.interactive']='Stdout must exist'
+	['self.version']='Print self version'
+	['self.name']='Print self name'
+	['self.path']='Print self path'
+	['self.install']='Install self'
+	['array.join']='Join array with the given separator'
+	['array.dup']='Duplicate array'
+	['array.contains']='Array contains the given element'
+	['trap.setup']='shellcheck disable=2120'
+	['trap']='Prevent using trap'
+	['at_exit']='Register hooks at exit'
+	['at_exit_files']='Register files/directories to clean up at exit'
+	['temp.inside']='Execute command in temp dir'
+	['os.virtual']='Virtualization type'
+	['os.dist']='Distribution name'
+	['os.codename']='Distribution codename'
+	['os.is']='Detect OS feature'
+	['url.is']='Assert URL feature'
+	['http.get']='Get URL'
+	['http.is']='Assert URL response'
+	['file.install']='Install file from URL'
+	['file.copy']='Copy file/directory to dstination creating all parents if necessary'
+	['file.move']='Move file/directory to destination creating all parents if necessary'
+	['file.link']='Link file/directory to dstination creating all parents if necessary'
+	['bin.install']='Install program to path'
+	['bin.use']='Use program'
+	['src.install']='Install to a known location'
+	['src.use']='Install src into the runtime tree'
+	['src.enter']='Get src from URL and enter to the directory'
+	['src.run']='Run src from URL'
+	['deb.install']='Install Debian packages'
+	['deb.uninstall']='Uninstall Debian packages'
+	['deb.missings']='Print missing packages among given packages'
+	['deb.update']='Update Debian package index'
+	['deb.repository']='Add Debian repository'
+	['deb.using']='Use given official Debian distributions'
+	['text.fix']='Append stdin content to the target file'
+	['text.unfix']='Remove appended content'
+	['filetype.mime']='What mime type'
+	['filetype.is']='Detect file type'
+	['zip.unpack']='Unpack compressed file'
 )
 
 declare -Ag _command=(
-	['say']='ui.say'
-	['die']='ui.die'
-	['cry']='ui.cry'
-	['bug']='ui.bug'
-	['hey']='ui.hey'
-	['self version']='self.version'
-	['self name']='self.name'
-	['self path']='self.path'
-	['self install']='self.install'
-	['temp inside']='temp.inside'
-	['os virtual']='os.virtual'
-	['os dist']='os.dist'
-	['os codename']='os.codename'
-	['os is']='os.is'
-	['url is']='url.is'
-	['http get']='http.get'
-	['http is']='http.is'
-	['file install']='file.install'
 	['bin install']='bin.install'
 	['bin use']='bin.use'
+	['bug']='ui.bug'
+	['cry']='ui.cry'
+	['deb install']='deb.install'
+	['deb missings']='deb.missings'
+	['deb repository']='deb.repository'
+	['deb uninstall']='deb.uninstall'
+	['deb update']='deb.update'
+	['deb using']='deb.using'
+	['die']='ui.die'
+	['enter']='src.enter'
+	['file install']='file.install'
+	['filetype is']='filetype.is'
+	['filetype mime']='filetype.mime'
+	['hey']='ui.hey'
+	['http get']='http.get'
+	['http is']='http.is'
+	['os codename']='os.codename'
+	['os dist']='os.dist'
+	['os is']='os.is'
+	['os virtual']='os.virtual'
+	['run']='src.run'
+	['say']='ui.say'
+	['self install']='self.install'
+	['self name']='self.name'
+	['self path']='self.path'
+	['self version']='self.version'
 	['src install']='src.install'
 	['src use']='src.use'
-	['enter']='src.enter'
-	['run']='src.run'
-	['deb install']='deb.install'
-	['deb uninstall']='deb.uninstall'
-	['deb missings']='deb.missings'
-	['deb update']='deb.update'
-	['deb repository']='deb.repository'
-	['deb using']='deb.using'
+	['temp inside']='temp.inside'
 	['text fix']='text.fix'
 	['text unfix']='text.unfix'
-	['filetype mime']='filetype.mime'
-	['filetype is']='filetype.is'
 	['unzip']='zip.unpack'
+	['url is']='url.is'
 )
 
 .init() {
@@ -2502,8 +2534,10 @@ declare -Ag _command=(
 	say "Commands:"
 
 	# shellcheck disable=2154
-	for cmd in "${!_help[@]}"; do
-		printf "\\t%-24s  %s\n" "$cmd" "${_help[$cmd]}"
+	for cmd in "${!_command[@]}"; do
+		local fun=${_command[$cmd]}
+
+		printf "\\t%-24s  %s\n" "$cmd" "${_help[$fun]}"
 	done | sort >&2
 }
 
@@ -2550,7 +2584,7 @@ declare -Ag _command=(
 	readonly PROGNAME+=("$cmd")
 
 	if [[ -n ${help:-} ]]; then
-		say "${_help[$cmd]}" ""
+		say "${_help[$fun]}" ""
 		"$fun" -help
 	else
 		"$fun" "$@"

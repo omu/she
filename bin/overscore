@@ -379,7 +379,7 @@ flag._post_() {
 
 # ui.sh - UI functions
 
-# say: Print messages on standard error
+# Print messages on standard error
 ui.say() {
 	local -A _=(
 		[.help]='[MESSAGE...]'
@@ -391,7 +391,7 @@ ui.say() {
 	ui._plain "$@"
 }
 
-# die: Print error messages and exit failure
+# Print error messages and exit failure
 ui.die() {
 	local -A _=(
 		[-unexit]=false
@@ -406,7 +406,7 @@ ui.die() {
 	flag.true unexit || exit 1
 }
 
-# cry: Print warning messages on standard error
+# Print warning messages on standard error
 ui.cry() {
 	local -A _=(
 		[.help]='[MESSAGE...]'
@@ -418,7 +418,7 @@ ui.cry() {
 	ui._warning "$@"
 }
 
-# bug: Report bug and exit failure
+# Report bug and exit failure
 ui.bug() {
 	local -A _=(
 		[-unexit]=false
@@ -433,7 +433,7 @@ ui.bug() {
 	flag.true unexit || exit 127
 }
 
-# hey: Print messages taking attention
+# Print messages taking attention
 ui.hey() {
 	local -A _=(
 		[.help]='[MESSAGE...]'
@@ -444,6 +444,8 @@ ui.hey() {
 
 	ui._hey "$@"
 }
+
+# ui - Private functions
 
 ui._plain() {
 	local message
@@ -613,14 +615,14 @@ must.interactive() {
 
 # self.sh - Functions related to program itself
 
-# self.version: Print self version
+# Print self version
 self.version() {
 	local -A _; flag.parse
 
 	echo 0.0
 }
 
-# self.name: Print self name
+# Print self name
 self.name() {
 	local -A _; flag.parse
 
@@ -628,7 +630,7 @@ self.name() {
 	echo "$PROGNAME"
 }
 
-# self.path: Print self path
+# Print self path
 # shellcheck disable=2120
 self.path() {
 	local -A _; flag.parse
@@ -643,7 +645,7 @@ self.path() {
 	esac
 }
 
-# self.install: Install self
+# Install self
 self.install() {
 	# shellcheck disable=2192,2128
 	local -A _=(
@@ -898,7 +900,7 @@ at_exit_files() {
 	_at_exit_files_+=("$@")
 }
 
-# trap.sh - Private functions
+# trap - Private functions
 
 _exit_() {
 	local err=$?
@@ -947,7 +949,7 @@ temp.dir() {
 	temp_dir_=$dir
 }
 
-# temp.inside: Execute command in temp dir
+# Execute command in temp dir
 temp.inside() {
 	local temp_dir orig_dir=$PWD
 	temp.dir temp_dir
@@ -969,7 +971,7 @@ temp.clean() {
 
 # test.sh - Test functions
 
-# ok: Assert condition ok
+# Assert condition ok
 test.ok() {
 	local -A _=(
 		[-msg]='Condition failed'
@@ -985,31 +987,53 @@ test.ok() {
 	"$cond" || die "${_[-msg]}"
 }
 
+# Assert condition not ok
+test.notok() {
+	test.ok -msg='Condition succeded' "$@"
+}
+
 declare -Ag _help=(
-	['say']='Print messages on standard error'
-	['die']='Print error messages and exit failure'
-	['cry']='Print warning messages on standard error'
-	['bug']='Report bug and exit failure'
-	['hey']='Print messages taking attention'
-	['self version']='Print self version'
-	['self name']='Print self name'
-	['self path']='Print self path'
-	['self install']='Install self'
-	['temp inside']='Execute command in temp dir'
-	['ok']='Assert condition ok'
+	['.']='shellcheck disable=2034'
+	['ui.say']='Print messages on standard error'
+	['ui.die']='Print error messages and exit failure'
+	['ui.cry']='Print warning messages on standard error'
+	['ui.bug']='Report bug and exit failure'
+	['ui.hey']='Print messages taking attention'
+	['must.e']='Test -e'
+	['must.f']='Test -f'
+	['must.d']='Test -d'
+	['must.x']='Test -x'
+	['must.r']='Test -r'
+	['must.w']='Test -w'
+	['must.n']='Test -n'
+	['must.z']='Test -z'
+	['must.root']='Must be root'
+	['must.success']='Command must success'
+	['must.proceed']='Command may fail but must proceed'
+	['must.true']='Condition must be true'
+	['must.false']='Condition must be false'
+	['must.available']='Program must exist'
+	['must.callable']='Function must exist'
+	['must.piped']='Stdin must exist'
+	['must.interactive']='Stdout must exist'
+	['self.version']='Print self version'
+	['self.name']='Print self name'
+	['self.path']='Print self path'
+	['self.install']='Install self'
+	['array.join']='Join array with the given separator'
+	['array.dup']='Duplicate array'
+	['array.contains']='Array contains the given element'
+	['trap.setup']='shellcheck disable=2120'
+	['trap']='Prevent using trap'
+	['at_exit']='Register hooks at exit'
+	['at_exit_files']='Register files/directories to clean up at exit'
+	['temp.inside']='Execute command in temp dir'
+	['test.ok']='Assert condition ok'
+	['test.notok']='Assert condition not ok'
 )
 
 declare -Ag _command=(
-	['say']='ui.say'
-	['die']='ui.die'
-	['cry']='ui.cry'
-	['bug']='ui.bug'
-	['hey']='ui.hey'
-	['self version']='self.version'
-	['self name']='self.name'
-	['self path']='self.path'
-	['self install']='self.install'
-	['temp inside']='temp.inside'
+	['notok']='test.notok'
 	['ok']='test.ok'
 )
 
@@ -1025,8 +1049,10 @@ declare -Ag _command=(
 	say "Commands:"
 
 	# shellcheck disable=2154
-	for cmd in "${!_help[@]}"; do
-		printf "\\t%-24s  %s\n" "$cmd" "${_help[$cmd]}"
+	for cmd in "${!_command[@]}"; do
+		local fun=${_command[$cmd]}
+
+		printf "\\t%-24s  %s\n" "$cmd" "${_help[$fun]}"
 	done | sort >&2
 }
 
@@ -1073,7 +1099,7 @@ declare -Ag _command=(
 	readonly PROGNAME+=("$cmd")
 
 	if [[ -n ${help:-} ]]; then
-		say "${_help[$cmd]}" ""
+		say "${_help[$fun]}" ""
 		"$fun" -help
 	else
 		"$fun" "$@"

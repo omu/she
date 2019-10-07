@@ -1,13 +1,13 @@
 # self.sh - Functions related to program itself
 
-# self.version: Print self version
+# Print self version
 self.version() {
 	local -A _; flag.parse
 
 	echo 0.0
 }
 
-# self.name: Print self name
+# Print self name
 self.name() {
 	local -A _; flag.parse
 
@@ -15,7 +15,7 @@ self.name() {
 	echo "$PROGNAME"
 }
 
-# self.path: Print self path
+# Print self path
 # shellcheck disable=2120
 self.path() {
 	local -A _; flag.parse
@@ -30,7 +30,7 @@ self.path() {
 	esac
 }
 
-# self.install: Install self
+# Install self
 self.install() {
 	# shellcheck disable=2192,2128
 	local -A _=(

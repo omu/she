@@ -37,7 +37,7 @@ at_exit_files() {
 	_at_exit_files_+=("$@")
 }
 
-# trap.sh - Private functions
+# trap - Private functions
 
 _exit_() {
 	local err=$?

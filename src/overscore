@@ -28,7 +28,10 @@
 
 #/help/
 
-#/command/
+declare -Ag _command=(
+	['notok']='test.notok'
+	['ok']='test.ok'
+)
 
 .init() {
 	trap.setup
@@ -42,8 +45,10 @@
 	say "Commands:"
 
 	# shellcheck disable=2154
-	for cmd in "${!_help[@]}"; do
-		printf "\\t%-24s  %s\n" "$cmd" "${_help[$cmd]}"
+	for cmd in "${!_command[@]}"; do
+		local fun=${_command[$cmd]}
+
+		printf "\\t%-24s  %s\n" "$cmd" "${_help[$fun]}"
 	done | sort >&2
 }
 
@@ -90,7 +95,7 @@
 	readonly PROGNAME+=("$cmd")
 
 	if [[ -n ${help:-} ]]; then
-		say "${_help[$cmd]}" ""
+		say "${_help[$fun]}" ""
 		"$fun" -help
 	else
 		"$fun" "$@"

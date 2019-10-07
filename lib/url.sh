@@ -1,6 +1,6 @@
 # url.sh - URL processing
 
-# url.is: Assert URL feature
+# Assert URL feature
 url.is() {
 	local -A _=(
 		[.help]='URL local|((proto|host|port|path|userinfo|frag) VALUE)'
@@ -20,7 +20,7 @@ url.is() {
 	url.is_ "$feature" "$@"
 }
 
-# url.sh - Protected functions
+# url - Protected functions
 
 # Parse URL
 # shellcheck disable=2034

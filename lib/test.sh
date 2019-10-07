@@ -1,6 +1,6 @@
 # test.sh - Test functions
 
-# ok: Assert condition ok
+# Assert condition ok
 test.ok() {
 	local -A _=(
 		[-msg]='Condition failed'
@@ -14,4 +14,9 @@ test.ok() {
 	local cond=$1
 
 	"$cond" || die "${_[-msg]}"
+}
+
+# Assert condition not ok
+test.notok() {
+	test.ok -msg='Condition succeded' "$@"
 }

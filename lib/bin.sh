@@ -1,6 +1,6 @@
 # bin.sh - Executable files
 
-# bin.install: Install program to path
+# Install program to path
 bin.install() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -16,7 +16,7 @@ bin.install() {
 	bin.install_ "$@"
 }
 
-# bin.use: Use program
+# Use program
 bin.use() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -32,7 +32,7 @@ bin.use() {
 	bin.install_ "$@"
 }
 
-# bin.sh - Protected functions
+# bin - Protected functions
 
 bin.install_() {
 	local url=$1
@@ -73,7 +73,7 @@ bin.install_() {
 	temp.clean tempfile tempdir
 }
 
-# bin.sh - Private functions
+# bin - Private functions
 
 bin._inspect() {
 	local    bin=${1?${FUNCNAME[0]}: missing argument};          shift

@@ -1,6 +1,6 @@
 # src.sh - Source management
 
-# src.install: Install to a known location
+# Install to a known location
 src.install() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -16,7 +16,7 @@ src.install() {
 	src.install_ "$@"
 }
 
-# src.use: Install src into the runtime tree
+# Install src into the runtime tree
 src.use() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -33,7 +33,7 @@ src.use() {
 	src.install_ "$@"
 }
 
-# enter: Get src from URL and enter to the directory
+# Get src from URL and enter to the directory
 src.enter() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -52,7 +52,7 @@ src.enter() {
 	echo "$PWD"
 }
 
-# run: Run src from URL
+# Run src from URL
 src.run() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -74,7 +74,7 @@ src.run() {
 	flag.false test || src.test_ "${_[.dir]}"
 }
 
-# src.sh - Protected functions
+# src - Protected functions
 
 src.interprete() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -185,7 +185,7 @@ src.enter_() {
 	git.enter_ "$@"
 }
 
-# src.sh - Private functions
+# src - Private functions
 
 src._plan_() {
 	local owner repo auth path

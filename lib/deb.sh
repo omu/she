@@ -2,7 +2,7 @@
 
 export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
-# deb.install: Install Debian packages
+# Install Debian packages
 deb.install() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -63,7 +63,7 @@ deb.install() {
 	[[ "${#urls[@]}" -eq 0     ]] || deb._install_from_urls "${urls[@]}"
 }
 
-# deb.uninstall: Uninstall Debian packages
+# Uninstall Debian packages
 deb.uninstall() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -82,7 +82,7 @@ deb.uninstall() {
 	must.proceed apt-get autoremove -y && must.proceed apt-get autoclean -y
 }
 
-# deb.missings: Print missing packages among given packages
+# Print missing packages among given packages
 deb.missings() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -99,7 +99,7 @@ deb.missings() {
 	done
 }
 
-# deb.update: Update Debian package index
+# Update Debian package index
 # shellcheck disable=2120
 deb.update() {
 	# shellcheck disable=2192
@@ -113,7 +113,7 @@ deb.update() {
 	expired 60 /var/cache/apt/pkgcache.bin || apt-get update -y
 }
 
-# deb.repository: Add Debian repository
+# Add Debian repository
 deb.repository() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -135,7 +135,7 @@ deb.repository() {
 	apt-get update -y
 }
 
-# deb.using: Use given official Debian distributions
+# Use given official Debian distributions
 deb.using() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -161,7 +161,7 @@ deb.using() {
 	done
 }
 
-# deb.sh - Private functions
+# deb - Private functions
 
 deb._dist_valid() {
 	local dist=${1?${FUNCNAME[0]}: missing argument}; shift

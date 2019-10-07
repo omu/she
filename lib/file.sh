@@ -1,6 +1,6 @@
 # file.sh - File related operations
 
-# file.install: Install file from URL
+# Install file from URL
 file.install() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -53,7 +53,7 @@ file.chogm() {
 	file.chogm_ "$dst"
 }
 
-# file.sh - Protected functions
+# file - Protected functions
 
 file.ln() {
 	local src=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -152,7 +152,7 @@ file.install_() {
 	temp.clean tempfile
 }
 
-# file.sh - Private functions
+# Private functions
 
 file._do_args_() {
 	local op=${1?${FUNCNAME[0]}: missing argument}; shift

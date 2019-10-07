@@ -16,7 +16,7 @@ git.update() {
 	fi
 }
 
-# git.sh - Protected functions
+# git - Protected functions
 
 git.is.git() {
 	local path=${1:-.}

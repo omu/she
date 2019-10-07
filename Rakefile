@@ -77,10 +77,10 @@ class Source
         [(]
       /x.freeze
 
-      attr_reader :fun, :pub, :label
+      attr_reader :fun, :label
 
       def convey_from_doc_block(doc_block)
-        %i[doc label pub].each { |attribute| send("#{attribute}=", doc_block.send(attribute)) }
+        %i[doc label].each { |attribute| send("#{attribute}=", doc_block.send(attribute)) }
       end
 
       def private?
@@ -89,7 +89,7 @@ class Source
 
       protected
 
-      attr_writer :doc, :fun, :pub, :label
+      attr_writer :doc, :fun, :label
 
       def parse(lines)
         if (m = lines.first.match(PATTERN))
@@ -107,18 +107,10 @@ class Source
           [#]
           \s+
         )
-        (?:
-          (?<pub>[\w.:-]+)
-          (
-            :\s*
-            |
-            \s+[-]{1,}\s+
-          )
-        )?
         (?<label>.*)
       /x.freeze
 
-      attr_reader :pub, :label
+      attr_reader :label
 
       def doc
         lines.join("\n").strip
@@ -130,15 +122,14 @@ class Source
 
       protected
 
-      attr_writer :pub, :label
+      attr_writer :label
 
       def parse(lines)
         if (m = lines.first.match(PATTERN))
-          self.pub   = m[:pub]
           self.label = m[:label]
         end
 
-        pub ? [m[:pre] + label, *lines[1..-1]] : lines
+        lines
       end
     end
 
@@ -226,10 +217,10 @@ class Compiler
 
     sources.values.map(&:blocks).each do |blocks|
       blocks.each do |block|
-        next unless block.is_a?(Source::Block::Fun) && block.pub
+        next unless block.is_a?(Source::Block::Fun)
         next if block.undocumented? || block.private?
 
-        symbols << { pub: block.pub, fun: block.fun, label: block.label }
+        symbols << { fun: block.fun, label: block.label }
       end
     end
 
@@ -331,20 +322,15 @@ module Main
   class << self
     private
 
-    def public_name_to_command_name(pub)
-      pub.split('.').join(' ')
-    end
-
     def bash_array_lines(exports, variable, key)
-      pairs = exports.map { |h| "['#{public_name_to_command_name(h[:pub])}']='#{h[key]}'" }
+      pairs = exports.map { |h| "['#{h[:fun]}']='#{h[key]}'" }
 
       ["declare -Ag #{variable}=(", *pairs.fmt(indent: 1), ')']
     end
   end
 
   SUBSTITUTIONS = {
-    'command' => proc { |compiler| bash_array_lines(compiler.exports, '_command', :fun)   },
-    'help'    => proc { |compiler| bash_array_lines(compiler.exports, '_help',    :label) }
+    'help' => proc { |compiler| bash_array_lines(compiler.exports, '_help', :label) }
   }.freeze
 
   def self.call(src, dst)

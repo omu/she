@@ -1,6 +1,6 @@
 # text.sh - Text blob manipulations
 
-# text.fix: Append stdin content to the target file
+# Append stdin content to the target file
 text.fix() {
 	local -A _=(
 		[.help]='FILE'
@@ -20,7 +20,7 @@ text.fix() {
 	} >>"$file"
 }
 
-# text.unfix: Remove appended content
+# Remove appended content
 text.unfix() {
 	local -A _=(
 		[.help]='FILE'
@@ -34,7 +34,7 @@ text.unfix() {
 	text._unfix "$file"
 }
 
-# text.sh - Private functions
+# text - Private functions
 
 text._unfix() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift

@@ -1,4 +1,6 @@
-# unzip: Unpack compressed file
+# zip.sh - Compression/decompression functions
+
+# Unpack compressed file
 zip.unpack() {
 	local -A _=(
 		[-force]=false
