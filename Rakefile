@@ -343,7 +343,7 @@ end
 BIN = %w[underscore overscore].freeze
 
 BIN.each do |bin|
-  file "bin/#{bin}" => ["src/#{bin}", *Dir['lib/*.sh'], __FILE__] do |task|
+  file "bin/#{bin}" => ["src/#{bin}.sh", *Dir["src/#{bin}/*.sh"], *Dir['lib/*.sh'], __FILE__] do |task|
     src, dst = task.prerequisites.first, task.name
 
     mkdir_p File.dirname(dst)

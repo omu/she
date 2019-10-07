@@ -105,12 +105,8 @@ declare -Ag _command=(
 .builtin() {
 	echo "OVERSCORE=$(self.path)"
 	echo
-	cat <<'EOF'
-declare -grx OVERSCORE=$OVERSCORE
-
-t() {
-	"$OVERSCORE" "$@"
-}
+	sed 's/^\t//' <<'EOF'
+	#:src/overscore/builtin.sh
 EOF
 }
 
