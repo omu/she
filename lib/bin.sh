@@ -60,14 +60,14 @@ bin.install_() {
 
 		file.install -prefix="${_[-prefix]}" -mode=755 "$src" "$dst"
 	elif [[ ${#bins[@]} -gt 1 ]]; then
-		[[ -n ${_[-name]:-} ]] || die "Ambiguous usage of name argument: ${_[-name]}"
+		[[ -n ${_[-name]:-} ]] || .die "Ambiguous usage of name argument: ${_[-name]}"
 
 		local src
 		for src in "${bins[@]}"; do
 			file.install -prefix="${_[-prefix]}" -mode=755 "$src"
 		done
 	else
-		die "No program found: $url"
+		.die "No program found: $url"
 	fi
 
 	temp.clean tempfile tempdir

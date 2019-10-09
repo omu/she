@@ -23,5 +23,5 @@ array.contains() {
 	local -n array_contains_=${1?${FUNCNAME[0]}: missing argument}; shift
 	local    element=${1?${FUNCNAME[0]}: missing argument};         shift
 
-	contains "$element" "${array_contains_[@]}"
+	.contains "$element" "${array_contains_[@]}"
 }

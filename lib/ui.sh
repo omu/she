@@ -1,5 +1,8 @@
 # ui.sh - UI functions
 
+shopt -s expand_aliases
+
+
 # Print messages on standard error
 ui.say() {
 	local -A _=(

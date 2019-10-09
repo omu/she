@@ -88,7 +88,7 @@ src.interprete() {
 		file=$file.$ext
 	fi
 
-	[[ -f $file ]] || die "Not file found to interprete: $file"
+	[[ -f $file ]] || .die "Not file found to interprete: $file"
 
 	local interpreter
 	case $ext in
@@ -98,7 +98,7 @@ src.interprete() {
 	pl)  interpreter=perl   ;;
 	js)  interpreter=node   ;;
 	php) interpreter=php    ;;
-	*)   die "Unsupported interpreter for extension: $ext" ;;
+	*)   .die "Unsupported interpreter for extension: $ext" ;;
 	esac
 
 	env "$@" "$interpreter" "$file"
@@ -113,9 +113,9 @@ src.managed_() {
 src.install_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	url.parse_ "$url" || die "Error parsing URL: ${_[.error]}: $url"
+	url.parse_ "$url" || .die "Error parsing URL: ${_[.error]}: $url"
 
-	src._plan_ || die "Error planning URL: ${_[.error]}: $url"
+	src._plan_ || .die "Error planning URL: ${_[.error]}: $url"
 
 	local src=${_[1]} dst=${_[2]:-}
 

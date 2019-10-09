@@ -8,10 +8,10 @@ alias flag.parse='flag.parse_ "$@"; local -a __a; flag.args_ __a; set -- "${__a[
 flag.usage_() {
 	if [[ -n ${_[.help]:-} ]]; then
 		# shellcheck disable=2128
-		say "Usage: ${PROGNAME[*]} ${_[.help]}"
+		.say "Usage: ${PROGNAME[*]} ${_[.help]}"
 	else
 		# shellcheck disable=2128
-		say "Usage: ${PROGNAME[*]}"
+		.say "Usage: ${PROGNAME[*]}"
 	fi
 
 	[[ $# -gt 0 ]] || return 0
@@ -21,7 +21,7 @@ flag.usage_() {
 
 # shellcheck disable=2034
 flag.parse_() {
-	if contains -help "$@"; then
+	if .contains -help "$@"; then
 		flag.usage_ 0
 	fi
 
@@ -34,7 +34,7 @@ flag.parse_() {
 		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
 			key=${1%%=*}; value=${1#*=}
 			if [[ $key =~ ^-.+$ ]] && [[ ! -v _[$key] ]]; then
-				die "Unrecognized flag: $key"
+				.die "Unrecognized flag: $key"
 			fi
 		elif [[ $1 == '--' ]]; then
 			shift
@@ -62,15 +62,11 @@ flag.env_() {
 }
 
 flag.true() {
-	bool "${_[-$1]:-}"
+	.bool "${_[-$1]:-}"
 }
 
 flag.false() {
 	! flag.true "$@"
-}
-
-flag.dump() {
-	_.dump
 }
 
 flag._post_() {
@@ -87,13 +83,13 @@ flag._post_() {
 	elif [[ $argc =~ ^[0-9]*-[0-9]*$ ]]; then
 		IFS=- read -r lo hi <<<"$argc"
 	else
-		bug "Incorrect range: $argc"
+		.bug "Incorrect range: $argc"
 	fi
 
 	if   [[ -n ${lo:-} ]] && [[ $n -lt $lo ]]; then
-		die- 'Too few arguments'
+		.die- 'Too few arguments' # FIXME
 	elif [[ -n ${hi:-} ]] && [[ $n -gt $hi ]]; then
-		die- 'Too many arguments'
+		.die- 'Too many arguments'
 	else
 		return 0
 	fi

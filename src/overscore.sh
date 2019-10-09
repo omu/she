@@ -1,48 +1,28 @@
 #!/usr/bin/env bash
 
-#:lib/prelude.sh
-
-#:lib/kernel.sh
-
 #:lib/_.sh
+
+.prelude
 
 #:lib/flag.sh
 
-#:lib/ui.sh
-
 #:lib/must.sh
-
-#:lib/self.sh
-
-#:lib/string.sh
-
-#:lib/array.sh
-
-#:lib/path.sh
-
-#:lib/trap.sh
-
-#:lib/temp.sh
-
-#:lib/test.sh
 
 #/help/
 
 declare -Ag _command=(
+	['isnt']='test.isnt'
+	['is']='test.is'
 	['notok']='test.notok'
 	['ok']='test.ok'
 )
-
-.init() {
-	trap.setup
-}
 
 .usage() {
 	local cmd
 
 	# shellcheck disable=2128
-	say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
-	say "Commands:"
+	.say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
+	.say "Commands:"
 
 	# shellcheck disable=2154
 	for cmd in "${!_command[@]}"; do
@@ -53,11 +33,11 @@ declare -Ag _command=(
 }
 
 .execute() {
-	.init
+	trap.setup
 
 	if [[ $# -eq 0 ]]; then
 		.usage
-		die 'Command required'
+		.die 'Command required'
 	fi
 
 	local help=
@@ -69,7 +49,7 @@ declare -Ag _command=(
 
 		if [[ $# -eq 0 ]]; then
 			.usage
-			die 'Help topic required'
+			.die 'Help topic required'
 		fi
 	fi
 
@@ -89,13 +69,13 @@ declare -Ag _command=(
 	done
 
 	if [[ -z ${fun:-} ]]; then
-		die "No command found: ${args[*]}"
+		.die "No command found: ${args[*]}"
 	fi
 
 	readonly PROGNAME+=("$cmd")
 
 	if [[ -n ${help:-} ]]; then
-		say "${_help[$fun]}" ""
+		.say "${_help[$fun]}" ""
 		"$fun" -help
 	else
 		"$fun" "$@"
@@ -103,6 +83,14 @@ declare -Ag _command=(
 }
 
 .builtin() {
+	sed 's/^\t//' <<'EOF'
+	#:lib/_.sh: .prelude .say .cry .die .bug .contains .available .callable
+
+	.prelude
+
+	#:lib/assert.sh
+EOF
+	echo
 	echo "OVERSCORE=$(self.path)"
 	echo
 	sed 's/^\t//' <<'EOF'

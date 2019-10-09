@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 
-#:lib/prelude.sh
-
-#:lib/kernel.sh
-
 #:lib/_.sh
+
+.prelude
 
 #:lib/flag.sh
 
@@ -86,16 +84,12 @@ declare -Ag _command=(
 	['url is']='url.is'
 )
 
-.init() {
-	trap.setup
-}
-
 .usage() {
 	local cmd
 
 	# shellcheck disable=2128
-	say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
-	say "Commands:"
+	.say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
+	.say "Commands:"
 
 	# shellcheck disable=2154
 	for cmd in "${!_command[@]}"; do
@@ -106,11 +100,11 @@ declare -Ag _command=(
 }
 
 .execute() {
-	.init
+	trap.setup
 
 	if [[ $# -eq 0 ]]; then
 		.usage
-		die 'Command required'
+		.die 'Command required'
 	fi
 
 	local help=
@@ -122,7 +116,7 @@ declare -Ag _command=(
 
 		if [[ $# -eq 0 ]]; then
 			.usage
-			die 'Help topic required'
+			.die 'Help topic required'
 		fi
 	fi
 
@@ -142,13 +136,15 @@ declare -Ag _command=(
 	done
 
 	if [[ -z ${fun:-} ]]; then
-		die "No command found: ${args[*]}"
+		.die "No command found: ${args[*]}"
 	fi
 
 	readonly PROGNAME+=("$cmd")
 
+	.init
+
 	if [[ -n ${help:-} ]]; then
-		say "${_help[$fun]}" ""
+		.say "${_help[$fun]}" ""
 		"$fun" -help
 	else
 		"$fun" "$@"
@@ -163,6 +159,9 @@ declare -Ag _command=(
 	echo "UNDERSCORE=$(self.path)"
 	echo
 	sed 's/^\t//' <<'EOF'
+	#:lib/_.sh: .prelude
+	.prelude
+
 	#:src/underscore/builtin.sh
 EOF
 }

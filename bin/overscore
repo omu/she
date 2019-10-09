@@ -1,121 +1,135 @@
 #!/usr/bin/env bash
 
-# prelude.sh - Standard prelude
+# _.sh - Essential functions
 
-[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                         exit 1; }
-[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
-[[ -x /usr/bin/apt-get         ]] || { echo >&2 'Only Debian and derivatives supported.'; exit 1; }
+[ -n "${BASH_VERSION:-}" ] || { echo >&2 'Bash required.';  exit 1; }
 
-set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+.prelude() {
+	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
+	[[ -x /usr/bin/apt-get         ]] || { echo >&2 'Only Debian and derivatives supported.'; exit 1; }
 
-export LC_ALL=C.UTF-8 LANG=C.UTF-8
+	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
-# kernel.sh - Core functions
+	export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-say() {
-	if [[ $# -eq 0 ]]; then
-		echo >&2 ""
-	else
-		local message
+	# Program name
+	# shellcheck disable=2034
+	declare -ag PROGNAME=("${0##*/}")
+}
 
-		for message; do
-			echo -e >&2 "$message"
+.say() {
+	local msg
+
+	if [[ $# -gt 0 ]]; then
+		for msg; do
+			echo -e >&2 "${msg_prefix_:-}${msg}"
 		done
+	else
+		echo >&2 ""
 	fi
 }
 
-cry() {
-	if [[ $# -eq 0 ]]; then
-		echo >&2 ""
-	else
-		local message
+.cry() {
+	local msg
 
-		for message; do
-			echo -e >&2 "W: $message"
+	if [[ $# -gt 0 ]]; then
+		for msg; do
+			echo -e >&2 "${msg_prefix_:-W: }${msg}"
 		done
+	else
+		echo >&2 ""
 	fi
 }
 
-die-() {
-	if [[ $# -eq 0 ]]; then
-		echo >&2 ""
-	else
-		local message
+.die() {
+	local msg
 
-		for message; do
-			echo -e >&2 "E: $message"
+	if [[ $# -gt 0 ]]; then
+		for msg; do
+			echo -e >&2 "${msg_prefix_:-E: }${msg}"
 		done
+	else
+		echo >&2 ""
 	fi
-}
-
-die() {
-	die- "$@"
 
 	exit 1
 }
 
-bug-() {
-	if [[ $# -eq 0 ]]; then
-		echo >&2 ""
-	else
-		local message
+.bug() {
+	local msg
 
-		for message; do
-			echo -e >&2 "B: $message"
+	if [[ $# -gt 0 ]]; then
+		for msg; do
+			echo -e >&2 "${msg_prefix_:-B: }${msg}"
 		done
+	else
+		echo >&2 ""
 	fi
-}
-
-bug() {
-	bug- "$@"
 
 	exit 127
 }
 
-bye() {
-	if [[ $# -eq 0 ]]; then
-		echo >&2 ""
-	else
-		local message
+.bye() {
+	local msg
 
-		for message; do
-			echo -e >&2 "$message"
+	if [[ $# -gt 0 ]]; then
+		for msg; do
+			echo -e >&2 "${msg_prefix_:-}${msg}"
 		done
+	else
+		echo >&2 ""
 	fi
 
 	exit 0
 }
 
-hey() {
-	if [[ $# -eq 0 ]]; then
-		echo >&2 ""
-	else
-		local message
+.dbg() {
+	[[ $# -gt 0 ]] || return 0
 
-		for message; do
-			echo -e >&2 "\\e[38;5;14m-->\\e[0m\\e[1m $message\\e[0m"
-		done
-	fi
+	# shellcheck disable=2178,2155
+	local -n dbg_=$1
+
+	echo "${!dbg_}"
+
+	local key
+	for key in "${!dbg_[@]}"; do
+		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
+	done | sort
+
+	echo
 }
 
-hmm() {
-	while [[ $# -gt 0 ]]; do
-		# shellcheck disable=2178,2155
-		local -n hmm_=$1
+.contains() {
+	: "${1?${FUNCNAME[0]}: missing argument}"
 
-		echo "${!hmm_}"
+	local element
 
-		local key
-		for key in "${!hmm_[@]}"; do
-			printf '  %-16s  %s\n' "${key}" "${hmm_[$key]}"
-		done | sort
-		echo
-
-		shift
+	for element in "${@:2}"; do
+		if [[ $element = "$1" ]]; then
+			return 0
+		fi
 	done
+
+	return 1
 }
 
-bool() {
+.available() {
+	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
+}
+
+.callable() {
+	[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
+}
+
+.piped() {
+	[[ ! -t 0 ]]
+}
+
+.interactive() {
+	[[ ! -t 1 ]]
+}
+
+.bool() {
 	local value=${1:-}
 
 	value=${value,,}
@@ -128,42 +142,11 @@ bool() {
 		return 1
 		;;
 	*)
-		bug "Invalid boolean: $value"
+		.bug "Invalid boolean: $value"
 	esac
 }
 
-available() {
-	command -v "$1" &>/dev/null
-}
-
-callable() {
-	local name=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ $(type -t "$name" || true) == function ]]
-}
-
-piped() {
-	[[ ! -t 0 ]]
-}
-
-interactive() {
-	[[ ! -t 1 ]]
-}
-
-contains() {
-	local needle=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local element
-	for element; do
-		if [[ $element = "$needle" ]]; then
-			return 0
-		fi
-	done
-
-	return 1
-}
-
-expired() {
+.expired() {
 	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ $expiry -gt 0 ]] || return 1
@@ -177,40 +160,6 @@ expired() {
 
 	return 0
 }
-
-# Initialize underscore system
-
-# shellcheck disable=2034
-.() {
-	# Program name
-	declare -ag PROGNAME=("${0##*/}")
-
-	# Core environment
-	if [[ ${EUID:-} -eq 0 ]]; then
-		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
-		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
-		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
-	else
-		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
-		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
-		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
-
-		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
-		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
-		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
-	fi
-
-	export PATH="$_RUN"/bin:"$PATH"
-
-	unset -f "${FUNCNAME[0]}"
-}
-
-# init
-.
-
-# _.sh - Default result variable
-
-declare -gA _=()
 
 _.read() {
 	local -i i=1
@@ -238,6 +187,12 @@ _.load() {
 	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	array.dup _ _load_src_
+
+	local key
+	for key in "${!_load_src_[@]}"; do
+		# shellcheck disable=2034
+		_[$key]=${_load_src_[$key]}
+	done
 }
 
 _.values() {
@@ -270,9 +225,34 @@ _.values() {
 	fi
 }
 
-_.dump() {
-	hmm _
+# Initialize underscore system
+
+# shellcheck disable=2034
+.init() {
+	# Default variable as a hash
+	declare -gA _=()
+
+	# Core environment
+	if [[ ${EUID:-} -eq 0 ]]; then
+		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
+		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
+		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
+	else
+		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
+		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
+		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
+
+		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
+		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
+		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
+	fi
+
+	export PATH="$_RUN"/bin:"$PATH"
+
+	unset -f "${FUNCNAME[0]}"
 }
+
+.prelude
 
 # flag.sh - Flag handling
 
@@ -284,10 +264,10 @@ alias flag.parse='flag.parse_ "$@"; local -a __a; flag.args_ __a; set -- "${__a[
 flag.usage_() {
 	if [[ -n ${_[.help]:-} ]]; then
 		# shellcheck disable=2128
-		say "Usage: ${PROGNAME[*]} ${_[.help]}"
+		.say "Usage: ${PROGNAME[*]} ${_[.help]}"
 	else
 		# shellcheck disable=2128
-		say "Usage: ${PROGNAME[*]}"
+		.say "Usage: ${PROGNAME[*]}"
 	fi
 
 	[[ $# -gt 0 ]] || return 0
@@ -297,7 +277,7 @@ flag.usage_() {
 
 # shellcheck disable=2034
 flag.parse_() {
-	if contains -help "$@"; then
+	if .contains -help "$@"; then
 		flag.usage_ 0
 	fi
 
@@ -310,7 +290,7 @@ flag.parse_() {
 		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
 			key=${1%%=*}; value=${1#*=}
 			if [[ $key =~ ^-.+$ ]] && [[ ! -v _[$key] ]]; then
-				die "Unrecognized flag: $key"
+				.die "Unrecognized flag: $key"
 			fi
 		elif [[ $1 == '--' ]]; then
 			shift
@@ -338,15 +318,11 @@ flag.env_() {
 }
 
 flag.true() {
-	bool "${_[-$1]:-}"
+	.bool "${_[-$1]:-}"
 }
 
 flag.false() {
 	! flag.true "$@"
-}
-
-flag.dump() {
-	_.dump
 }
 
 flag._post_() {
@@ -363,128 +339,18 @@ flag._post_() {
 	elif [[ $argc =~ ^[0-9]*-[0-9]*$ ]]; then
 		IFS=- read -r lo hi <<<"$argc"
 	else
-		bug "Incorrect range: $argc"
+		.bug "Incorrect range: $argc"
 	fi
 
 	if   [[ -n ${lo:-} ]] && [[ $n -lt $lo ]]; then
-		die- 'Too few arguments'
+		.die- 'Too few arguments' # FIXME
 	elif [[ -n ${hi:-} ]] && [[ $n -gt $hi ]]; then
-		die- 'Too many arguments'
+		.die- 'Too many arguments'
 	else
 		return 0
 	fi
 
 	flag.usage_ 1
-}
-
-# ui.sh - UI functions
-
-# Print messages on standard error
-ui.say() {
-	local -A _=(
-		[.help]='[MESSAGE...]'
-		[.argc]=0-
-	)
-
-	flag.parse
-
-	ui._plain "$@"
-}
-
-# Print error messages and exit failure
-ui.die() {
-	local -A _=(
-		[-unexit]=false
-		[.help]='[-unexit=BOOL [MESSAGE...]]'
-		[.argc]=0-
-	)
-
-	flag.parse
-
-	ui._error "$@"
-
-	flag.true unexit || exit 1
-}
-
-# Print warning messages on standard error
-ui.cry() {
-	local -A _=(
-		[.help]='[MESSAGE...]'
-		[.argc]=0-
-	)
-
-	flag.parse
-
-	ui._warning "$@"
-}
-
-# Report bug and exit failure
-ui.bug() {
-	local -A _=(
-		[-unexit]=false
-		[.help]='[-unexit=BOOL [MESSAGE...]]'
-		[.argc]=0-
-	)
-
-	flag.parse
-
-	ui._bug "$@"
-
-	flag.true unexit || exit 127
-}
-
-# Print messages taking attention
-ui.hey() {
-	local -A _=(
-		[.help]='[MESSAGE...]'
-		[.argc]=0-
-	)
-
-	flag.parse
-
-	ui._hey "$@"
-}
-
-# ui - Private functions
-
-ui._plain() {
-	local message
-
-	for message; do
-		echo -e >&2 "$message"
-	done
-}
-
-ui._error() {
-	local message
-
-	for message; do
-		echo -e >&2 "E: $message"
-	done
-}
-
-ui._warning() {
-	local message
-
-	for message; do
-		echo -e >&2 "W: $message"
-	done
-}
-
-ui._bug() {
-	local message
-
-	for message; do
-		echo -e >&2 "B: $message"
-	done
-}
-
-ui._hey() {
-	local message
-
-	for message; do
-		echo -e >&2 "\\e[38;5;14m-->\\e[0m\\e[1m $message\\e[0m"
-	done
 }
 
 # must.sh - Guard functions
@@ -494,7 +360,7 @@ must.e() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such file or directory: $arg"}
 
-	[[ -e $arg ]] || die "$message"
+	[[ -e $arg ]] || .die "$message"
 }
 
 # Test -f
@@ -502,7 +368,7 @@ must.f() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such file: $arg"}
 
-	[[ -f $arg ]] || die "$message"
+	[[ -f $arg ]] || .die "$message"
 }
 
 # Test -d
@@ -510,7 +376,7 @@ must.d() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such directory: $arg"}
 
-	[[ -d $arg ]] || die "$message"
+	[[ -d $arg ]] || .die "$message"
 }
 
 # Test -x
@@ -518,7 +384,7 @@ must.x() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"Not executable: $arg"}
 
-	[[ -x $arg ]] || die "$message"
+	[[ -x $arg ]] || .die "$message"
 }
 
 # Test -r
@@ -526,7 +392,7 @@ must.r() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such file: $arg"}
 
-	[[ -r $arg ]] || die "$message"
+	[[ -r $arg ]] || .die "$message"
 }
 
 # Test -w
@@ -534,7 +400,7 @@ must.w() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No such file: $arg"}
 
-	[[ -w $arg ]] || die "$message"
+	[[ -w $arg ]] || .die "$message"
 }
 
 # Test -n
@@ -542,7 +408,7 @@ must.n() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"Empty value: $arg"}
 
-	[[ -n $arg ]] || die "$message"
+	[[ -n $arg ]] || .die "$message"
 }
 
 # Test -z
@@ -550,7 +416,7 @@ must.z() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"Empty value: $arg"}
 
-	[[ -z $arg ]] || die "$message"
+	[[ -z $arg ]] || .die "$message"
 }
 
 # Must be root
@@ -560,26 +426,26 @@ must.root() {
 
 # Command must success
 must.success() {
-	"$@" || die "Command failed: $*"
+	"$@" || .die "Command failed: $*"
 }
 
 # Command may fail but must proceed
 must.proceed() {
-	"$@" || cry "Exit code $? is suppressed: $*"
+	"$@" || .cry "Exit code $? is suppressed: $*"
 }
 
 # Condition must be true
 must.true() {
 	local message=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	"$@" || die "$message"
+	"$@" || .die "$message"
 }
 
 # Condition must be false
 must.false() {
 	local message=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	"$@" && die "$message"
+	"$@" && .die "$message"
 }
 
 # Program must exist
@@ -587,7 +453,7 @@ must.available() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No program found: $arg"}
 
-	command -v "$arg" &>/dev/null || die "$message"
+	command -v "$arg" &>/dev/null || .die "$message"
 }
 
 # Function must exist
@@ -595,7 +461,7 @@ must.callable() {
 	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
 	local message=${1:-"No function found: $arg"}
 
-	callable "$arg" || die "$message"
+	.callable "$arg" || .die "$message"
 }
 
 # Stdin must exist
@@ -603,402 +469,18 @@ must.callable() {
 must.piped() {
 	local message=${1:-'No stdin data found'}
 
-	piped || die "$message"
+	.piped || .die "$message"
 }
 
 # Stdout must exist
 must.interactive() {
 	local message=${1:-'No stdout found'}
 
-	interactive || die "$message"
-}
-
-# self.sh - Functions related to program itself
-
-# Print self version
-self.version() {
-	local -A _; flag.parse
-
-	echo 0.0
-}
-
-# Print self name
-self.name() {
-	local -A _; flag.parse
-
-	# shellcheck disable=2128
-	echo "$PROGNAME"
-}
-
-# Print self path
-# shellcheck disable=2120
-self.path() {
-	local -A _; flag.parse
-
-	local self
-
-	self=${BASH_SOURCE[0]}
-	case $self in
-	./*) readlink -f "$self" ;;
-	/*)  echo "$self" ;;
-	*)   readlink -f "$(command -v "$self")" ;;
-	esac
-}
-
-# Install self
-self.install() {
-	# shellcheck disable=2192,2128
-	local -A _=(
-		[-prefix]="$_USR"/bin
-		[-name]=$PROGNAME
-
-		[.help]=
-		[.argc]=0
-	)
-
-	flag.parse
-
-	_[1]=$(self.path)
-
-	bin.install_
-}
-
-# string.sh - String manipulation
-
-string.has_prefix_deleted() {
-	local -n string_has_prefix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    prefix=${1?${FUNCNAME[0]}: missing argument};                     shift
-
-	if [[ $string_has_prefix_deleted_ =~ ^$prefix ]]; then
-		string_has_prefix_deleted_=${string_has_prefix_deleted_#$prefix}
-
-		return 0
-	fi
-
-	return 1
-}
-
-string.delete_prefix() {
-	string.has_prefix_deleted "$@" || :
-}
-
-string.has_suffix_deleted() {
-	local -n string_has_suffix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    suffix=${1?${FUNCNAME[0]}: missing argument};                     shift
-
-	if [[ $string_has_suffix_deleted_ =~ $suffix$ ]]; then
-		string_has_suffix_deleted_=${string_has_suffix_deleted_%$suffix}
-
-		return 0
-	fi
-
-	return 1
-}
-
-string.delete_suffix() {
-	string.has_suffix_deleted "$@" || :
-}
-
-# array.sh - Array functions
-
-# Join array with the given separator
-array.join() {
-	local IFS=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	echo "$*"
-}
-# Duplicate array
-array.dup() {
-	local -n array_dup_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local -n array_dup_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!array_dup_rhs_[@]}"; do
-		# shellcheck disable=2034
-		array_dup_lhs_[$key]=${array_dup_rhs_[$key]}
-	done
-}
-
-# Array contains the given element
-array.contains() {
-	local -n array_contains_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    element=${1?${FUNCNAME[0]}: missing argument};         shift
-
-	contains "$element" "${array_contains_[@]}"
-}
-
-# path.sh - Path management
-
-path.is.volatile() {
-	local path=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	df -t tmpfs "$path" &>/dev/null
-}
-
-path.is.equal() {
-	local actual=${1?${FUNCNAME[0]}: missing argument};   shift
-	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ $(realpath -m "$actual") = $(realpath -m "$expected") ]]
-}
-
-path.is.inside() {
-	local path=${1?${FUNCNAME[0]}: missing argument};      shift
-	local periphery=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local relative
-	relative=$(realpath --relative-to "$path" "$periphery" 2>/dev/null) || return
-
-	[[ ! $relative =~ ^[.] ]]
-}
-
-path.dir() {
-	local -n path_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	path.normalize path_dir_
-
-	case $path_dir_ in
-	*/*)
-		path_dir_=${path_dir_%/*}
-		[[ -n $path_dir_ ]] || path_dir_=/
-		;;
-	*)
-		path_dir_=.
-		;;
-	esac
-}
-
-path.base() {
-	local -n path_base_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    ext=${1:-}
-
-	path_base_=${path_base_##*/}
-}
-
-path.name() {
-	local -n path_name_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    ext=${1:-}
-
-	path_name_=${path_name_##*/}
-	path_name_=${path_name_%.*}
-}
-
-path.ext() {
-	local -n path_ext_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	path_ext_=${path_ext_##*/}
-
-	case $path_ext_ in
-	*.*)
-		path_ext_=${path_ext_##*.}
-		;;
-	*)
-		path_ext_=
-		;;
-	esac
-}
-
-path.subext() {
-	local -n path_subext_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    ext=${1?${FUNCNAME[0]}: missing argument};          shift
-
-	case $path_subext_ in
-	*.*)
-		path_subext_=${path_subext_%.*}
-		path_subext_=${path_subext_}.${ext}
-		;;
-	*)
-		;;
-	esac
-}
-
-path.suffixize() {
-	local -n path_suffixize_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    suffix=${1?${FUNCNAME[0]}: missing argument};          shift
-
-	local -A _
-	path.parse_ "$path_suffixize_"
-
-	printf -v path_suffixize_ "%s/%s${suffix}%s" "${_[.dir]:-.}" "${_[.name]}" "${_[.dotext]}"
-}
-
-path.normalize() {
-	local -n path_normalize_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	while [[ $path_normalize_ =~ //+ ]]; do
-		path_normalize_=${path_normalize_/\/\//\/}
-	done
-}
-
-# shellcheck disable=2034
-path.parse_() {
-	local -n path_parse_=_
-
-	if [[ ${1:-} = -A ]]; then
-		shift
-		path_parse_=${1?${FUNCNAME[0]}: missing argument}; shift
-	fi
-
-	local path=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local dir=$path base=$path name=$path ext=$path
-
-	path.dir dir
-	path.base base
-	path.name name
-	path.ext ext
-
-	path_parse_[.dir]=$dir
-	path_parse_[.base]=$base
-	path_parse_[.name]=$name
-	path_parse_[.ext]=$ext
-
-	if [[ -n $ext ]]; then
-		path_parse_[.dotext]=.$ext
-	else
-		path_parse_[.dotext]=$ext
-	fi
-}
-
-
-# trap.sh - Trap setup
-
-declare -ag _at_exit_funcs_=()
-
-declare -ag _at_exit_files_=()
-
-# shellcheck disable=2120
-trap.setup() {
-	local -a signals=(EXIT HUP INT QUIT TERM)
-
-	[[ $# -eq 0 ]] || signals=("$@")
-
-	# shellcheck disable=2154,2218
-	builtin trap _exit_ "${signals[@]}"
-
-	at_exit _at_exit_cleanup_
-}
-
-# Prevent using trap
-trap() {
-	bug 'Using trap is forbidden; please use at_exit to register hooks.'
-}
-
-# Register hooks at exit
-at_exit() {
-	local arg
-
-	for arg; do
-		[[ $(type -t "$arg" || true) == function ]] || bug "Not a function: $arg"
-	done
-
-	_at_exit_funcs_=("$@" "${_at_exit_funcs_[@]}")
-}
-
-# Register files/directories to clean up at exit
-at_exit_files() {
-	_at_exit_files_+=("$@")
-}
-
-# trap - Private functions
-
-_exit_() {
-	local err=$?
-
-	local func
-	for func in "${_at_exit_funcs_[@]}"; do
-		"$func" || cry "Exit hook failed: $func"
-	done
-
-	return "$err"
-}
-
-_at_exit_cleanup_() {
-	[[ ${#_at_exit_files_[@]} -gt 0 ]] || return 0
-
-	rm -rf -- "${_at_exit_files_[@]}"
-}
-
-# temp.sh - Functions involving temporary directories or files
-
-temp.file() {
-	# shellcheck disable=2155
-	local -n temp_file_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local file
-
-	# shellcheck disable=2128
-	file=$(mktemp -p "${TMPDIR:-/tmp}" "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
-	at_exit_files "$file"
-
-	# shellcheck disable=2034
-	temp_file_=$file
-}
-
-temp.dir() {
-	# shellcheck disable=2155
-	local -n temp_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local dir
-
-	# shellcheck disable=2128
-	dir=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || die 'Fatal error: mktemp'
-	at_exit_files "$dir"
-
-	# shellcheck disable=2034
-	temp_dir_=$dir
-}
-
-# Execute command in temp dir
-temp.inside() {
-	local temp_dir orig_dir=$PWD
-	temp.dir temp_dir
-
-	must.success cd "$temp_dir"
-	"$@"
-	must.success cd "$orig_dir"
-
-	rm -rf -- "$temp_dir"
-}
-
-temp.clean() {
-	while [[ $# -gt 0 ]]; do
-		local -n temp_clean_=$1; shift
-
-		[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
-	done
-}
-
-# test.sh - Test functions
-
-# Assert condition ok
-test.ok() {
-	local -A _=(
-		[-msg]='Condition failed'
-
-		[.help]='[-msg=MESSAGE] CONDITION'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	local cond=$1
-
-	"$cond" || die "${_[-msg]}"
-}
-
-# Assert condition not ok
-test.notok() {
-	test.ok -msg='Condition succeded' "$@"
+	.interactive || .die "$message"
 }
 
 declare -Ag _help=(
-	['.']='shellcheck disable=2034'
-	['ui.say']='Print messages on standard error'
-	['ui.die']='Print error messages and exit failure'
-	['ui.cry']='Print warning messages on standard error'
-	['ui.bug']='Report bug and exit failure'
-	['ui.hey']='Print messages taking attention'
+	['.init']='shellcheck disable=2034'
 	['must.e']='Test -e'
 	['must.f']='Test -f'
 	['must.d']='Test -d'
@@ -1016,37 +498,24 @@ declare -Ag _help=(
 	['must.callable']='Function must exist'
 	['must.piped']='Stdin must exist'
 	['must.interactive']='Stdout must exist'
-	['self.version']='Print self version'
-	['self.name']='Print self name'
-	['self.path']='Print self path'
-	['self.install']='Install self'
-	['array.join']='Join array with the given separator'
-	['array.dup']='Duplicate array'
-	['array.contains']='Array contains the given element'
-	['trap.setup']='shellcheck disable=2120'
-	['trap']='Prevent using trap'
-	['at_exit']='Register hooks at exit'
-	['at_exit_files']='Register files/directories to clean up at exit'
-	['temp.inside']='Execute command in temp dir'
-	['test.ok']='Assert condition ok'
-	['test.notok']='Assert condition not ok'
+	['assert.ok']='Assert command succeed'
+	['assert.notok']='Assert command failed'
+	['assert.is']='Assert actual value equals to expected'
 )
 
 declare -Ag _command=(
+	['isnt']='test.isnt'
+	['is']='test.is'
 	['notok']='test.notok'
 	['ok']='test.ok'
 )
-
-.init() {
-	trap.setup
-}
 
 .usage() {
 	local cmd
 
 	# shellcheck disable=2128
-	say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
-	say "Commands:"
+	.say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
+	.say "Commands:"
 
 	# shellcheck disable=2154
 	for cmd in "${!_command[@]}"; do
@@ -1057,11 +526,11 @@ declare -Ag _command=(
 }
 
 .execute() {
-	.init
+	trap.setup
 
 	if [[ $# -eq 0 ]]; then
 		.usage
-		die 'Command required'
+		.die 'Command required'
 	fi
 
 	local help=
@@ -1073,7 +542,7 @@ declare -Ag _command=(
 
 		if [[ $# -eq 0 ]]; then
 			.usage
-			die 'Help topic required'
+			.die 'Help topic required'
 		fi
 	fi
 
@@ -1093,13 +562,13 @@ declare -Ag _command=(
 	done
 
 	if [[ -z ${fun:-} ]]; then
-		die "No command found: ${args[*]}"
+		.die "No command found: ${args[*]}"
 	fi
 
 	readonly PROGNAME+=("$cmd")
 
 	if [[ -n ${help:-} ]]; then
-		say "${_help[$fun]}" ""
+		.say "${_help[$fun]}" ""
 		"$fun" -help
 	else
 		"$fun" "$@"
@@ -1107,13 +576,207 @@ declare -Ag _command=(
 }
 
 .builtin() {
+	sed 's/^\t//' <<'EOF'
+	.prelude() {
+		[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
+		[[ -x /usr/bin/apt-get         ]] || { echo >&2 'Only Debian and derivatives supported.'; exit 1; }
+
+		set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+
+		export LC_ALL=C.UTF-8 LANG=C.UTF-8
+
+		# Program name
+		# shellcheck disable=2034
+		declare -ag PROGNAME=("${0##*/}")
+	}
+
+	.say() {
+		local msg
+
+		if [[ $# -gt 0 ]]; then
+			for msg; do
+				echo -e >&2 "${msg_prefix_:-}${msg}"
+			done
+		else
+			echo >&2 ""
+		fi
+	}
+
+	.cry() {
+		local msg
+
+		if [[ $# -gt 0 ]]; then
+			for msg; do
+				echo -e >&2 "${msg_prefix_:-W: }${msg}"
+			done
+		else
+			echo >&2 ""
+		fi
+	}
+
+	.die() {
+		local msg
+
+		if [[ $# -gt 0 ]]; then
+			for msg; do
+				echo -e >&2 "${msg_prefix_:-E: }${msg}"
+			done
+		else
+			echo >&2 ""
+		fi
+
+		exit 1
+	}
+
+	.bug() {
+		local msg
+
+		if [[ $# -gt 0 ]]; then
+			for msg; do
+				echo -e >&2 "${msg_prefix_:-B: }${msg}"
+			done
+		else
+			echo >&2 ""
+		fi
+
+		exit 127
+	}
+
+	.contains() {
+		: "${1?${FUNCNAME[0]}: missing argument}"
+
+		local element
+
+		for element in "${@:2}"; do
+			if [[ $element = "$1" ]]; then
+				return 0
+			fi
+		done
+
+		return 1
+	}
+
+	.available() {
+		command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
+	}
+
+	.callable() {
+		[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
+	}
+
+
+	.prelude
+
+	# assert.sh - Test functions
+
+	# Assert command succeed
+	assert.ok() {
+		case $1 in
+		-msg=*)
+			msg=${1#*=}
+			shift
+			;;
+		esac
+
+		"$@" || .die "${msg:-Command expected to succeed but failed: $@}"
+	}
+
+	# Assert command failed
+	assert.notok() {
+		case $1 in
+		-msg=*)
+			msg=${1#*=}
+			shift
+			;;
+		esac
+
+		"$@" && .die "${msg:-Command expected to fail but succeeded: $@}"
+	}
+
+	# Assert actual value equals to expected
+	assert.is() {
+		case $1 in
+		-msg=*)
+			msg=${1#*=}
+			shift
+			;;
+		esac
+
+		local expected=$1 actual=$2
+
+		[[ $expected = "$actual" ]] || .die "${msg:-"Expected '$expected' where found '$actual'"}"
+	}
+EOF
+	echo
 	echo "OVERSCORE=$(self.path)"
 	echo
 	sed 's/^\t//' <<'EOF'
 	declare -grx OVERSCORE=$OVERSCORE
 
+	.t() {
+		local run=0 failed=0 start stop duration
+
+		local -A seen
+
+		local t
+		for t in $(declare -F | grep 'declare -f test[._]' | awk '{ print $3 }'); do
+			if [[ -z ${seen[$t]:-} ]]; then
+				unset __test_status
+
+				echo "=== RUN $t"
+				start="$SECONDS"
+
+				"$t"
+
+				__test_status=${__test_status:-$?}
+				stop="$SECONDS"
+				duration=$((stop-start))
+
+				seen["$t"]=true
+
+				run=$((run+1))
+
+				if [[ "$__test_status" == 0 ]]; then
+					echo "--- PASS $t (${duration}s)"
+				else
+					failed=$((failed+1))
+					echo "--- FAIL $t (${duration}s)"
+				fi
+			fi
+		done
+
+		echo
+		if [[ "$failed" == "0" ]]; then
+			echo "Ran $run tests."
+			echo
+			echo "PASS"
+		else
+			echo "Ran $run tests. $failed failed."
+			echo
+			echo "FAIL"
+			exit $failed
+		fi
+	}
+
 	t() {
-		"$OVERSCORE" "$@"
+		if [[ $# -gt 0 ]]; then
+			local name=$1
+			shift
+
+			local assert=assert."$name"
+
+			[[ $(type -t "$assert" || true) == function ]]
+
+			"$assert" "$@"
+
+			return 0
+		fi
+
+		(
+			. ../../bin/underscore
+
+			.t
+		) || exit 1
 	}
 EOF
 }

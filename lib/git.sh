@@ -10,7 +10,7 @@ git.update() {
 
 	flag.parse
 
-	if expired "${_[-expiry]}" .git/FETCH_HEAD; then
+	if .expired "${_[-expiry]}" .git/FETCH_HEAD; then
 		git.must.clean
 		git pull --quiet origin
 	fi
@@ -32,12 +32,12 @@ git.is.clean() {
 }
 
 git.must.sane() {
-	git rev-parse --is-inside-work-tree &>/dev/null || die "Must be inside a git work tree: $PWD"
-	git rev-parse --verify HEAD >/dev/null          || die "Unverified git HEAD: $PWD"
+	git rev-parse --is-inside-work-tree &>/dev/null || .die "Must be inside a git work tree: $PWD"
+	git rev-parse --verify HEAD >/dev/null          || .die "Unverified git HEAD: $PWD"
 }
 
 git.must.clean() {
-	git.is.clean || die "Must be a clean git work tree: $PWD"
+	git.is.clean || .die "Must be a clean git work tree: $PWD"
 }
 
 git.topdir() {
@@ -83,11 +83,11 @@ git.enter_() {
 
 	git.dst_ dst
 
-	[[ -d $dst ]] || die "Destination not found: $dst"
+	[[ -d $dst ]] || .die "Destination not found: $dst"
 
 	must.success pushd "$dst" >/dev/null
 
-	git.is.git . || die "Not a git repository: $PWD"
+	git.is.git . || .die "Not a git repository: $PWD"
 
 	file.enter "${_[.dir]:-}"
 }
@@ -96,7 +96,7 @@ git.clone_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	! git.is.exist_ "$dst" || die "Destination already exist: $dst"
+	! git.is.exist_ "$dst" || .die "Destination already exist: $dst"
 
 	local -a opt
 
@@ -121,10 +121,10 @@ git.update_() {
 	git.switch "${_[.branch]:-}"
 
 	local -i expiry=${_[-expiry]:-3}
-	if expired "$expiry" .git/FETCH_HEAD; then
+	if .expired "$expiry" .git/FETCH_HEAD; then
 		git.must.clean
 
-		say 'Updating repository...'
+		.say 'Updating repository...'
 		git pull --quiet origin
 	fi
 

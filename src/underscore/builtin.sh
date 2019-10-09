@@ -1,6 +1,4 @@
 .() {
-	#:lib/prelude.sh
-
 	declare -grx UNDERSCORE=$UNDERSCORE
 
 	case ${1:-} in

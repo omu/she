@@ -110,7 +110,7 @@ deb.update() {
 
 	flag.parse
 
-	expired 60 /var/cache/apt/pkgcache.bin || apt-get update -y
+	.expired 60 /var/cache/apt/pkgcache.bin || apt-get update -y
 }
 
 # Add Debian repository
@@ -151,7 +151,7 @@ deb.using() {
 		stable|testing|unstable|sid|experimental)
 			;;
 		*)
-			deb._dist_valid "$dist" || die "Invalid distribution: $dist"
+			deb._dist_valid "$dist" || .die "Invalid distribution: $dist"
 			;;
 		esac
 
@@ -181,7 +181,7 @@ deb._apt_key_add() {
 	local tempfile
 	temp.file tempfile
 
-	http.get "$url" >"$tempfile" || die "Couldn't get key file: $url"
+	http.get "$url" >"$tempfile" || .die "Couldn't get key file: $url"
 
 	local -a questioned_fingerprints installed_fingerprints
 
@@ -196,7 +196,7 @@ deb._apt_key_add() {
 
 	local fingerprint
 	for fingerprint in "${questioned_fingerprints[@]}"; do
-		contains "$fingerprint" "${installed_fingerprints[@]}" || return 1
+		.contains "$fingerprint" "${installed_fingerprints[@]}" || return 1
 	done
 
 	apt-key add "$tempfile"
@@ -224,7 +224,7 @@ deb._install_from_urls() {
 
 		file.download "$url" deb
 
-		dpkg-deb --info "$deb" &>/dev/null || die "Not a valid Debian package: $url"
+		dpkg-deb --info "$deb" &>/dev/null || .die "Not a valid Debian package: $url"
 		dpkg -i -- "$deb" 2>/dev/null || true
 		apt-get -y install --no-install-recommends --fix-broken
 

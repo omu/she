@@ -89,7 +89,7 @@ os.is._ubuntu() {
 }
 
 os.is._proxmox() {
-	available pveversion && uname -a | grep -q -i pve
+	.available pveversion && uname -a | grep -q -i pve
 }
 
 os.is._vagrant() {

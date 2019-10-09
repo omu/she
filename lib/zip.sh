@@ -14,7 +14,7 @@ zip.unpack() {
 
 	local in=$1 out=${2:-};	must.f "$in"
 
-	filetype.is_ "$in" compressed || die "Not a compressed file of known type: $in"
+	filetype.is_ "$in" compressed || .die "Not a compressed file of known type: $in"
 
 	local func=zip._unpack_.${_[.file.zip]:-}
 
@@ -125,7 +125,7 @@ zip._prep_unzip_() {
 		if flag.true force; then
 			must.success rm -rf -- "$out"
 		else
-			die "File already exist: $out"
+			.die "File already exist: $out"
 		fi
 	fi
 }
@@ -144,7 +144,7 @@ zip._prep_untar_() {
 		if flag.true force; then
 			must.success rm -rf -- "$out"
 		else
-			die "Directory already exist: $out"
+			.die "Directory already exist: $out"
 		fi
 		must.success mkdir -p "$out"
 	else

@@ -143,7 +143,7 @@ class Source
         loop do
           blocks << case reader.peek
                     when /^#/     then Doc.new   read(reader, /^([^#]|$)/)
-                    when /\{\s*$/ then Fun.new   read(reader, /\}\s*$/, inclusive: true) # TODO: one line functions
+                    when /\{\s*$/ then Fun.new   read(reader, /^\s*\}\s*$/, inclusive: true) # TODO: one line functions
                     when /^\s*$/  then Blank.new read(reader, /\S/)
                     else               Other.new [reader.next]
                     end
@@ -257,20 +257,23 @@ class Compiler
   end
 
   def do_include(match)
-    return src(match[:arg]).rawlines unless (field = parse_include(match[:arg]))
+    path, funs = parse_include(match[:arg])
 
-    query_blocks_for(src(field[:path]).blocks, field[:key], by: field[:by]).tap do |result|
+    return src(path).rawlines if funs.empty?
+
+    query_blocks_for_funs(src(path).blocks, *funs).tap do |result|
       raise Error, "No match for line: #{match}" if result.empty?
     end
   end
 
   def parse_include(arg)
-    case (fields = arg.split ':').size
-    when 1 then nil
-    when 2 then { path: fields[0], by: fields[1], key: :label    }
-    when 3 then { path: fields[0], by: fields[1], key: fields[2] }
-    else        raise Error, "Malformed include directive: #{arg}"
-    end
+    path, remaining = arg.split(':', 2)
+
+    raise Error, "Malformed include directive: #{arg}" unless path
+
+    funs = remaining ? remaining.split : []
+
+    [path, funs]
   end
 
   def do_substitute(match)
@@ -282,18 +285,17 @@ class Compiler
     [*substituter.call(self, match[:arg])]
   end
 
-  def query_blocks_for(blocks, *strings, **args)
+  def query_blocks_for_funs(blocks, *funs, **args)
     result = []
 
-    by = :label if !(by = args[:by]) || by.empty?
-
-    strings.each do |string|
+    funs.each do |fun|
       founds = blocks.select do |block|
-        next unless (attribute = block.send(by))
+        next unless block.respond_to? :fun
+        next unless (attribute = block.fun)
 
-        attribute.casecmp(string.squeeze(' ')).zero?
+        attribute.casecmp(fun.squeeze(' ')).zero?
       end
-      founds.each { |found| result += found.outlines(**args) }
+      founds.each { |found| result += [*found.outlines(**args), "\n"] }
     end
 
     result

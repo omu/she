@@ -72,7 +72,7 @@ file.enter() {
 		must.success cd "$dir"
 	else
 		dir=${dir%/*}
-		[[ -d $dir ]] || die "No path found to enter: $dir"
+		[[ -d $dir ]] || .die "No path found to enter: $dir"
 		must.success cd "$dir"
 	fi
 }
@@ -95,7 +95,7 @@ file.do_() {
 	local src=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ -e $src ]] || die "Source not found: $src"
+	[[ -e $src ]] || .die "Source not found: $src"
 
 	file.dst_ dst
 
@@ -120,7 +120,7 @@ file.do_() {
 		file.ln "$src" "$dst"
 		;;
 	*)
-		bug "Unrecognized operation: $op"
+		.bug "Unrecognized operation: $op"
 		;;
 	esac
 
