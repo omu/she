@@ -1,5 +1,7 @@
 # deb.sh - Debian package management
 
+.available apt-get || .die 'Only Debian and derivatives supported.'
+
 export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
 # Install Debian packages

@@ -1,12 +1,12 @@
-#!/usr/bin/env bash
+#:lib/shebang.sh
 
 #:lib/_.sh
-
-.prelude
 
 #:lib/flag.sh
 
 #:lib/must.sh
+
+#:lib/self.sh
 
 #/help/
 
@@ -84,9 +84,7 @@ declare -Ag _command=(
 
 .builtin() {
 	sed 's/^\t//' <<'EOF'
-	#:lib/_.sh: .prelude .say .cry .die .bug .contains .available .callable
-
-	.prelude
+	#:lib/_.sh: .prelude+ .say .cry .die .bug .contains .available .callable
 
 	#:lib/assert.sh
 EOF

@@ -1,8 +1,6 @@
-#!/usr/bin/env bash
+#:lib/shebang.sh
 
 #:lib/_.sh
-
-.prelude
 
 #:lib/flag.sh
 
@@ -156,12 +154,15 @@ declare -Ag _command=(
 }
 
 .builtin() {
+	sed 's/^\t//' <<'EOF'
+	#:lib/shebang.sh
+
+	#:lib/_.sh: .prelude+
+EOF
+	echo
 	echo "UNDERSCORE=$(self.path)"
 	echo
 	sed 's/^\t//' <<'EOF'
-	#:lib/_.sh: .prelude
-	.prelude
-
 	#:src/underscore/builtin.sh
 EOF
 }

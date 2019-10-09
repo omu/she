@@ -1,21 +1,20 @@
 #!/usr/bin/env bash
 
+[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
+[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
+
 # _.sh - Essential functions
 
-[ -n "${BASH_VERSION:-}" ] || { echo >&2 'Bash required.';  exit 1; }
-
 .prelude() {
-	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
-	[[ -x /usr/bin/apt-get         ]] || { echo >&2 'Only Debian and derivatives supported.'; exit 1; }
-
 	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
 	export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-	# Program name
 	# shellcheck disable=2034
-	declare -ag PROGNAME=("${0##*/}")
+	declare -ag PROGNAME=("${0##*/}") # Program name
 }
+
+.prelude
 
 .say() {
 	local msg
@@ -186,8 +185,6 @@ _.load() {
 	# shellcheck disable=2034
 	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	array.dup _ _load_src_
-
 	local key
 	for key in "${!_load_src_[@]}"; do
 		# shellcheck disable=2034
@@ -251,8 +248,6 @@ _.values() {
 
 	unset -f "${FUNCNAME[0]}"
 }
-
-.prelude
 
 # flag.sh - Flag handling
 
@@ -479,6 +474,56 @@ must.interactive() {
 	.interactive || .die "$message"
 }
 
+# self.sh - Functions related to program itself
+
+# Print self version
+self.version() {
+	local -A _; flag.parse
+
+	echo 0.0
+}
+
+# Print self name
+self.name() {
+	local -A _; flag.parse
+
+	# shellcheck disable=2128
+	echo "$PROGNAME"
+}
+
+# Print self path
+# shellcheck disable=2120
+self.path() {
+	local -A _; flag.parse
+
+	local self
+
+	self=${BASH_SOURCE[0]}
+	case $self in
+	./*) readlink -f "$self" ;;
+	/*)  echo "$self" ;;
+	*)   readlink -f "$(command -v "$self")" ;;
+	esac
+}
+
+# Install self
+self.install() {
+	# shellcheck disable=2192,2128
+	local -A _=(
+		[-prefix]="$_USR"/bin
+		[-name]=$PROGNAME
+
+		[.help]=
+		[.argc]=0
+	)
+
+	flag.parse
+
+	_[1]=$(self.path)
+
+	bin.install_
+}
+
 declare -Ag _help=(
 	['.init']='shellcheck disable=2034'
 	['must.e']='Test -e'
@@ -498,6 +543,10 @@ declare -Ag _help=(
 	['must.callable']='Function must exist'
 	['must.piped']='Stdin must exist'
 	['must.interactive']='Stdout must exist'
+	['self.version']='Print self version'
+	['self.name']='Print self name'
+	['self.path']='Print self path'
+	['self.install']='Install self'
 	['assert.ok']='Assert command succeed'
 	['assert.notok']='Assert command failed'
 	['assert.is']='Assert actual value equals to expected'
@@ -578,16 +627,12 @@ declare -Ag _command=(
 .builtin() {
 	sed 's/^\t//' <<'EOF'
 	.prelude() {
-		[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
-		[[ -x /usr/bin/apt-get         ]] || { echo >&2 'Only Debian and derivatives supported.'; exit 1; }
-
 		set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
 		export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-		# Program name
 		# shellcheck disable=2034
-		declare -ag PROGNAME=("${0##*/}")
+		declare -ag PROGNAME=("${0##*/}") # Program name
 	}
 
 	.say() {
@@ -663,7 +708,6 @@ declare -Ag _command=(
 	.callable() {
 		[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
 	}
-
 
 	.prelude
 

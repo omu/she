@@ -1,19 +1,15 @@
 # _.sh - Essential functions
 
-[ -n "${BASH_VERSION:-}" ] || { echo >&2 'Bash required.';  exit 1; }
-
 .prelude() {
-	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
-	[[ -x /usr/bin/apt-get         ]] || { echo >&2 'Only Debian and derivatives supported.'; exit 1; }
-
 	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
 	export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-	# Program name
 	# shellcheck disable=2034
-	declare -ag PROGNAME=("${0##*/}")
+	declare -ag PROGNAME=("${0##*/}") # Program name
 }
+
+.prelude
 
 .say() {
 	local msg
@@ -183,8 +179,6 @@ _.read() {
 _.load() {
 	# shellcheck disable=2034
 	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	array.dup _ _load_src_
 
 	local key
 	for key in "${!_load_src_[@]}"; do

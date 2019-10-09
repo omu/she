@@ -1,21 +1,20 @@
 #!/usr/bin/env bash
 
+[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
+[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
+
 # _.sh - Essential functions
 
-[ -n "${BASH_VERSION:-}" ] || { echo >&2 'Bash required.';  exit 1; }
-
 .prelude() {
-	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
-	[[ -x /usr/bin/apt-get         ]] || { echo >&2 'Only Debian and derivatives supported.'; exit 1; }
-
 	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
 	export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-	# Program name
 	# shellcheck disable=2034
-	declare -ag PROGNAME=("${0##*/}")
+	declare -ag PROGNAME=("${0##*/}") # Program name
 }
+
+.prelude
 
 .say() {
 	local msg
@@ -186,8 +185,6 @@ _.load() {
 	# shellcheck disable=2034
 	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	array.dup _ _load_src_
-
 	local key
 	for key in "${!_load_src_[@]}"; do
 		# shellcheck disable=2034
@@ -251,8 +248,6 @@ _.values() {
 
 	unset -f "${FUNCNAME[0]}"
 }
-
-.prelude
 
 # flag.sh - Flag handling
 
@@ -1852,6 +1847,8 @@ src._plan_() {
 
 # deb.sh - Debian package management
 
+.available apt-get || .die 'Only Debian and derivatives supported.'
+
 export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 
 # Install Debian packages
@@ -2573,24 +2570,27 @@ declare -Ag _command=(
 }
 
 .builtin() {
-	echo "UNDERSCORE=$(self.path)"
-	echo
 	sed 's/^\t//' <<'EOF'
-	.prelude() {
-		[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.';     exit 1; }
-		[[ -x /usr/bin/apt-get         ]] || { echo >&2 'Only Debian and derivatives supported.'; exit 1; }
+	#!/usr/bin/env bash
 
+	[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
+	[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
+
+	.prelude() {
 		set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
 		export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-		# Program name
 		# shellcheck disable=2034
-		declare -ag PROGNAME=("${0##*/}")
+		declare -ag PROGNAME=("${0##*/}") # Program name
 	}
 
 	.prelude
-
+EOF
+	echo
+	echo "UNDERSCORE=$(self.path)"
+	echo
+	sed 's/^\t//' <<'EOF'
 	.() {
 		declare -grx UNDERSCORE=$UNDERSCORE
 

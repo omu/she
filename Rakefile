@@ -256,14 +256,18 @@ class Compiler
     send("do_#{directive}", m).fmt! prefix: m[:lead]
   end
 
-  def do_include(match)
-    path, funs = parse_include(match[:arg])
+  def do_include(match) # rubocop:disable Metrics/AbcSize
+    parsed = parse_include(match[:arg])
 
-    return src(path).rawlines if funs.empty?
+    return src(parsed[:path]).rawlines if parsed[:funs].empty?
 
-    query_blocks_for_funs(src(path).blocks, *funs).tap do |result|
-      raise Error, "No match for line: #{match}" if result.empty?
-    end
+    result = query_blocks_for_funs(src(parsed[:path]).blocks, *parsed[:funs])
+
+    raise Error, "No match for line: #{match}" if result.empty?
+
+    result += [parsed[:calls].join("\n")] unless parsed[:calls].empty?
+
+    result
   end
 
   def parse_include(arg)
@@ -271,9 +275,18 @@ class Compiler
 
     raise Error, "Malformed include directive: #{arg}" unless path
 
-    funs = remaining ? remaining.split : []
+    funs, calls = [], []
 
-    [path, funs]
+    (remaining ? remaining.split : []).each do |fun|
+      next funs << fun unless fun.end_with? '+'
+
+      fun.delete_suffix! '+'
+
+      calls << fun
+      funs << fun
+    end
+
+    { path: path, funs: funs, calls: calls }
   end
 
   def do_substitute(match)
