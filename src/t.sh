@@ -6,7 +6,7 @@ declare -grx OVERSCORE=$OVERSCORE
 	local -A seen
 
 	local t
-	for t in $(declare -F | grep 'declare -f test[._]' | awk '{ print $3 }'); do
+	for t in $(declare -F | grep 'declare -f test[:]' | awk '{ print $3 }'); do
 		if [[ -z ${seen[$t]:-} ]]; then
 			unset __test_status
 

@@ -1,7 +1,7 @@
-# assert.sh - Test functions
+# test.sh - Test functions
 
-# Assert command succeed
-assert.ok() {
+# Test command succeed
+test.ok() {
 	case $1 in
 	-msg=*)
 		msg=${1#*=}
@@ -12,8 +12,10 @@ assert.ok() {
 	"$@" || .die "${msg:-Command expected to succeed but failed: $@}"
 }
 
-# Assert command failed
-assert.notok() {
+readonly -f test.ok
+
+# Test command failed
+test.notok() {
 	case $1 in
 	-msg=*)
 		msg=${1#*=}
@@ -24,8 +26,10 @@ assert.notok() {
 	"$@" && .die "${msg:-Command expected to fail but succeeded: $@}"
 }
 
-# Assert actual value equals to expected
-assert.is() {
+readonly -f test.notok
+
+# Test actual value equals to expected
+test.is() {
 	case $1 in
 	-msg=*)
 		msg=${1#*=}
@@ -37,3 +41,5 @@ assert.is() {
 
 	[[ $expected = "$actual" ]] || .die "${msg:-"Expected '$expected' where found '$actual'"}"
 }
+
+readonly -f test.is

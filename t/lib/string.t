@@ -3,7 +3,7 @@
 # shellcheck disable=1090
 . <(t)
 
-test.string.has_suffix_deleted() {
+test:string.has_suffix_deleted() {
 	local string='foo/bar/'
 
 	t ok string.has_suffix_deleted string /
@@ -11,4 +11,4 @@ test.string.has_suffix_deleted() {
 	t is 'foo/bar' "$string"
 }
 
-t done
+t end

@@ -559,9 +559,9 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self.name']='Print self name'
 		['self.path']='Print self path'
 		['self.install']='Install self'
-		['assert.ok']='Assert command succeed'
-		['assert.notok']='Assert command failed'
-		['assert.is']='Assert actual value equals to expected'
+		['test.ok']='Test command succeed'
+		['test.notok']='Test command failed'
+		['test.is']='Test actual value equals to expected'
 	)
 
 	declare -Ag _command=(
@@ -718,10 +718,10 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 		.prelude
 
-		# assert.sh - Test functions
+		# test.sh - Test functions
 
-		# Assert command succeed
-		assert.ok() {
+		# Test command succeed
+		test.ok() {
 			case $1 in
 			-msg=*)
 				msg=${1#*=}
@@ -732,8 +732,10 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			"$@" || .die "${msg:-Command expected to succeed but failed: $@}"
 		}
 
-		# Assert command failed
-		assert.notok() {
+		readonly -f test.ok
+
+		# Test command failed
+		test.notok() {
 			case $1 in
 			-msg=*)
 				msg=${1#*=}
@@ -744,8 +746,10 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			"$@" && .die "${msg:-Command expected to fail but succeeded: $@}"
 		}
 
-		# Assert actual value equals to expected
-		assert.is() {
+		readonly -f test.notok
+
+		# Test actual value equals to expected
+		test.is() {
 			case $1 in
 			-msg=*)
 				msg=${1#*=}
@@ -757,6 +761,8 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 			[[ $expected = "$actual" ]] || .die "${msg:-"Expected '$expected' where found '$actual'"}"
 		}
+
+		readonly -f test.is
 EOF
 		echo
 		echo "OVERSCORE=$(self.path)"
@@ -770,7 +776,7 @@ EOF
 			local -A seen
 
 			local t
-			for t in $(declare -F | grep 'declare -f test[._]' | awk '{ print $3 }'); do
+			for t in $(declare -F | grep 'declare -f test[:]' | awk '{ print $3 }'); do
 				if [[ -z ${seen[$t]:-} ]]; then
 					unset __test_status
 
