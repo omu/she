@@ -1,6 +1,6 @@
-.() {
-	declare -grx UNDERSCORE=$UNDERSCORE
+declare -grx UNDERSCORE=$UNDERSCORE
 
+.() {
 	case ${1:-} in
 	-root)
 		[[ ${EUID:-} -eq 0 ]] || { echo >&2 'Root privileges required.'; exit 1; }

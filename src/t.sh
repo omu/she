@@ -60,7 +60,7 @@ t() {
 	fi
 
 	(
-		. ../../bin/underscore
+		. ../bin/_
 
 		.t
 	) || exit 1

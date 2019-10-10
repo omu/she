@@ -1,5 +1,16 @@
 # self.sh - Functions related to program itself
 
+self() {
+	local path
+
+	path=$(self.path)
+	if .interactive; then
+		echo "$path"
+	else
+		echo "builtin source '$path'"
+	fi
+}
+
 # Print self version
 self.version() {
 	local -A _; flag.parse

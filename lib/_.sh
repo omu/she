@@ -116,11 +116,11 @@
 }
 
 .piped() {
-	[[ ! -t 0 ]]
+	[[ -t 0 ]]
 }
 
 .interactive() {
-	[[ ! -t 1 ]]
+	[[ -t 1 ]]
 }
 
 .bool() {
@@ -219,10 +219,11 @@ _.values() {
 
 # Initialize underscore system
 
-# shellcheck disable=2034
 .init() {
 	# Default variable as a hash
 	declare -gA _=()
+
+	# shellcheck disable=2034
 
 	# Core environment
 	if [[ ${EUID:-} -eq 0 ]]; then

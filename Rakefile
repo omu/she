@@ -262,12 +262,9 @@ class Compiler
     return src(parsed[:path]).rawlines if parsed[:funs].empty?
 
     result = query_blocks_for_funs(src(parsed[:path]).blocks, *parsed[:funs])
-
     raise Error, "No match for line: #{match}" if result.empty?
 
-    result += [parsed[:calls].join("\n")] unless parsed[:calls].empty?
-
-    result
+    parsed[:calls].empty? ? result : [*result, parsed[:calls].join("\n")]
   end
 
   def parse_include(arg)
@@ -355,10 +352,10 @@ module Main
   end
 end
 
-BIN = %w[underscore overscore].freeze
+BIN = %w[_ t].freeze
 
 BIN.each do |bin|
-  file "bin/#{bin}" => ["src/#{bin}.sh", *Dir["src/#{bin}/*.sh"], *Dir['lib/*.sh'], __FILE__] do |task|
+  file "bin/#{bin}" => ["src/#{bin}", "src/#{bin}.sh", *Dir['lib/*.sh'], __FILE__] do |task|
     src, dst = task.prerequisites.first, task.name
 
     mkdir_p File.dirname(dst)
