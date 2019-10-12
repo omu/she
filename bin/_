@@ -420,11 +420,11 @@ ui._init() {
 
 	# Style
 
-	_sign[panic]='✖';      _sign_color[panic]=red;          _text_color[panic]=high
 	_sign[caution]='★';    _sign_color[caution]=+cyan;      _text_color[caution]=high
 	_sign[error]='✗';      _sign_color[error]=+red;         _text_color[error]=high
 	_sign[headline]='>';   _sign_color[headline]=+cyan;     _text_color[headline]=high
 	_sign[info]='ℹ';       _sign_color[info]=-yellow;       _text_color[info]=low
+	_sign[panic]='✖';      _sign_color[panic]=red;          _text_color[panic]=high
 	_sign[plain]=' ';      _sign_color[plain]=+white;       _text_color[plain]=medium
 	_sign[question]='?';   _sign_color[question]=+yellow;   _text_color[question]=high
 	_sign[success]='✓';    _sign_color[success]=+green;     _text_color[success]=high
