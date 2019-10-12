@@ -1,5 +1,6 @@
 # self.sh - Functions related to program itself
 
+# Print self
 self() {
 	local path
 

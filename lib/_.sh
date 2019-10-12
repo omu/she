@@ -12,36 +12,32 @@
 .prelude
 
 .say() {
-	local msg
+	echo -e "${@-""}"
+}
 
-	if [[ $# -gt 0 ]]; then
-		for msg; do
-			echo -e >&2 "${msg_prefix_:-}${msg}"
-		done
-	else
-		echo >&2 ""
+.out() {
+	local arg
+
+	for arg; do
+		echo -e >&2 "$arg"
+	done
+
+	if .piped; then
+		cat >&2
 	fi
 }
 
 .cry() {
-	local msg
-
 	if [[ $# -gt 0 ]]; then
-		for msg; do
-			echo -e >&2 "${msg_prefix_:-W: }${msg}"
-		done
+		echo -e >&2 "W: $*"
 	else
 		echo >&2 ""
 	fi
 }
 
 .die() {
-	local msg
-
 	if [[ $# -gt 0 ]]; then
-		for msg; do
-			echo -e >&2 "${msg_prefix_:-E: }${msg}"
-		done
+		echo -e >&2 "E: $*"
 	else
 		echo >&2 ""
 	fi
@@ -50,12 +46,8 @@
 }
 
 .bug() {
-	local msg
-
 	if [[ $# -gt 0 ]]; then
-		for msg; do
-			echo -e >&2 "${msg_prefix_:-B: }${msg}"
-		done
+		echo -e >&2 "BUG: $*"
 	else
 		echo >&2 ""
 	fi
@@ -64,15 +56,7 @@
 }
 
 .bye() {
-	local msg
-
-	if [[ $# -gt 0 ]]; then
-		for msg; do
-			echo -e >&2 "${msg_prefix_:-}${msg}"
-		done
-	else
-		echo >&2 ""
-	fi
+	.out "$@"
 
 	exit 0
 }
@@ -116,11 +100,11 @@
 }
 
 .piped() {
-	[[ -t 0 ]]
+	[[ ! -t 0 ]]
 }
 
 .interactive() {
-	[[ -t 1 ]]
+	[[   -t 1 ]]
 }
 
 .bool() {

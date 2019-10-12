@@ -6,7 +6,7 @@ declare -grx OVERSCORE=$OVERSCORE
 	local -A seen
 
 	local t
-	for t in $(declare -F | grep 'declare -f test[:]' | awk '{ print $3 }'); do
+	for t in $(declare -F | grep 'declare -f test[:_]' | awk '{ print $3 }'); do
 		if [[ -z ${seen[$t]:-} ]]; then
 			unset __test_status
 
@@ -50,11 +50,11 @@ t() {
 		local name=$1
 		shift
 
-		local assert=assert."$name"
+		local test=test."$name"
 
-		[[ $(type -t "$assert" || true) == function ]]
+		[[ $(type -t "$test" || true) == function ]]
 
-		"$assert" "$@"
+		"$test" "$@"
 
 		return 0
 	fi

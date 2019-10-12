@@ -5,7 +5,7 @@ declare -ag _at_exit_funcs_=()
 declare -ag _at_exit_files_=()
 
 # shellcheck disable=2120
-trap.setup() {
+trap._init() {
 	local -a signals=(EXIT HUP INT QUIT TERM)
 
 	[[ $# -eq 0 ]] || signals=("$@")
@@ -55,3 +55,5 @@ _at_exit_cleanup_() {
 
 	rm -rf -- "${_at_exit_files_[@]}"
 }
+
+trap._init

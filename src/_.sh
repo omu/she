@@ -1,6 +1,6 @@
 declare -grx UNDERSCORE=$UNDERSCORE
 
-.() {
+._() {
 	case ${1:-} in
 	-root)
 		[[ ${EUID:-} -eq 0 ]] || { echo >&2 'Root privileges required.'; exit 1; }
@@ -49,4 +49,4 @@ _() {
 }
 
 # shellcheck disable=1090
-. "$@"
+._ "$@"

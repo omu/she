@@ -87,9 +87,9 @@ flag._post_() {
 	fi
 
 	if   [[ -n ${lo:-} ]] && [[ $n -lt $lo ]]; then
-		.die- 'Too few arguments' # FIXME
+		.die 'Too few arguments' # FIXME
 	elif [[ -n ${hi:-} ]] && [[ $n -gt $hi ]]; then
-		.die- 'Too many arguments'
+		.die 'Too many arguments'
 	else
 		return 0
 	fi
