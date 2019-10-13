@@ -148,12 +148,13 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	.source() {
 		sed 's/^\t\t//' <<'EOF'
 		#:lib/shebang.sh
-
-		#:lib/_.sh: .prelude+
 EOF
 		echo
-		echo "UNDERSCORE=$(self.path)"
+		echo "_SELF=$(self.path)"
 		echo
+		sed 's/^\t\t//' <<'EOF'
+		#:lib/_.sh: .prelude+
+EOF
 		sed 's/^\t\t//' <<'EOF'
 		#:src/_.sh
 EOF

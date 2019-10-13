@@ -2642,7 +2642,11 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 		[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
 		[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
-
+EOF
+		echo
+		echo "_SELF=$(self.path)"
+		echo
+		sed 's/^\t\t//' <<'EOF'
 		.prelude() {
 			set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
@@ -2654,11 +2658,8 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 		.prelude
 EOF
-		echo
-		echo "UNDERSCORE=$(self.path)"
-		echo
 		sed 's/^\t\t//' <<'EOF'
-		declare -grx UNDERSCORE=$UNDERSCORE
+		declare -gr _SELF=$_SELF
 
 		._() {
 			case ${1:-} in
@@ -2669,25 +2670,25 @@ EOF
 			esac
 
 			_.die() {
-				"$UNDERSCORE" die "$@"; exit $?
+				"$_SELF" die "$@"; exit $?
 			}
 
 			_.cry() {
-				"$UNDERSCORE" cry "$@"
+				"$_SELF" cry "$@"
 			}
 
 			_.bye() {
-				"$UNDERSCORE" bye "$@"; exit $?
+				"$_SELF" bye "$@"; exit $?
 			}
 
 			_.bug() {
-				"$UNDERSCORE" bug "$@"; exit $?
+				"$_SELF" bug "$@"; exit $?
 			}
 
 			_.enter() {
 				local dir
 
-				if dir=$("$UNDERSCORE" enter "$@") && [[ -n $dir ]]; then
+				if dir=$("$_SELF" enter "$@") && [[ -n $dir ]]; then
 					pushd "$dir" &>/dev/null || exit
 				fi
 			}
@@ -2704,7 +2705,7 @@ EOF
 
 			case $cmd in
 			die|cry|bye|bug|enter|leave) shift; _."$cmd" "$@" ;;
-			*)                           "$UNDERSCORE" "$@"   ;;
+			*)                           "$_SELF" "$@"        ;;
 			esac
 		}
 

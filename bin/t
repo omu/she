@@ -650,39 +650,60 @@ ui.out() {
 	echo -en "$reset "
 }
 
-tap.suite_starting() {
+tap.startup() {
 	local file=$1
 
 	echo "# Running tests in $file"
 }
 
-tap.starting() {
+tap.begin() {
 	echo -n
 }
 
 tap.pending() {
-	local test=$1
+	local test=$1 number=${2:-}
 
 	echo -n ok | ui.out warning
-	echo -n "$test" | color.out +blue
+
+	if [[ -n ${number:-} ]]; then
+		echo "$number - $test"
+	else
+		echo "$test"
+	fi | color.out +blue
+
 	echo ' # skip test to be written' | color.out +yellow
 }
 
 # Success
 tap.success() {
-	local test=$1
+	local test=$1 number=${2:-}
 
 	echo -n ok | ui.out success
-	echo "$test" | color.out +blue
+
+	if [[ -n ${number:-} ]]; then
+		echo "$number - $test"
+	else
+		echo "$test"
+	fi | color.out +blue
 }
 
 # Failure
 tap.failure() {
-	local test=$1 msg=${2:-}
+	local test=$1 reason=${2:-} number=${3:-}
 
 	echo -n 'not ok' | ui.out failure
-	echo "$test" | color.out +blue
-	[[ -z ${msg:-} ]] || printf -- "%s\n" "$msg" | sed -u -e 's/^/# /'
+
+	if [[ -n ${number:-} ]]; then
+		echo "$number - $test"
+	else
+		echo "$test"
+	fi | color.out +blue
+
+	[[ -z ${reason:-} ]] || printf -- "%s\n" "$reason" | sed -u -e 's/^/# /'
+}
+
+tap.summary() {
+	:
 }
 
 tap.out() {
@@ -791,9 +812,10 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self.name']='Print self name'
 		['self.path']='Print self path'
 		['self.install']='Install self'
-		['test.ok']='Test command succeed'
-		['test.notok']='Test command failed'
-		['test.is']='Test actual value equals to expected'
+		['assert.ok']='Assert command succeed'
+		['assert.notok']='Assert command failed'
+		['assert.is']='Assert actual value equals to expected'
+		['t']='shellcheck disable=2034'
 	)
 
 	declare -Ag _command=(
@@ -868,7 +890,9 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	}
 
 	.source() {
-		sed 's/^\t//' <<'EOF'
+		echo "_SELF=$(self.path)"
+		echo
+		sed 's/^\t\t//' <<'EOF'
 		.prelude() {
 			set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
@@ -934,42 +958,49 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 		.prelude
 
-		# test.sh - Test functions
+		# assert.sh - Assert functions
 
-		# Test command succeed
-		test.ok() {
-			_[.error]="Command expected to succeed but failed: $*"
+		# Assert command succeed
+		# shellcheck disable=2034
+		assert.ok() {
+			local -n assert_ok_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-			"$@"
+			assert_ok_="Command expected to succeed but failed: $*"
+
+			eval -- "$@"
 		}
 
-		# Test command failed
-		test.notok() {
-			_[.error]="Command expected to fail but succeeded: $*"
+		# Assert command failed
+		assert.notok() {
+			local -n assert_notok_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-			! "$@"
+			assert_notok_="Command expected to fail but succeeded: $*"
+
+			! eval -- "$@"
 		}
 
-		# Test actual value equals to expected
-		test.is() {
-			local expected=$1 actual=$2
+		# Assert actual value equals to expected
+		assert.is() {
+			local -n assert_is_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-			_[.error]="Expected '$expected' where found '$actual'"
+			local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+			local actual=${1?${FUNCNAME[0]}: missing argument};   shift
+
+			assert_is_="Expected '$expected' where found '$actual'"
 
 			[[ $expected = "$actual" ]]
 		}
 
-		test.end() {
-			:
-		}
-EOF
-		echo
-		echo "OVERSCORE=$(self.path)"
-		echo
-		sed 's/^\t//' <<'EOF'
-		declare -grx OVERSCORE=$OVERSCORE
+		declare -gr _SELF=$_SELF
 
-		.t() {
+		declare -Ag _test_=(
+			[current]=0
+			[start]=$SECONDS
+		)
+
+		t.go() {
+			return 0
+
 			local run=0 failed=0 start stop duration
 
 			local -A seen
@@ -1014,32 +1045,7 @@ EOF
 			fi
 		}
 
-		..t() {
-			if [[ $# -gt 0 ]]; then
-				local name=$1
-				shift
-
-				local test=test."$name"
-
-				[[ $(type -t "$test" || true) == function ]]
-
-				"$test" "$@"
-
-				return 0
-			else
-				"$OVERSCORE" "$@"
-
-				return
-			fi
-
-			(
-				. ../bin/_
-
-				.t
-			) || exit 1
-		}
-
-		.load() {
+		:load() {
 			local src
 
 			for src; do
@@ -1049,29 +1055,65 @@ EOF
 			done
 		}
 
-		t() {
-			local -A _=()
+		:tap() {
+			"$_SELF" "$@"
+		}
 
-			[[ $# -gt 0 ]] || .die 'Test command and message required'
-
-			local test=test.$1
+		:assert() {
+			local test=assert.${1?missing argument}
 			shift
 
-			local case=${1:-}
-			shift || true
+			local -a args
 
-			if .callable "$test"; then
-				if "$test" "$@"; then
-					"$OVERSCORE" success "$case"
-				else
-					"$OVERSCORE" failure "$case" "${_[.error]}"
+			while [[ $# -gt 0 ]]; do
+				if [[ $1 = '--' ]]; then
+					shift
+					break
 				fi
+
+				args+=("$1")
+				shift
+			done
+
+			_test_[current]=$((${_test_[current]:-0} + 1))
+
+			local current=${_test_[current]}
+			local message="$*"
+
+			local err
+
+			if "$test" err "${args[@]}"; then
+				:tap success "$message" "$current"
+
+				_test_[success]=$((${_test_[success]:-0} + 1))
 			else
-				"$OVERSCORE" "$@"
+				:tap failure "$message" "$err" "$current"
+
+				_test_[failure]=$((${_test_[failure]:-0} + 1))
 			fi
 		}
 
-		.load "$@"
+		# shellcheck disable=2034
+		t() {
+			local cmd
+
+			[[ $# -gt 0 ]] || .die 'Test command required'
+
+			cmd=$1
+			shift
+
+			[[ $cmd =~ ^[a-z][a-z0-9-]+$ ]] || .die "Invalid command name: $cmd"
+
+			if .callable assert."$cmd"; then
+				:assert "$cmd" "$@"
+			elif .callable t."$cmd"; then
+				t."$cmd"
+			else
+				"$_SELF" "$@"
+			fi
+		}
+
+		:load "$@"
 EOF
 	}
 

@@ -89,15 +89,13 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	}
 
 	.source() {
-		sed 's/^\t//' <<'EOF'
+		echo "_SELF=$(self.path)"
+		echo
+		sed 's/^\t\t//' <<'EOF'
 		#:lib/_.sh: .prelude+ .say .cry .die .bug .contains .available .callable
 
-		#:lib/test.sh
-EOF
-		echo
-		echo "OVERSCORE=$(self.path)"
-		echo
-		sed 's/^\t//' <<'EOF'
+		#:lib/assert.sh
+
 		#:src/t.sh
 EOF
 	}

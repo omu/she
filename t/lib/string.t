@@ -3,20 +3,12 @@
 # shellcheck disable=1090
 . <(t) ../../bin/_
 
-# test:string.has_suffix_deleted() {
-# 	local string='foo/bar/'
-#
-# 	t ok string.has_suffix_deleted string /
-#
-# 	t is 'foo/bar' "$string"
-# }
-#
-# t end
-
 string='foo/bar/'
 
-t ok 'string.has_suffix_deleted works' string.has_suffix_deleted string /
+t ok string.has_suffix_deleted string / -- string.has_suffix_deleted works
 
-t is 'string has no suffix' 'foo/bar' "$string"
+t is 'foo/bar' "$string" -- string has no suffix
 
-t end
+t ok [[ ok = ok ]] -- ok is ok
+
+t go

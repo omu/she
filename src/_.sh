@@ -1,4 +1,4 @@
-declare -grx UNDERSCORE=$UNDERSCORE
+declare -gr _SELF=$_SELF
 
 ._() {
 	case ${1:-} in
@@ -9,25 +9,25 @@ declare -grx UNDERSCORE=$UNDERSCORE
 	esac
 
 	_.die() {
-		"$UNDERSCORE" die "$@"; exit $?
+		"$_SELF" die "$@"; exit $?
 	}
 
 	_.cry() {
-		"$UNDERSCORE" cry "$@"
+		"$_SELF" cry "$@"
 	}
 
 	_.bye() {
-		"$UNDERSCORE" bye "$@"; exit $?
+		"$_SELF" bye "$@"; exit $?
 	}
 
 	_.bug() {
-		"$UNDERSCORE" bug "$@"; exit $?
+		"$_SELF" bug "$@"; exit $?
 	}
 
 	_.enter() {
 		local dir
 
-		if dir=$("$UNDERSCORE" enter "$@") && [[ -n $dir ]]; then
+		if dir=$("$_SELF" enter "$@") && [[ -n $dir ]]; then
 			pushd "$dir" &>/dev/null || exit
 		fi
 	}
@@ -44,7 +44,7 @@ _() {
 
 	case $cmd in
 	die|cry|bye|bug|enter|leave) shift; _."$cmd" "$@" ;;
-	*)                           "$UNDERSCORE" "$@"   ;;
+	*)                           "$_SELF" "$@"        ;;
 	esac
 }
 
