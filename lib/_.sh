@@ -19,12 +19,16 @@
 	local arg
 
 	for arg; do
-		echo -e >&2 "$arg"
+		echo -e "$arg"
 	done
 
 	if .piped; then
-		cat >&2
+		cat
 	fi
+}
+
+.err() {
+	.out "$@" >&2
 }
 
 .cry() {

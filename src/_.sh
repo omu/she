@@ -44,7 +44,7 @@ _() {
 
 	case $cmd in
 	die|cry|bye|bug|enter|leave) shift; _."$cmd" "$@" ;;
-	*)                       "$UNDERSCORE" "$@"   ;;
+	*)                           "$UNDERSCORE" "$@"   ;;
 	esac
 }
 

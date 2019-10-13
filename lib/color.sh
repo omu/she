@@ -75,4 +75,17 @@ color.code() {
 	echo -en "$code"
 }
 
+color.out() {
+	local color=${1?missing argument}
+	shift
+
+	local code reset
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -en "$code"
+	.out
+	echo -en "$reset"
+}
+
 color._init

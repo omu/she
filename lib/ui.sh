@@ -7,7 +7,7 @@ ui._init() {
 	# Style
 
 	_sign[caution]='★';    _sign_color[caution]=+cyan;      _text_color[caution]=high
-	_sign[error]='✗';      _sign_color[error]=+red;         _text_color[error]=high
+	_sign[failure]='✗';    _sign_color[failure]=+red;       _text_color[failure]=high
 	_sign[headline]='>';   _sign_color[headline]=+cyan;     _text_color[headline]=high
 	_sign[info]='ℹ';       _sign_color[info]=-yellow;       _text_color[info]=low
 	_sign[panic]='✖';      _sign_color[panic]=red;          _text_color[panic]=high
@@ -20,7 +20,7 @@ ui._init() {
 }
 
 # shellcheck disable=2034,2154
-ui._out() {
+ui._echo() {
 	local name=${FUNCNAME[1]#*.}
 
 	local sign=${_sign[$name]}
@@ -30,15 +30,15 @@ ui._out() {
 	echo -e "${sign_color}${sign}${reset} ${text_color}$*${reset}"
 }
 
-ui.panic()    { ui._out "$@"; }
-ui.caution()  { ui._out "$@"; }
-ui.error()    { ui._out "$@"; }
-ui.headline() { ui._out "$@"; }
-ui.info()     { ui._out "$@"; }
-ui.plain()    { ui._out "$@"; }
-ui.question() { ui._out "$@"; }
-ui.success()  { ui._out "$@"; }
-ui.warning()  { ui._out "$@"; }
+ui.panic()    { ui._echo "$@"; }
+ui.caution()  { ui._echo "$@"; }
+ui.failure()  { ui._echo "$@"; }
+ui.headline() { ui._echo "$@"; }
+ui.info()     { ui._echo "$@"; }
+ui.plain()    { ui._echo "$@"; }
+ui.question() { ui._echo "$@"; }
+ui.success()  { ui._echo "$@"; }
+ui.warning()  { ui._echo "$@"; }
 
 # Report bug and exit failure
 ui.bug() {
@@ -62,7 +62,7 @@ ui.cry() {
 
 # Print error messages and exit failure
 ui.die() {
-	ui.error "$@" >&2; exit 1
+	ui.failure "$@" >&2; exit 1
 }
 
 # Print messages taking attention
@@ -79,3 +79,16 @@ alias .bye=ui.bye
 alias .cry=ui.cry
 alias .die=ui.die
 alias .hey=ui.hey
+
+ui.out() {
+	local name=$1
+	shift
+
+	local sign=${_sign[$name]}
+
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	echo -en "${sign_color}${sign}${reset} "
+	.out
+	echo -en "$reset "
+}

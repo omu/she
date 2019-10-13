@@ -79,6 +79,107 @@ Stil
 
 - Sadece bang versiyon olarak backtick'ten kaçınan fonksiyonlara izin var.  Bu fonksiyonlarda girdi aynı zamanda çıktıdır.
 
+Test
+----
+
+Bash betikleri olağan bir programlama diliyle yazılan programlardan farklı.  Örneğin zengin veri yapılarına dayalı yoğun
+bir lojik yok.  Bunun yerine sistemle sürekli etkileşim var.  Mevcut birim test kitaplıkları bu etkileşimi test etmekte
+zayıf kalıyor.  Benzer şekilde genel amaçlı programlama dillerine kıyasla Bash'in ifade yetenekleri kısıtlı olduğundan
+"test edilebilir" kod yazarak örneğin "dependency injection" gibi tekniklerle test süreçlerini yönetmek zor.  Test aracı
+ister istemez betiğin gerçekleme detaylarına girebilmeli.
+
+- Docker veya chroot ile birinci sınıf sandbox desteği olmalı
+
+- Zengin fixture ve fake olanakları olmalı
+
+- Test edilen betiği fazla kirletmemeli
+
+- Kurulumu ve kullanımı çok kolay olmalı (idealde tek dosya)
+
+- Test hatalarının ayıklanması sürecinde ayak bağı olmamalı (Bats kötü bir örnek)
+
+- (Betiği çalıştırmak yerine source ederek) kolayca entegrasyon testi yapılabilmeli
+
+- Perl `.t` test dosyalarından esinlen
+
+- Her `.t` dosyası doğrudan Bash ile çalıştırılabilir bir test betiği
+
+- TAP uyumlu çıktı biçimi
+
+- Tüm test yardımcıları `t` önekli
+
+- `prove` gibi (fakat tercihen Docker altında) test dosyalarını orkestra eden araç ayrı yazılacak
+
+- Testler daima `. <(t) [.|_|RELPATH]...` satırı ile başlıyor.  Opsiyonel argümanlar:
+
+  + `.`: Yukarı doğru `t.sh` araması yapar ve varsa yükler
+
+  + `_`: `_` yerleşiğini yükler
+
+  + `RELPATH`: Göreceli dosya yolu verilen kabuk dosyasını yükler
+
+- İki tür test modeli destekleniyor: basit ve kompozit model
+
+  + Test dosyasında `t go` çağrısı varsa bu bir kompozit model
+
+  + İki modelin birlikte de kullanılabilir (önerdiğimiz bir pratik değil)
+
+### Basit model
+
+```sh
+#!/bin/bash
+
+. <(t) [.|_|RELPATH]...
+
+t ok CASE
+```
+
+- Bu modelde `t go` ve test süiti yok, dosyanın kendisi bir süit
+
+- Süit olmamakla birlikte kabuk fonksiyonları kullanılarak modülerlik sağlanabilir
+
+- Setup işlevselliği mevcut, ama teardown yapılamaz
+
+- Her test sırasında otomatik yaratılan ve kaldırılan bir geçici dizin yapısıyla teardown'a yaklaşılabilir
+
+### Kompozit model
+
+```sh
+#!/bin/bash
+
+. <(t) [.|_|RELPATH]...
+
+test:startup() {
+      :
+}
+
+test:shutdown() {
+      :
+}
+
+test:setup() {
+      :
+}
+
+test:teardown() {
+      :
+}
+
+test:test_suite() {
+      t ok CASE
+}
+
+t go
+```
+
+- Her `.t` dosyası `test:` veya `test_` ile başlayan fonksiyonlarla kurulan bir süit topluluğu
+
+- `test:startup` ve `test:shutdown` her test dosyasında çalışan özel setup/teardown fonksiyonları
+
+- `test:setup` ve `test:teardown` her test süit'te çalışan özel setup/teardown fonksiyonları
+
+- `t go` ile suit fonksiyonları sırayla veya rastgele çağrılıyor
+
 TODO
 ----
 
@@ -91,4 +192,5 @@ TODO
 - [ ] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
 - [ ] scripts aracının yeni sürümü
 - [ ] etc'nin durumu
-- [X] Fikir: builtin olmayan versiyonu `i` olarak isimlendir
+- [X] ui ve color desteği
+- [ ] test alt yapısı

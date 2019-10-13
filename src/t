@@ -4,11 +4,13 @@
 
 #:lib/flag.sh
 
+#:lib/must.sh
+
 #:lib/color.sh
 
 #:lib/ui.sh
 
-#:lib/must.sh
+#:lib/tap.sh
 
 #:lib/self.sh
 
@@ -20,6 +22,9 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['is']='test.is'
 		['notok']='test.notok'
 		['ok']='test.ok'
+		['success']='tap.success'
+		['failure']='tap.failure'
+		['err']='tap.err'
 	)
 
 	.usage() {
@@ -60,11 +65,12 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 		while [[ $# -gt 0 ]]; do
 			try+=("$1")
-			shift
 
 			[[ -n ${_command[${try[*]}]:-} ]] || break
 
 			found+=("${try[*]}")
+
+			shift
 		done
 
 		[[ ${#found[@]} -gt 0 ]] || .die "No command found: ${args[*]}"

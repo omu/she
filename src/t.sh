@@ -45,7 +45,7 @@ declare -grx OVERSCORE=$OVERSCORE
 	fi
 }
 
-t() {
+..t() {
 	if [[ $# -gt 0 ]]; then
 		local name=$1
 		shift
@@ -57,6 +57,10 @@ t() {
 		"$test" "$@"
 
 		return 0
+	else
+		"$OVERSCORE" "$@"
+
+		return
 	fi
 
 	(
@@ -65,3 +69,37 @@ t() {
 		.t
 	) || exit 1
 }
+
+.load() {
+	local src
+
+	for src; do
+		if [[ -f $src ]]; then
+			builtin source "$src"
+		fi
+	done
+}
+
+t() {
+	local -A _=()
+
+	[[ $# -gt 0 ]] || .die 'Test command and message required'
+
+	local test=test.$1
+	shift
+
+	local case=${1:-}
+	shift || true
+
+	if .callable "$test"; then
+		if "$test" "$@"; then
+			"$OVERSCORE" success "$case"
+		else
+			"$OVERSCORE" failure "$case" "${_[.error]}"
+		fi
+	else
+		"$OVERSCORE" "$@"
+	fi
+}
+
+.load "$@"
