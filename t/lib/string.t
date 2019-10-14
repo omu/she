@@ -7,7 +7,9 @@ string='foo/bar/'
 
 t ok string.has_suffix_deleted string / -- string.has_suffix_deleted works
 
-t is 'foo/bar' "$string" -- string has no suffix
+test:hmm() {
+	t is 'foo/bar' "$string" -- string has no suffix
+}
 
 t ok [[ ok = ok ]] -- ok is ok
 
