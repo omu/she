@@ -8,11 +8,7 @@ string='foo/bar/'
 t ok string.has_suffix_deleted string / -- string.has_suffix_deleted works
 
 test:hmm() {
-	t is 'foo/bar' "$string" -- string has no suffix
-}
-
-test:aha() {
-	t is 'foo/bar' "$string" -- string other
+	t like "$string" '^foo/bar$' -- string has no suffix
 }
 
 t ok [[ ok = ok ]] -- ok is ok
