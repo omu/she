@@ -34,13 +34,13 @@ deb.install() {
 		fi
 	done
 
-	if flag.true missings; then
+	if flag.true -missings; then
 		deb._missings packages "${non_urls[@]}"
 	else
 		packages=("${non_urls[@]}")
 	fi
 
-	if flag.true shiny; then
+	if flag.true -shiny; then
 		local target
 
 		if is.debian stable; then

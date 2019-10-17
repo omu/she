@@ -71,7 +71,7 @@ src.run() {
 	src.install_ "$@"
 
 	src.run_ "${_[.dir]}"
-	flag.false test || src.test_ "${_[.dir]}"
+	flag.false -test || src.test_ "${_[.dir]}"
 }
 
 # src - Protected functions

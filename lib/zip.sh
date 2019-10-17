@@ -22,7 +22,7 @@ zip.unpack() {
 
 	"$func" "$in" "$out"
 
-	if flag.true clean; then
+	if flag.true -clean; then
 		rm -f -- "$in"
 	fi
 }
@@ -122,7 +122,7 @@ zip._prep_unzip_() {
 	[[ -n $out ]] || out=${in%.*}
 
 	if [[ -e $out ]]; then
-		if flag.true force; then
+		if flag.true -force; then
 			must.success rm -rf -- "$out"
 		else
 			.die "File already exist: $out"
@@ -141,7 +141,7 @@ zip._prep_untar_() {
 	[[ -n $out ]] || out=${in%.tar.*}
 
 	if [[ -e $out ]]; then
-		if flag.true force; then
+		if flag.true -force; then
 			must.success rm -rf -- "$out"
 		else
 			.die "Directory already exist: $out"

@@ -245,6 +245,9 @@ shopt -s expand_aliases
 # shellcheck disable=2142
 alias flag.parse='flag.parse_ "$@"; local -a __a; flag.args_ __a; set -- "${__a[@]}"; unset -v __a'
 
+# shellcheck disable=2034
+declare -gr NIL="\0"
+
 flag.usage_() {
 	if [[ -n ${_[.help]:-} ]]; then
 		# shellcheck disable=2128
@@ -288,9 +291,9 @@ flag.parse_() {
 		shift
 	done
 
-	flag._post_ $argc
-
 	_.load flag_result_
+
+	flag._validate_ $argc
 }
 
 flag.args_() {
@@ -302,15 +305,32 @@ flag.env_() {
 }
 
 flag.true() {
-	.bool "${_[-$1]:-}"
+	.bool "${_[$1]:-}"
 }
 
 flag.false() {
 	! flag.true "$@"
 }
 
-flag._post_() {
-	local n=${1?missing argument}
+flag.nil() {
+	[[ ${_[$1]:-} = "$NIL" ]]
+}
+
+flag._nils_() {
+	local -a required=()
+
+	local key
+	for key in "${!_[@]}"; do
+		if flag.nil "$key"; then
+			required+=("$key")
+		fi
+	done
+
+	[[ ${#required[@]} -eq 0 ]] || .die "Missing values for: ${required[*]}"
+}
+
+flag._args_() {
+	local n=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local argc=${_[.argc]:-0}
 
@@ -335,6 +355,11 @@ flag._post_() {
 	fi
 
 	flag.usage_ 1
+}
+
+flag._validate_() {
+	flag._args_ "$@"
+	flag._nils_
 }
 
 # must.sh - Guard functions
@@ -650,25 +675,77 @@ ui.out() {
 	echo -en "$reset "
 }
 
+readonly _TAP_VERSION_=13
+
 tap.startup() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='[FILE]'
+		[.argc]=1
+	)
+
+	flag.parse
+
 	local file=$1
 
 	echo "# Running tests in $file"
 }
 
-tap.begin() {
-	echo -n
+tap.shutdown() {
+	# shellcheck disable=2192
+	local -A _=(
+		[total]=$NIL
+		[success]=$NIL
+		[failure]=$NIL
+		[duration]=$NIL
+
+		[.help]='total=NUM success=NUM failure=NUM duration=SECONDS'
+	)
+
+	flag.parse
+
+	:
+}
+
+tap.version() {
+	local -A _=(
+		[.argc]=0
+	)
+
+	echo TAP version $_TAP_VERSION_
+	echo
+}
+
+tap.plan() {
+	# shellcheck disable=2192
+	local -A _=(
+		[total]=$NIL
+
+		[.help]='total=NUM'
+	)
+
+	flag.parse
+
+	echo "1..${_[total]}"
 }
 
 tap.pending() {
-	local test=$1 number=${2:-}
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+
+		[.help]='test=MSG [number=NUM]'
+	)
+
+	flag.parse
 
 	echo -n ok | ui.out warning
 
-	if [[ -n ${number:-} ]]; then
-		echo "$number - $test"
+	if [[ -n ${_[number]:-} ]]; then
+		echo "${_[number]} - ${_[test]}"
 	else
-		echo "$test"
+		echo "${_[test]}"
 	fi | color.out +blue
 
 	echo ' # skip test to be written' | color.out +yellow
@@ -676,34 +753,48 @@ tap.pending() {
 
 # Success
 tap.success() {
-	local test=$1 number=${2:-}
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
 
-	echo -n ok | ui.out success
+		[.help]='test=MSG [number=NUM]'
+	)
 
-	if [[ -n ${number:-} ]]; then
-		echo "$number - $test"
+	flag.parse
+
+	echo -n 'ok '
+	ui.out success
+
+	if [[ -n ${_[number]:-} ]]; then
+		echo "${_[number]} - ${_[test]}"
 	else
-		echo "$test"
+		echo "${_[test]}"
 	fi | color.out +blue
 }
 
 # Failure
 tap.failure() {
-	local test=$1 reason=${2:-} number=${3:-}
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+		[error]=
+
+		[.help]='test=MSG [number=NUM] [error=MSG]'
+	)
+
+	flag.parse
 
 	echo -n 'not ok' | ui.out failure
 
-	if [[ -n ${number:-} ]]; then
-		echo "$number - $test"
+	if [[ -n ${_[number]:-} ]]; then
+		echo "${_[number]} - ${_[test]}"
 	else
-		echo "$test"
+		echo "${_[test]}"
 	fi | color.out +blue
 
-	[[ -z ${reason:-} ]] || printf -- "%s\n" "$reason" | sed -u -e 's/^/# /'
-}
-
-tap.summary() {
-	:
+	[[ -z ${_[error]:-} ]] || printf -- "%s\n" "${_[error]}" | sed -u -e 's/^/# /'
 }
 
 tap.out() {
@@ -812,6 +903,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self.name']='Print self name'
 		['self.path']='Print self path'
 		['self.install']='Install self'
+		['app.dispatch']='shellcheck disable=2154'
 		['assert.ok']='Assert command succeed'
 		['assert.notok']='Assert command failed'
 		['assert.is']='Assert actual value equals to expected'
@@ -824,12 +916,16 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['is']='test.is'
 		['notok']='test.notok'
 		['ok']='test.ok'
-		['success']='tap.success'
-		['failure']='tap.failure'
-		['err']='tap.err'
+		['tap success']='tap.success'
+		['tap failure']='tap.failure'
+		['tap version']='tap.version'
+		['tap plan']='tap.plan'
+		['tap err']='tap.err'
 	)
 
-	.usage() {
+	# app.sh - Application handling
+
+	app.usage() {
 		local cmd
 
 		# shellcheck disable=2128
@@ -844,9 +940,13 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		done | sort >&2
 	}
 
-	.execute() {
+	# shellcheck disable=2154
+	app.dispatch() {
+		local orig="${*}"
+
 		if [[ $# -eq 0 ]]; then
-			.usage
+			cli.usage
+
 			.die 'Command required'
 		fi
 
@@ -858,35 +958,37 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			shift
 
 			if [[ $# -eq 0 ]]; then
-				.usage
+				cli.usage
+
 				.die 'Help topic required'
 			fi
 		fi
 
-		local -a args=("$@") found=() try
+		local -a args=("$@") try
 
+		local cmd
 		while [[ $# -gt 0 ]]; do
 			try+=("$1")
-
-			[[ -n ${_command[${try[*]}]:-} ]] || break
-
-			found+=("${try[*]}")
-
 			shift
+
+			if [[ -n ${_command[${try[*]}]:-} ]]; then
+				cmd=${try[*]}
+				args=("$@")
+			fi
 		done
 
-		[[ ${#found[@]} -gt 0 ]] || .die "No command found: ${args[*]}"
+		[[ -n ${cmd:-} ]] || .die "No command found: $orig"
 
-		local cmd=${found[-1]}
 		local fun=${_command["$cmd"]}
 
 		readonly PROGNAME+=("$cmd")
 
 		if [[ -n ${help:-} ]]; then
 			.say "${_help[$fun]}" ""
+
 			"$fun" -help
 		else
-			"$fun" "$@"
+			"$fun" "${args[@]}"
 		fi
 	}
 
@@ -1035,11 +1137,11 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			local err
 
 			if "$assert" err "${args[@]}"; then
-				:self success "$message" "$current"
+				:self tap success test="$message" number="$current"
 
 				_test_[success]=$((${_test_[success]:-0} + 1))
 			else
-				:self failure "$message" "$err" "$current"
+				:self tap failure test="$message" error="$err" number="$current"
 
 				_test_[failure]=$((${_test_[failure]:-0} + 1))
 			fi
@@ -1062,6 +1164,8 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			for t in "${tests[@]}"; do
 				"$t"
 			done
+
+			:self tap plan total="${_test_[current]:-}"
 		}
 
 		# shellcheck disable=2034
@@ -1092,7 +1196,7 @@ EOF
 		if ! .interactive && [[ $# -eq 0 ]]; then
 			.source
 		else
-			.execute "$@"
+			app.dispatch "$@"
 		fi
 	}
 

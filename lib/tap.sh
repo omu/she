@@ -1,22 +1,74 @@
+readonly _TAP_VERSION_=13
+
 tap.startup() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='[FILE]'
+		[.argc]=1
+	)
+
+	flag.parse
+
 	local file=$1
 
 	echo "# Running tests in $file"
 }
 
-tap.begin() {
-	echo -n
+tap.shutdown() {
+	# shellcheck disable=2192
+	local -A _=(
+		[total]=$NIL
+		[success]=$NIL
+		[failure]=$NIL
+		[duration]=$NIL
+
+		[.help]='total=NUM success=NUM failure=NUM duration=SECONDS'
+	)
+
+	flag.parse
+
+	:
+}
+
+tap.version() {
+	local -A _=(
+		[.argc]=0
+	)
+
+	echo TAP version $_TAP_VERSION_
+	echo
+}
+
+tap.plan() {
+	# shellcheck disable=2192
+	local -A _=(
+		[total]=$NIL
+
+		[.help]='total=NUM'
+	)
+
+	flag.parse
+
+	echo "1..${_[total]}"
 }
 
 tap.pending() {
-	local test=$1 number=${2:-}
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+
+		[.help]='test=MSG [number=NUM]'
+	)
+
+	flag.parse
 
 	echo -n ok | ui.out warning
 
-	if [[ -n ${number:-} ]]; then
-		echo "$number - $test"
+	if [[ -n ${_[number]:-} ]]; then
+		echo "${_[number]} - ${_[test]}"
 	else
-		echo "$test"
+		echo "${_[test]}"
 	fi | color.out +blue
 
 	echo ' # skip test to be written' | color.out +yellow
@@ -24,34 +76,48 @@ tap.pending() {
 
 # Success
 tap.success() {
-	local test=$1 number=${2:-}
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
 
-	echo -n ok | ui.out success
+		[.help]='test=MSG [number=NUM]'
+	)
 
-	if [[ -n ${number:-} ]]; then
-		echo "$number - $test"
+	flag.parse
+
+	echo -n 'ok '
+	ui.out success
+
+	if [[ -n ${_[number]:-} ]]; then
+		echo "${_[number]} - ${_[test]}"
 	else
-		echo "$test"
+		echo "${_[test]}"
 	fi | color.out +blue
 }
 
 # Failure
 tap.failure() {
-	local test=$1 reason=${2:-} number=${3:-}
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+		[error]=
+
+		[.help]='test=MSG [number=NUM] [error=MSG]'
+	)
+
+	flag.parse
 
 	echo -n 'not ok' | ui.out failure
 
-	if [[ -n ${number:-} ]]; then
-		echo "$number - $test"
+	if [[ -n ${_[number]:-} ]]; then
+		echo "${_[number]} - ${_[test]}"
 	else
-		echo "$test"
+		echo "${_[test]}"
 	fi | color.out +blue
 
-	[[ -z ${reason:-} ]] || printf -- "%s\n" "$reason" | sed -u -e 's/^/# /'
-}
-
-tap.summary() {
-	:
+	[[ -z ${_[error]:-} ]] || printf -- "%s\n" "${_[error]}" | sed -u -e 's/^/# /'
 }
 
 tap.out() {

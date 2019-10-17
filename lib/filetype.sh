@@ -13,7 +13,7 @@ filetype.mime() {
 
 	local file=$1; must.f "$file"
 
-	if flag.true zip; then
+	if flag.true -zip; then
 		file --mime-type --brief --uncompress-noreport "$file"
 	else
 		file --mime-type --brief "$file"
@@ -57,7 +57,7 @@ filetype.is._mime_() {
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local mime
-	if flag.true zip; then
+	if flag.true -zip; then
 		mime=$(file --mime-type --brief --uncompress-noreport "$file")
 	else
 		mime=$(file --mime-type --brief "$file")

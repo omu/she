@@ -131,7 +131,7 @@ ister istemez betiğin gerçekleme detaylarına girebilmeli.
 
 . <(t) [.|_|RELPATH]...
 
-t ok CASE
+t ok CASE -- MSG
 ```
 
 - Bu modelde `t go` ve test süiti yok, dosyanın kendisi bir süit
@@ -179,6 +179,185 @@ t go
 - `test:setup` ve `test:teardown` her test süit'te çalışan özel setup/teardown fonksiyonları
 
 - `t go` ile suit fonksiyonları sırayla veya rastgele çağrılıyor
+
+### Doğrulayıcılar
+
+- ok/notok
+- is/isnt
+- like/unlike
+- out/err
+
+#### out/err
+
+- `out`: argüman olarak verilen komutun başarılı olduğunu doğrularken stdin verisinde boş satırla ayrılmış stdout ve
+   (varsa) stderr eşleşmelerini de doğrular
+
+- `err`: argüman olarak verilen komutun başarısız olduğunu doğrularken stdin verisinde boş satırla ayrılmış stderr ve
+   (varsa) stdout eşleşmelerini de doğrular
+
+- Matcher format: `[scope][match type]`
+
+- scope, line veya range olabilir
+
+- line: `-*[1-9][0-9]+`
+
+  + Negatif sayılar sondan eşleme yapar
+  + `$` son satır (`-1`)
+
+- range: `[line]-[line]`
+
+  + Aralık başlangıcı boşsa 1, bitişi boşsa `$` alınır
+
+- Satır başlangıcında "matcher" + 1 boşluk veya tab olmalı
+
+- scope `.` ise son eşleşmeden **hemen sonraki satırda** eşleme yapar, eşleme henüz yoksa son eşleme satırı 0 alınır
+
+- scope `+` ise son eşleşmeden **sonraki herhangi bir satırda** eşleme yapar, eşleme henüz yoksa son eşleme satırı 0 alınır
+
+- scope `*` ise **herhangi bir satırda** eşleşme olması yeterli
+
+- Matcher boşsa (yani satır bir boşluk veya sekme ile başlıyorsa) `.=` kullanılır, yani
+
+  + Match type `=` semantiğiyle (exact line match) yapılır
+  + Kapsam daima son eşlemeden sonraki satır olarak alınır
+  + İlk satırda matcher boşsa son eşlemenin 0 nolu satırda olduğu varsayılarak eşleme 1'nci satırdan başlar
+
+- match type: `=|!|~|^`, boşsa öntanımlı `=`
+
+  + `=`: exact line match
+  + `~`: regex line match
+  + `!`: `=` değil
+  + `^`: `~` değil
+
+- stdin verisi boşsa ilgili komutun hiç bir çıktı üretmediği doğrulanır
+
+#### Örnekler
+
+```sh
+t out cmd arg1 arg2
+```
+
+Komut başarılı ve ne stdout ne de stderr çıktısı üretmiyor
+
+```sh
+t out cmd arg1 arg2 <<'EOF'
+	a
+	b
+EOF
+```
+
+(Örnekte `<<'EOF'` kullanılmasına dikkat, bu sayede satır başlangıçlarında sekme oluyor ve matcher boş alınıyor)
+
+Komut başarılı ve stdout çıktısında:
+
+- 1'nci satır `a`
+- 2'nci satır `b`
+
+```sh
+t out cmd arg1 arg2 <<'EOF'
+	a
+	b
+
+EOF
+```
+
+Komut başarılı ve stdout çıktısı önceki örnekle aynı, tek fark stderr çıktısı boş
+
+```sh
+t out cmd arg1 arg2 <<-'EOF'
+	1	a
+	3-8	b
+	9~	c
+	10!	d
+	-2	x
+	$	e
+EOF
+```
+
+(Örnekte `<<-'EOF'` kullanılmasına dikkat, satır başlangıçlarındaki sekmeler dikkate alınmıyor)
+
+Komut başarılı ve stdout çıktısında:
+
+- 1'nci satır `a`
+- 3-8 satırlarının herhangi biri `b`
+- 9'ncu satırda `c` var
+- 10'ncu satır `d` değil
+- Sondan iki önceki satır `x`
+- Son satır `e`
+
+```sh
+t out cmd arg1 arg2 <<-'EOF'
+	.	a
+	+	b
+	.	c
+	.	d
+	*	e
+	.	f
+EOF
+```
+
+(Örnekte `<<-'EOF'` kullanılmasına dikkat, satır başlangıçlarındaki sekmeler dikkate alınmadığından ayrıştırma hatası
+ olmaması için satır numarası girmek yerine `.` kullanıyoruz)
+
+Komut başarılı ve stdout çıktısında:
+
+- 1'nci satır `a`
+- 1'inci satırdan sonraki herhangi bir satır `b`  (bulamazsa hata), bu satırın numarası n olsun
+- n+1'nci satır `c`
+- n+2'nci satır `d`
+- Herhangi bir satır `e`, bu satırın numarası m olsun
+- m+1'nci satır `f`
+
+```sh
+t out cmd arg1 arg2 <<'EOF'
+	a
++	b
+	c
+	d
+*	e
+	f
+EOF
+```
+
+(Örnekte `<<'EOF'` kullanılmasına dikkat, bu sayede satır başlangıçlarındaki sekmeler dikkate alınıyor ve `.`
+ kullanmamız gerekmiyor)
+
+Önceki örnekle eşdeğer
+
+```sh
+t out cmd arg1 arg2 <<'EOF'
+	a
++	b
+	c
+	d
+*	e
+	f
+
+	W: missing file(s)
+	foo.txt
+EOF
+```
+
+Komut başarılı ve stdout/stderr çıktılarında:
+
+- stdout önceki örnekle eşdeğer
+- stderr'de 1'nci satır `W: missing file(s)`
+- 2'nci satır `foo.txt`
+
+```sh
+t err cmd arg1 arg2 <<-'EOF'
+		E: fatal error
+        	Command failed
+
+		a
+EOF
+```
+
+Komut başarısız ve stderr/stdout çıktılarında:
+
+- stderr'de 1'nci satır `E: fatal error`
+- 2'nci satır `Command failed`
+- stdout'ta ilk satır `a`
 
 TODO
 ----

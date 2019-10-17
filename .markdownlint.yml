@@ -3,6 +3,8 @@ MD003:
   style: setext_with_atx
 MD004:
   style: sublist
+MD010:
+  code_blocks: false
 MD013:
   line_length: 120
   tables: false
@@ -12,4 +14,4 @@ MD029:
   style: ordered
 MD033:
   allowed_elements:
-  - br
+    - br

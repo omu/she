@@ -11,6 +11,10 @@ test:hmm() {
 	t is 'foo/bar' "$string" -- string has no suffix
 }
 
+test:aha() {
+	t is 'foo/bar' "$string" -- string other
+}
+
 t ok [[ ok = ok ]] -- ok is ok
 
 t go

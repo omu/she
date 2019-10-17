@@ -86,64 +86,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['url is']='url.is'
 	)
 
-	.usage() {
-		local cmd
-
-		# shellcheck disable=2154,2128
-		for cmd in "${!_command[@]}"; do
-			local fun=${_command[$cmd]}
-
-			printf "\\t%-24s  %s\n" "$cmd" "${_help[$fun]}"
-		done | sort | .err "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]" "Commands:"
-	}
-
-	.execute() {
-		if [[ $# -eq 0 ]]; then
-			.usage
-			.die 'Command required'
-		fi
-
-		local help=
-
-		if [[ $1 = help ]]; then
-			help=true
-
-			shift
-
-			if [[ $# -eq 0 ]]; then
-				.usage
-				.die 'Help topic required'
-			fi
-		fi
-
-		local -a args=("$@") found=() try
-
-		while [[ $# -gt 0 ]]; do
-			try+=("$1")
-
-			[[ -n ${_command[${try[*]}]:-} ]] || break
-
-			found+=("${try[*]}")
-
-			shift
-		done
-
-		[[ ${#found[@]} -gt 0 ]] || .die "No command found: ${args[*]}"
-
-		local cmd=${found[-1]}
-		local fun=${_command["$cmd"]}
-
-		readonly PROGNAME+=("$cmd")
-
-		.init
-
-		if [[ -n ${help:-} ]]; then
-			.say "${_help[$fun]}" ""
-			"$fun" -help
-		else
-			"$fun" "$@"
-		fi
-	}
+	#:lib/app.sh
 
 	.source() {
 		sed 's/^\t\t//' <<'EOF'
@@ -164,7 +107,7 @@ EOF
 		if ! .interactive && [[ $# -eq 0 ]]; then
 			.source
 		else
-			.execute "$@"
+			app.dispatch "$@"
 		fi
 	}
 

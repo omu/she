@@ -41,11 +41,11 @@ declare -Ag _test_=(
 	local err
 
 	if "$assert" err "${args[@]}"; then
-		:self success "$message" "$current"
+		:self tap success test="$message" number="$current"
 
 		_test_[success]=$((${_test_[success]:-0} + 1))
 	else
-		:self failure "$message" "$err" "$current"
+		:self tap failure test="$message" error="$err" number="$current"
 
 		_test_[failure]=$((${_test_[failure]:-0} + 1))
 	fi
@@ -68,6 +68,8 @@ t.go() {
 	for t in "${tests[@]}"; do
 		"$t"
 	done
+
+	:self tap plan total="${_test_[current]:-}"
 }
 
 # shellcheck disable=2034

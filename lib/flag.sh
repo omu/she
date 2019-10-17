@@ -5,6 +5,9 @@ shopt -s expand_aliases
 # shellcheck disable=2142
 alias flag.parse='flag.parse_ "$@"; local -a __a; flag.args_ __a; set -- "${__a[@]}"; unset -v __a'
 
+# shellcheck disable=2034
+declare -gr NIL="\0"
+
 flag.usage_() {
 	if [[ -n ${_[.help]:-} ]]; then
 		# shellcheck disable=2128
@@ -48,9 +51,9 @@ flag.parse_() {
 		shift
 	done
 
-	flag._post_ $argc
-
 	_.load flag_result_
+
+	flag._validate_ $argc
 }
 
 flag.args_() {
@@ -62,15 +65,32 @@ flag.env_() {
 }
 
 flag.true() {
-	.bool "${_[-$1]:-}"
+	.bool "${_[$1]:-}"
 }
 
 flag.false() {
 	! flag.true "$@"
 }
 
-flag._post_() {
-	local n=${1?missing argument}
+flag.nil() {
+	[[ ${_[$1]:-} = "$NIL" ]]
+}
+
+flag._nils_() {
+	local -a required=()
+
+	local key
+	for key in "${!_[@]}"; do
+		if flag.nil "$key"; then
+			required+=("$key")
+		fi
+	done
+
+	[[ ${#required[@]} -eq 0 ]] || .die "Missing values for: ${required[*]}"
+}
+
+flag._args_() {
+	local n=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local argc=${_[.argc]:-0}
 
@@ -95,4 +115,9 @@ flag._post_() {
 	fi
 
 	flag.usage_ 1
+}
+
+flag._validate_() {
+	flag._args_ "$@"
+	flag._nils_
 }
