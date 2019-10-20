@@ -167,29 +167,30 @@ module Hope
       protected
 
       def assert(expect)
-        return error_consumed(expect) if last?
+        actual_lines_in_range = actual_lines[range(expect)]
+        return error_not_applicable(expect) if actual_lines_in_range.empty?
 
-        actual_lines[range = range(expect)].each_with_index do |actual, i|
+        actual_lines_in_range.each_with_index do |actual, i|
           next unless expect.ok?(actual)
 
           advance range.first + i
           return true
         end
 
-        error_mismatch(expect)
+        error_not_expected(expect)
       end
 
-      def error_consumed(expect)
+      def error_not_applicable(expect)
         self.error = [
-          'Reached to the end while testing expectation',
+          'Expectation not applicable',
           "\tExpect: #{expect.raw}"
         ].join("\n")
 
         false
       end
 
-      def error_mismatch(expect)
-        actual_lines_in_range = actual_lines[rangei(expect)]
+      def error_not_expected(expect)
+        actual_lines_in_range = actual_lines[range(expect)]
 
         self.error = [
           "Expectation failed at #{current.to_lnum}",
