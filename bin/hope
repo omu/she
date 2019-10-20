@@ -167,13 +167,13 @@ module Hope
       protected
 
       def assert(expect)
-        actual_lines_in_range = actual_lines[range(expect)]
+        actual_lines_in_range, start = relevant_actual_lines(expect)
         return error_not_applicable(expect) if actual_lines_in_range.empty?
 
         actual_lines_in_range.each_with_index do |actual, i|
           next unless expect.ok?(actual)
 
-          advance range.first + i
+          advance start + i
           return true
         end
 
@@ -190,7 +190,7 @@ module Hope
       end
 
       def error_not_expected(expect)
-        actual_lines_in_range = actual_lines[range(expect)]
+        actual_lines_in_range, = relevant_actual_lines(expect)
 
         self.error = [
           "Expectation failed at #{current.to_lnum}",
@@ -215,6 +215,10 @@ module Hope
       private
 
       attr_writer :error
+
+      def relevant_actual_lines(expect)
+        [actual_lines[range = range(expect)], range.first]
+      end
 
       def int(string)
         return unless string
