@@ -20,7 +20,7 @@ app.dispatch() {
 	local orig="${*}"
 
 	if [[ $# -eq 0 ]]; then
-		cli.usage
+		app.usage
 
 		.die 'Command required'
 	fi
@@ -33,7 +33,7 @@ app.dispatch() {
 		shift
 
 		if [[ $# -eq 0 ]]; then
-			cli.usage
+			app.usage
 
 			.die 'Help topic required'
 		fi

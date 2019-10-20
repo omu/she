@@ -38,15 +38,13 @@ declare -Ag _test_=(
 
 	local current=${_test_[current]} message="$*"
 
-	local err
+	local -a err
 
 	if "$assert" err "${args[@]}"; then
 		:self tap success test="$message" number="$current"
-
 		_test_[success]=$((${_test_[success]:-0} + 1))
 	else
-		:self tap failure test="$message" error="$err" number="$current"
-
+		:self tap failure test="$message" number="$current" "${err[@]}"
 		_test_[failure]=$((${_test_[failure]:-0} + 1))
 	fi
 }

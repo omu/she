@@ -86,7 +86,7 @@ tap.success() {
 
 	flag.parse
 
-	echo -n 'ok '
+	echo -n 'ok     '
 	ui.out success
 
 	if [[ -n ${_[number]:-} ]]; then
@@ -102,14 +102,15 @@ tap.failure() {
 	local -A _=(
 		[test]=$NIL
 		[number]=
-		[error]=
 
-		[.help]='test=MSG [number=NUM] [error=MSG]'
+		[.help]='test=MSG [number=NUM] [MSG...]'
+		[.argc]=0-
 	)
 
 	flag.parse
 
-	echo -n 'not ok' | ui.out failure
+	echo -n 'not ok '
+	ui.out failure
 
 	if [[ -n ${_[number]:-} ]]; then
 		echo "${_[number]} - ${_[test]}"
@@ -117,7 +118,10 @@ tap.failure() {
 		echo "${_[test]}"
 	fi | color.out +blue
 
-	[[ -z ${_[error]:-} ]] || printf -- "%s\n" "${_[error]}" | sed -u -e 's/^/# /'
+	local message
+	for message; do
+		echo "$message"
+	done | sed -u -e 's/^/# /'
 }
 
 tap.out() {

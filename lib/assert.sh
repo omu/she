@@ -38,7 +38,7 @@ assert.isnt() {
 	local got=${1?${FUNCNAME[0]}: missing argument};      shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	assert_isnt_="Got unexpected '$got'"
+	assert_isnt_=("Got unexpected '$got'")
 
 	[[ $got != "$expected" ]]
 }
@@ -50,7 +50,7 @@ assert.like() {
 	local got=${1?${FUNCNAME[0]}: missing argument};      shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	assert_like_="Got '$got' where expected to match with '$expected'"
+	assert_like_=("Got '$got' where expected to match with '$expected'")
 
 	[[ $got =~ $expected ]]
 }
@@ -62,7 +62,7 @@ assert.unlike() {
 	local got=${1?${FUNCNAME[0]}: missing argument};      shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	assert_unlike_="Got '$got' where expected to unmatch with '$expected'"
+	assert_unlike_=("Got '$got' where expected to unmatch with '$expected'")
 
 	[[ ! $got =~ $expected ]]
 }
@@ -71,16 +71,16 @@ assert.unlike() {
 assert.out() {
 	local -n assert_out_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local err=0
-
-	eval -- "$@" || err=$?
+	assert_out_=("$(
+		hope -success=true "$@"
+	)")
 }
 
 # Assert failed command outputs
 assert.err() {
 	local -n assert_err_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local err=0
-
-	eval -- "$@" || err=$?
+	assert_err_=("$(
+		hope -success=false "$@"
+	)")
 }
