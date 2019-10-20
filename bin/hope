@@ -6,9 +6,9 @@ module Hope
   TOKEN_LNUML = '$'
   TOKEN_RANGE = ':'
   TOKEN_EQUAL = '='
-  TOKEN_STNEG = '!'
+  TOKEN_STRNE = '!'
   TOKEN_MATCH = '~'
-  TOKEN_RENEG = '^'
+  TOKEN_REGNE = '^'
 
   class Actual
     attr_reader :out, :err, :exit_code
@@ -40,10 +40,9 @@ module Hope
       streams = lines.map(&:chomp).slice_when(&:empty?)
       raise 'Error' if streams.size > names.size
 
-      arg = {}
-      names.map { |name| arg[name.to_sym] = streams.shift }
-
-      new(**args)
+      new Hash[
+        *names.map { |name| [name.to_sym, streams.shift] }.flatten
+      ]
     end
 
     class Lines
@@ -59,14 +58,13 @@ module Hope
       end
 
       class Line
-        attr_reader :expectation
+        attr_reader :expectation, :starting, :ending
 
-        def initialize(expectation, starting:, ending:, negate: false, raw:)
+        def initialize(expectation:, starting:, ending:, negate: false)
           @expectation = expectation
           @starting    = starting
           @ending      = ending
           @negate      = negate
-          @raw         = raw
         end
 
         def ok?(actual)
@@ -95,22 +93,22 @@ module Hope
             (?<type>
               #{Regexp.escape TOKEN_EQUAL}
               |
-              #{Regexp.escape TOKEN_STNEG}
+              #{Regexp.escape TOKEN_STRNE}
               |
               #{Regexp.escape TOKEN_MATCH}
               |
-              #{Regexp.escape TOKEN_RENEG}
+              #{Regexp.escape TOKEN_REGNE}
             )?
             $
           /.x.freeze
 
-          DEFAULT_PATTERN = "#{TOKEN_LNUMC}#{TOKEN_RANGE}#{TOKEN_LNUML}"
+          DEFAULT = TOKEN_LNUMC
 
           def parse(raw) # rubocop:disable Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/AbcSize
             return if raw =~ /^#/
 
             leading, expectation = raw.split(/\s/, 2)
-            leading = DEFAULT_PATTERN if leading.empty?
+            leading = DEFAULT if leading.empty?
 
             raise 'Error' unless (m = leading.match(PATTERN))
 
@@ -119,18 +117,18 @@ module Hope
             case type
             when TOKEN_MATCH
               expectation = Regexp.new expectation
-            when TOKEN_RENEG
+            when TOKEN_REGNE
               expectation = Regexp.new expectation
               negate = true
-            when TOKEN_STNEG
+            when TOKEN_STRNE
               negate = true
-            when TOKEN_EQUALS, '', nil
+            when TOKEN_EQUAL, '', nil
               nil
             else
               raise 'Error'
             end
 
-            Line.new(expectation, starting: m[:starting], ending: m[:ending], negate: negate, raw: raw)
+            Line.new(expectation: expectation, starting: m[:starting], ending: m[:ending], negate: negate)
           end
         end
       end
@@ -155,23 +153,20 @@ module Hope
 
       using Refinery
 
-      attr_reader :actual, :current, :last, :issues
+      attr_reader :actual, :current, :last, :issue
 
       def initialize(actual)
         @actual  = actual
         @current = 0
         @last    = actual.size.from_lnum
-        @issues  = []
       end
 
       def call(expect)
         expect.each do |line|
-          break if last?
-
-          assert(line)
+          break if last? || !assert(line)
         end
 
-        issues
+        issue
       end
 
       protected
@@ -184,7 +179,7 @@ module Hope
           return true
         end
 
-        issue self
+        self.issue = self
 
         advance
         false
@@ -198,15 +193,13 @@ module Hope
         self.current += step
       end
 
-      def issue(expected_line_raw)
-        self.issues += expected_line_raw
-      end
-
       def range(starting, ending)
         Range.new(int(starting) || 0, int(ending) || last)
       end
 
       private
+
+      attr_writer :issue
 
       def int(string)
         return unless string
