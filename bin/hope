@@ -112,20 +112,16 @@ module Hope
 
             raise 'Error' unless (m = leading.match(PATTERN))
 
+            type = TOKEN_EQUAL if m[:type].empty?
+
             negate = false
 
             case type
-            when TOKEN_MATCH
-              expectation = Regexp.new expectation
-            when TOKEN_REGNE
-              expectation = Regexp.new expectation
-              negate = true
-            when TOKEN_STRNE
-              negate = true
-            when TOKEN_EQUAL, '', nil
-              nil
-            else
-              raise 'Error'
+            when TOKEN_EQUAL then nil
+            when TOKEN_STRNE then negate = true
+            when TOKEN_MATCH then expectation = Regexp.new expectation
+            when TOKEN_REGNE then expectation, negate = Regexp.new expectation, true
+            else                  raise 'Error'
             end
 
             Line.new(expectation: expectation, starting: m[:starting], ending: m[:ending], negate: negate)
