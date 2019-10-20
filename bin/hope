@@ -160,7 +160,7 @@ module Hope
 
       def call(expect_lines)
         expect_lines.each do |expect|
-          return error unless assert(expect)
+          return false unless assert(expect)
         end
       end
 
