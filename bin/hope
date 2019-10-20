@@ -1,0 +1,239 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+module Hope
+  TOKEN_LNUMC = '.'
+  TOKEN_LNUML = '$'
+  TOKEN_RANGE = ':'
+  TOKEN_EQUAL = '='
+  TOKEN_STNEG = '!'
+  TOKEN_MATCH = '~'
+  TOKEN_RENEG = '^'
+
+  class Actual
+    attr_reader :out, :err, :exit_code
+
+    def initialize(out: nil, err: nil, exit_code: 0)
+      @out       = Lines.new(out || [])
+      @err       = Lines.new(err || [])
+      @exit_code = exit_code
+    end
+
+    class Lines
+      attr_reader :lines
+
+      def initialize(lines)
+        @lines = lines
+      end
+    end
+  end
+
+  class Expect
+    attr_reader :out, :err
+
+    def initialize(out: nil, err: nil)
+      @out = Lines.new(out || [])
+      @err = Lines.new(err || [])
+    end
+
+    def self.slice(lines, *names)
+      streams = lines.map(&:chomp).slice_when(&:empty?)
+      raise 'Error' if streams.size > names.size
+
+      arg = {}
+      names.map { |name| arg[name.to_sym] = streams.shift }
+
+      new(**args)
+    end
+
+    class Lines
+      attr_reader :lines
+
+      def initialize(raw_lines)
+        @lines = []
+        raw_lines.map do |raw|
+          next unless (line = Line.parse raw)
+
+          @lines << line
+        end
+      end
+
+      class Line
+        attr_reader :expectation
+
+        def initialize(expectation, starting:, ending:, negate: false, raw:)
+          @expectation = expectation
+          @starting    = starting
+          @ending      = ending
+          @negate      = negate
+          @raw         = raw
+        end
+
+        def ok?(actual)
+          result = expectation.is_a?(Regexp) ? actual.match?(expectation) : actual == expectation
+          negate ? !result : result
+        end
+
+        class << self
+          PATTERN = /
+            ^
+            (?<starting>
+              -?\d+
+              |
+              #{Regexp.escape TOKEN_LNUML}
+              |
+              #{Regexp.escape TOKEN_LNUMC}
+            )?
+              #{Regexp.escape TOKEN_RANGE}?
+            (?<ending>
+              -?\d+
+              |
+              #{Regexp.escape TOKEN_LNUML}
+              |
+              #{Regexp.escape TOKEN_LNUMC}
+            )?
+            (?<type>
+              #{Regexp.escape TOKEN_EQUAL}
+              |
+              #{Regexp.escape TOKEN_STNEG}
+              |
+              #{Regexp.escape TOKEN_MATCH}
+              |
+              #{Regexp.escape TOKEN_RENEG}
+            )?
+            $
+          /.x.freeze
+
+          DEFAULT_PATTERN = "#{TOKEN_LNUMC}#{TOKEN_RANGE}#{TOKEN_LNUML}"
+
+          def parse(raw) # rubocop:disable Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/AbcSize
+            return if raw =~ /^#/
+
+            leading, expectation = raw.split(/\s/, 2)
+            leading = DEFAULT_PATTERN if leading.empty?
+
+            raise 'Error' unless (m = leading.match(PATTERN))
+
+            negate = false
+
+            case type
+            when TOKEN_MATCH
+              expectation = Regexp.new expectation
+            when TOKEN_RENEG
+              expectation = Regexp.new expectation
+              negate = true
+            when TOKEN_STNEG
+              negate = true
+            when TOKEN_EQUALS, '', nil
+              nil
+            else
+              raise 'Error'
+            end
+
+            Line.new(expectation, starting: m[:starting], ending: m[:ending], negate: negate, raw: raw)
+          end
+        end
+      end
+    end
+
+    class Scanner
+      def self.call(actual, expected)
+        new(actual).call(expected)
+      end
+
+      module Refinery
+        refine Integer do
+          def to_lnum
+            self + 1
+          end
+
+          def from_lnum
+            self - 1
+          end
+        end
+      end
+
+      using Refinery
+
+      attr_reader :actual, :current, :last, :issues
+
+      def initialize(actual)
+        @actual  = actual
+        @current = 0
+        @last    = actual.size.from_lnum
+        @issues  = []
+      end
+
+      def call(expect)
+        expect.each do |line|
+          break if last?
+
+          assert(line)
+        end
+
+        issues
+      end
+
+      protected
+
+      def assert(expect)
+        actual[range].each_with_index do |line, i|
+          next unless expect.ok?(line)
+
+          advance i
+          return true
+        end
+
+        issue self
+
+        advance
+        false
+      end
+
+      def last?
+        current >= last
+      end
+
+      def advance(step = 1)
+        self.current += step
+      end
+
+      def issue(expected_line_raw)
+        self.issues += expected_line_raw
+      end
+
+      def range(starting, ending)
+        Range.new(int(starting) || 0, int(ending) || last)
+      end
+
+      private
+
+      def int(string)
+        return unless string
+
+        return current if string == TOKEN_LNUMC
+        return last    if string == TOKEN_LNUML
+
+        string.to_i.from_lnum
+      end
+    end
+  end
+
+  module_function
+
+  def call(actual, expected)
+    [Scanner.(actual.out, expected.out), Scanner.(actual.err, expected.err)]
+  end
+
+  def actual(_argv = ARGV)
+    Actual.new
+  end
+
+  def expect(_argv = ARGV)
+    Expect.new
+  end
+end
+
+def main
+  _out_issues, _err_issues = Hope.(Hope.actual, Hope.expect)
+end
