@@ -125,7 +125,8 @@ module Hope
             else                  raise 'Error'
             end
 
-            Line.new(raw: raw, expectation: expectation, starting: m[:starting], ending: m[:ending], negate: negate)
+            Line.new(raw: raw, expectation: expectation,
+                     starting: m[:starting], ending: m[:ending], negate: negate)
           end
         end
       end
@@ -198,10 +199,6 @@ module Hope
         ].join("\n")
 
         false
-      end
-
-      def last?
-        current >= last
       end
 
       def advance(step = 1)
