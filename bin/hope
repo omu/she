@@ -234,7 +234,8 @@ module Hope
   module_function
 
   def call(actuals, expects)
-    [Scanner.(actuals.out, expects.out), Scanner.(actuals.err, expects.err)]
+    out_error, err_error = Scanner.(actuals.out, expects.out), Scanner.(actuals.err, expects.err)
+    [out_error && err_error, out_error, err_error]
   end
 
   def actuals(_argv = ARGV)
@@ -247,5 +248,5 @@ module Hope
 end
 
 def main
-  _out_issues, _err_issues = Hope.(Hope.actuals, Hope.expects)
+  _ok, _out_error, _err_error = Hope.(Hope.actuals, Hope.expects)
 end
