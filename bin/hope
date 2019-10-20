@@ -10,7 +10,7 @@ module Hope
   TOKEN_MATCH = '~'
   TOKEN_REGNE = '^'
 
-  class Actual
+  class Actuals
     attr_reader :out, :err, :exit_code
 
     def initialize(out: nil, err: nil, exit_code: 0)
@@ -28,7 +28,7 @@ module Hope
     end
   end
 
-  class Expect
+  class Expects
     attr_reader :out, :err
 
     def initialize(out: nil, err: nil)
@@ -58,17 +58,18 @@ module Hope
       end
 
       class Line
-        attr_reader :expectation, :starting, :ending
+        attr_reader :raw, :expectation, :starting, :ending
 
-        def initialize(expectation:, starting:, ending:, negate: false)
+        def initialize(raw:, expectation:, starting:, ending:, negate: false)
+          @raw         = raw
           @expectation = expectation
           @starting    = starting
           @ending      = ending
           @negate      = negate
         end
 
-        def ok?(actual)
-          result = expectation.is_a?(Regexp) ? actual.match?(expectation) : actual == expectation
+        def ok?(got)
+          result = expectation.is_a?(Regexp) ? got.match?(expectation) : got == expectation
           negate ? !result : result
         end
 
@@ -124,15 +125,15 @@ module Hope
             else                  raise 'Error'
             end
 
-            Line.new(expectation: expectation, starting: m[:starting], ending: m[:ending], negate: negate)
+            Line.new(raw: raw, expectation: expectation, starting: m[:starting], ending: m[:ending], negate: negate)
           end
         end
       end
     end
 
     class Scanner
-      def self.call(actual, expected)
-        new(actual).call(expected)
+      def self.call(actual_lines, expect_lines)
+        new(actual_lines).call(expect_lines)
       end
 
       module Refinery
@@ -149,35 +150,52 @@ module Hope
 
       using Refinery
 
-      attr_reader :actual, :current, :last, :issue
+      attr_reader :actual_lines, :current, :last, :error
 
-      def initialize(actual)
-        @actual  = actual
-        @current = 0
-        @last    = actual.size.from_lnum
+      def initialize(actual_lines)
+        @actual_lines  = actual_lines
+        @current       = 0
+        @last          = actual_lines.size.from_lnum
       end
 
-      def call(expect)
-        expect.each do |line|
-          break if last? || !assert(line)
+      def call(expect_lines)
+        expect_lines.each do |expect|
+          return error unless assert(expect)
         end
-
-        issue
       end
 
       protected
 
       def assert(expect)
-        actual[range].each_with_index do |line, i|
-          next unless expect.ok?(line)
+        return error_consumed(expect) if last?
 
-          advance i
+        actual_lines[range = range(expect)].each_with_index do |actual, i|
+          next unless expect.ok?(actual)
+
+          advance range.first + i
           return true
         end
 
-        self.issue = self
+        error_mismatch(expect)
+      end
 
-        advance
+      def error_consumed(expect)
+        self.error = [
+          'Reached to the end while testing expectation',
+          "\tExpect: #{expect.raw}"
+        ].join("\n")
+
+        false
+      end
+
+      def error_mismatch(expect)
+        actual_lines_in_range = actual_lines[rangei(expect)]
+
+        self.error = [
+          "Expectation failed at #{current.to_lnum}",
+          "\tExpect: #{expect.raw}", *actual_lines_in_range.map { |line| "\tGot: #{line}" }
+        ].join("\n")
+
         false
       end
 
@@ -189,13 +207,13 @@ module Hope
         self.current += step
       end
 
-      def range(starting, ending)
-        Range.new(int(starting) || 0, int(ending) || last)
+      def range(expect)
+        Range.new(int(expect.starting) || 0, int(expect.ending) || last)
       end
 
       private
 
-      attr_writer :issue
+      attr_writer :error
 
       def int(string)
         return unless string
@@ -210,19 +228,19 @@ module Hope
 
   module_function
 
-  def call(actual, expected)
-    [Scanner.(actual.out, expected.out), Scanner.(actual.err, expected.err)]
+  def call(actuals, expects)
+    [Scanner.(actuals.out, expects.out), Scanner.(actuals.err, expects.err)]
   end
 
-  def actual(_argv = ARGV)
-    Actual.new
+  def actuals(_argv = ARGV)
+    Actuals.new
   end
 
   def expect(_argv = ARGV)
-    Expect.new
+    Expects.new
   end
 end
 
 def main
-  _out_issues, _err_issues = Hope.(Hope.actual, Hope.expect)
+  _out_issues, _err_issues = Hope.(Hope.actuals, Hope.expects)
 end
