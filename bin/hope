@@ -350,55 +350,57 @@ module Hope
     end
   end
 
-  module_function
-
-  def call(actuals, expects)
-    %i[out err].each do |stream|
-      result = Scanner.(actuals.send(stream), expects.send(stream))
-      return result unless result.ok?
+  class << self
+    def call(actuals, expects)
+      %i[out err].each do |stream|
+        result = Scanner.(actuals.send(stream), expects.send(stream))
+        return result unless result.ok?
+      end
     end
-  end
 
-  def actuals(**args)
-    Actuals.new(**args)
-  end
+    def run(argv = ARGV)
+      stdin = STDIN.tty? ? [] : STDIN.readlines
+      flag = argv.shift if argv.first.start_with? '-success'
+      result = Runner.run(*argv)
 
-  def expects(**args)
-    Expects.new(**args)
-  end
+      streams = sanitize(flag, result)
 
-  def sanitize(flag, result) # rubocop:disable Metrics/MethodLength
-    case flag
-    when '-success=true', NilClass
-      return %i[out err] if result.ok?
+      result = self.(
+        actuals(out: result.get(:out), err: result.get(:err)),
+        expects(Expects.slice(stdin, *streams))
+      )
 
-      puts "Command expected to succeed where it failed: #{result.get :cmd}"
-      puts result.get(:err)
-
-      exit 1
-    when '-success=false'
-      return %i[err out] unless result.ok?
-
-      puts "Command expected to fail where it succeeded: #{result.get :cmd}"
-      puts result.get(:err)
-
-      exit 1
+      result.flash
     end
-  end
 
-  def run(argv = ARGV)
-    stdin = STDIN.tty? ? [] : STDIN.readlines
-    flag = argv.shift if argv.first.start_with? '-success'
-    result = Runner.run(*argv)
+    private
 
-    streams = sanitize(flag, result)
+    def actuals(**args)
+      Actuals.new(**args)
+    end
 
-    result = self.(
-      actuals(out: result.get(:out), err: result.get(:err)),
-      expects(Expects.slice(stdin, *streams))
-    )
+    def expects(**args)
+      Expects.new(**args)
+    end
 
-    result.flash
+    def sanitize(flag, result) # rubocop:disable Metrics/MethodLength
+      case flag
+      when '-success=true', NilClass
+        return %i[out err] if result.ok?
+
+        puts "Command expected to succeed where it failed: #{result.get :cmd}"
+        puts result.get(:err)
+
+        exit 1
+      when '-success=false'
+        return %i[err out] unless result.ok?
+
+        puts "Command expected to fail where it succeeded: #{result.get :cmd}"
+        puts result.get(:err)
+
+        exit 1
+      end
+    end
   end
 end
 
