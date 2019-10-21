@@ -229,7 +229,7 @@ module Hope
             arg[:ending]   = match[:ending]   || TOKEN_LNUML
           else
             arg[:starting] = match[:starting] || TOKEN_LNUMC
-            arg[:ending]   = match[:ending]   || TOKEN_LNUMC
+            arg[:ending]   = match[:ending]   || arg[:starting]
           end
           arg
         end
@@ -251,7 +251,11 @@ module Hope
 
     def call(expect_lines)
       expect_lines.each do |expect|
-        break unless assert(expect)
+        next if assert(expect)
+
+        error_not_expected(expect)
+      rescue Lines::NotApplicableError
+        error_not_applicable(expect)
       end
 
       result
@@ -262,9 +266,7 @@ module Hope
     def assert(expect)
       actual_lines.lnum_slice_match(starting: expect.starting, ending: expect.ending) do |actual|
         expect.ok? actual
-      end || error_not_expected(expect)
-    rescue Lines::NotApplicableError
-      error_not_applicable(expect)
+      end
     end
 
     def error_not_applicable(expect)
@@ -308,8 +310,7 @@ module Hope
     Expects.new out: [
       '1:~ ba[zr]$',
       '-2 xxx yyy',
-      '~ ^a',
-      '-3! oo bar'
+      '~ ^a'
     ]
   end
 end
