@@ -10,6 +10,104 @@ module Hope
   TOKEN_MATCH = '~'
   TOKEN_REGNE = '^'
 
+  class Bag
+    attr_accessor :ok
+
+    def initialize
+      @bag = {}
+    end
+
+    def get(item)
+      bag.fetch(item)
+    end
+
+    def put(**items)
+      bag.merge! items
+    end
+
+    def ok?
+      ok
+    end
+
+    def unload
+      self.bag = {}
+      self.ok  = nil
+    end
+
+    def flash(*messages)
+      messages.each { |message| warn(message) }
+      bag.each_value { |value| warn value }
+
+      unload
+    end
+
+    private
+
+    attr_accessor :bag
+  end
+
+  class Lines < SimpleDelegator
+    def current_index
+      @current_index ||= 0
+    end
+
+    def last_index
+      @last_index ||= size - 1
+    end
+
+    def first_lnum
+      '1'
+    end
+
+    def current_lnum
+      to_lnum current_index
+    end
+
+    def last_lnum
+      to_lnum last_index
+    end
+
+    def advance(step = 1)
+      self.current_index += step
+    end
+
+    def slice_from_lnum(starting: TOKEN_LNUMC, ending: TOKEN_LNUML)
+      self[from_lnum(starting)..from_lnum(ending)]
+    end
+
+    NotApplicableError = Class.new StandardError
+
+    def lnum_slice_match(starting: TOKEN_LNUMC, ending: TOKEN_LNUML)
+      slice = self[(start = from_lnum(starting))..from_lnum(ending)]
+      raise NotApplicableError if !slice || slice.empty?
+
+      slice.each_with_index do |item, index|
+        next unless yield(item)
+
+        self.current_index = start + index + 1
+        return true
+      end
+
+      false
+    end
+
+    def from_lnum(lnum)
+      case lnum.to_s
+      when TOKEN_LNUMC then current_index
+      when TOKEN_LNUML then last_index
+      else                  (num = lnum.to_i).negative? ? last_index + num + 1 : num - 1
+      end
+    end
+
+    def to_lnum(index)
+      (index + 1).to_s
+    end
+
+    private
+
+    attr_writer :current_index
+  end
+
   class Actuals
     attr_reader :out, :err, :exit_code
 
@@ -18,232 +116,207 @@ module Hope
       @err       = Lines.new(err || [])
       @exit_code = exit_code
     end
-
-    class Lines
-      attr_reader :lines
-
-      def initialize(lines)
-        @lines = lines
-      end
-    end
   end
 
   class Expects
     attr_reader :out, :err
 
     def initialize(out: nil, err: nil)
-      @out = Lines.new(out || [])
-      @err = Lines.new(err || [])
+      @out = parse(out || [])
+      @err = parse(err || [])
     end
 
-    def self.slice(lines, *names)
-      streams = lines.map(&:chomp).slice_when(&:empty?)
-      raise 'Error' if streams.size > names.size
+    private
 
-      new Hash[
-        *names.map { |name| [name.to_sym, streams.shift] }.flatten
-      ]
-    end
+    def parse(raw_lines)
+      lines = Lines.new []
 
-    class Lines
-      attr_reader :lines
+      raw_lines.each do |raw|
+        next unless (line = Line.parse(raw))
 
-      def initialize(raw_lines)
-        @lines = []
-        raw_lines.map do |raw|
-          next unless (line = Line.parse raw)
-
-          @lines << line
-        end
+        lines << line
       end
 
-      class Line
-        attr_reader :raw, :expectation, :starting, :ending
+      lines
+    end
 
-        def initialize(raw:, expectation:, starting:, ending:, negate: false)
-          @raw         = raw
-          @expectation = expectation
-          @starting    = starting
-          @ending      = ending
-          @negate      = negate
-        end
+    class << self
+      def slice(lines, *names)
+        streams = lines.map(&:chomp).slice_when(&:empty?)
+        raise 'Error' if streams.size > names.size
 
-        def ok?(got)
-          result = expectation.is_a?(Regexp) ? got.match?(expectation) : got == expectation
-          negate ? !result : result
-        end
-
-        class << self
-          PATTERN = /
-            ^
-            (?<starting>
-              -?\d+
-              |
-              #{Regexp.escape TOKEN_LNUML}
-              |
-              #{Regexp.escape TOKEN_LNUMC}
-            )?
-              #{Regexp.escape TOKEN_RANGE}?
-            (?<ending>
-              -?\d+
-              |
-              #{Regexp.escape TOKEN_LNUML}
-              |
-              #{Regexp.escape TOKEN_LNUMC}
-            )?
-            (?<type>
-              #{Regexp.escape TOKEN_EQUAL}
-              |
-              #{Regexp.escape TOKEN_STRNE}
-              |
-              #{Regexp.escape TOKEN_MATCH}
-              |
-              #{Regexp.escape TOKEN_REGNE}
-            )?
-            $
-          /.x.freeze
-
-          DEFAULT = TOKEN_LNUMC
-
-          def parse(raw) # rubocop:disable Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/AbcSize
-            return if raw =~ /^#/
-
-            leading, expectation = raw.split(/\s/, 2)
-            leading = DEFAULT if leading.empty?
-
-            raise 'Error' unless (m = leading.match(PATTERN))
-
-            type = TOKEN_EQUAL if m[:type].empty?
-
-            negate = false
-
-            case type
-            when TOKEN_EQUAL then nil
-            when TOKEN_STRNE then negate = true
-            when TOKEN_MATCH then expectation = Regexp.new expectation
-            when TOKEN_REGNE then expectation, negate = Regexp.new expectation, true
-            else                  raise 'Error'
-            end
-
-            Line.new(raw: raw, expectation: expectation,
-                     starting: m[:starting], ending: m[:ending], negate: negate)
-          end
-        end
+        new Hash[
+          *names.map { |name| [name.to_sym, streams.shift] }.flatten
+        ]
       end
     end
 
-    class Scanner
-      def self.call(actual_lines, expect_lines)
-        new(actual_lines).call(expect_lines)
+    class Line
+      attr_reader :raw, :expectation, :starting, :ending, :negate
+
+      def initialize(raw:, expectation:, starting:, ending:, negate: false)
+        @raw         = raw
+        @expectation = expectation
+        @starting    = starting
+        @ending      = ending
+        @negate      = negate
       end
 
-      module Refinery
-        refine Integer do
-          def to_lnum
-            self + 1
+      def ok?(got)
+        result = expectation.is_a?(Regexp) ? got.match?(expectation) : got == expectation
+        negate ? !result : result
+      end
+
+      class << self
+        PATTERN = /
+          ^
+          (?<starting>
+            -?\d+
+            |
+            #{Regexp.escape TOKEN_LNUML}
+            |
+            #{Regexp.escape TOKEN_LNUMC}
+          )?
+          (?<range>
+            #{Regexp.escape TOKEN_RANGE}
+          )?
+          (?<ending>
+            -?\d+
+            |
+            #{Regexp.escape TOKEN_LNUML}
+            |
+            #{Regexp.escape TOKEN_LNUMC}
+          )?
+          (?<type>
+            #{Regexp.escape TOKEN_EQUAL}
+            |
+            #{Regexp.escape TOKEN_STRNE}
+            |
+            #{Regexp.escape TOKEN_MATCH}
+            |
+            #{Regexp.escape TOKEN_REGNE}
+          )?
+          $
+        /x.freeze
+
+        DEFAULT = "#{TOKEN_LNUMC}#{TOKEN_RANGE}#{TOKEN_LNUMC}"
+
+        def parse(raw) # rubocop:disable Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/AbcSize
+          return if raw.match?(/^#/)
+
+          leading, expectation = raw.split(/\s/, 2)
+          leading = DEFAULT if leading.empty?
+
+          raise 'Error' unless (m = leading.match(PATTERN))
+
+          negate = false
+
+          case m[:type]
+          when TOKEN_EQUAL, NilClass, '' then nil
+          when TOKEN_STRNE               then negate = true
+          when TOKEN_MATCH               then expectation = Regexp.new(expectation)
+          when TOKEN_REGNE               then expectation, negate = Regexp.new(expectation), true
+          else                                raise "Error: #{type}"
           end
 
-          def from_lnum
-            self - 1
+          Line.new(raw: raw, expectation: expectation, negate: negate, **scope(m))
+        end
+
+        def scope(match)
+          arg = {}
+          if match[:range]
+            arg[:starting] = match[:starting] || '1'
+            arg[:ending]   = match[:ending]   || TOKEN_LNUML
+          else
+            arg[:starting] = match[:starting] || TOKEN_LNUMC
+            arg[:ending]   = match[:ending]   || TOKEN_LNUMC
           end
+          arg
         end
       end
+    end
+  end
 
-      using Refinery
+  class Scanner
+    def self.call(actual_lines, expect_lines)
+      new(actual_lines).call(expect_lines)
+    end
 
-      attr_reader :actual_lines, :current, :last, :error
+    attr_reader :actual_lines, :result
 
-      def initialize(actual_lines)
-        @actual_lines  = actual_lines
-        @current       = 0
-        @last          = actual_lines.size.from_lnum
+    def initialize(actual_lines)
+      @actual_lines  = actual_lines
+      @result        = Bag.new
+    end
+
+    def call(expect_lines)
+      expect_lines.each do |expect|
+        break unless assert(expect)
       end
 
-      def call(expect_lines)
-        expect_lines.each do |expect|
-          return false unless assert(expect)
-        end
-      end
+      result
+    end
 
-      protected
+    protected
 
-      def assert(expect)
-        actual_lines_in_range, start = relevant_actual_lines(expect)
-        return error_not_applicable(expect) if actual_lines_in_range.empty?
+    def assert(expect)
+      actual_lines.lnum_slice_match(starting: expect.starting, ending: expect.ending) do |actual|
+        expect.ok? actual
+      end || error_not_expected(expect)
+    rescue Lines::NotApplicableError
+      error_not_applicable(expect)
+    end
 
-        actual_lines_in_range.each_with_index do |actual, i|
-          next unless expect.ok?(actual)
+    def error_not_applicable(expect)
+      result.put error: [
+        "Expectation not applicable: #{expect.raw}"
+      ].join("\n")
 
-          advance start + i
-          return true
-        end
+      result.ok = false
+    end
 
-        error_not_expected(expect)
-      end
+    def error_not_expected(expect)
+      actual_lines_in_range = actual_lines.slice_from_lnum(starting: expect.starting, ending: expect.ending)
 
-      def error_not_applicable(expect)
-        self.error = [
-          'Expectation not applicable',
-          "\tExpect: #{expect.raw}"
-        ].join("\n")
+      result.put error: [
+        "Expectation failed at line: #{actual_lines.current_lnum}",
+        "  Expect: #{expect.raw}", *actual_lines_in_range.map { |line| "     Got: #{line}" }
+      ].join("\n")
 
-        false
-      end
-
-      def error_not_expected(expect)
-        actual_lines_in_range, = relevant_actual_lines(expect)
-
-        self.error = [
-          "Expectation failed at #{current.to_lnum}",
-          "\tExpect: #{expect.raw}", *actual_lines_in_range.map { |line| "\tGot: #{line}" }
-        ].join("\n")
-
-        false
-      end
-
-      def advance(step = 1)
-        self.current += step
-      end
-
-      def range(expect)
-        Range.new(int(expect.starting) || 0, int(expect.ending) || last)
-      end
-
-      private
-
-      attr_writer :error
-
-      def relevant_actual_lines(expect)
-        [actual_lines[range = range(expect)], range.first]
-      end
-
-      def int(string)
-        return unless string
-
-        return current if string == TOKEN_LNUMC
-        return last    if string == TOKEN_LNUML
-
-        string.to_i.from_lnum
-      end
+      result.ok = false
     end
   end
 
   module_function
 
   def call(actuals, expects)
-    out_error, err_error = Scanner.(actuals.out, expects.out), Scanner.(actuals.err, expects.err)
-    [out_error && err_error, out_error, err_error]
+    %i[out err].each do |stream|
+      result = Scanner.(actuals.send(stream), expects.send(stream))
+      return result unless result.ok?
+    end
   end
 
   def actuals(_argv = ARGV)
-    Actuals.new
+    Actuals.new out: [
+      'foo bar',
+      'xxx yyy',
+      'aa aaa'
+    ]
   end
 
-  def expect(_argv = ARGV)
-    Expects.new
+  def expects(_argv = ARGV)
+    Expects.new out: [
+      '1:~ ba[zr]$',
+      '-2 xxx yyy',
+      '~ ^a',
+      '-3! oo bar'
+    ]
   end
 end
 
 def main
-  _ok, _out_error, _err_error = Hope.(Hope.actuals, Hope.expects)
+  result = Hope.(Hope.actuals, Hope.expects)
+  result.flash
 end
+
+main
