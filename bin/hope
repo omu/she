@@ -386,7 +386,7 @@ module Hope
     end
   end
 
-  def main(argv = ARGV)
+  def run(argv = ARGV)
     stdin = STDIN.tty? ? [] : STDIN.readlines
     flag = argv.shift if argv.first.start_with? '-success'
     result = Runner.run(*argv)
@@ -402,4 +402,4 @@ module Hope
   end
 end
 
-Hope.main
+Hope.run
