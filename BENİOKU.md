@@ -310,4 +310,5 @@ TODO
 - [ ] scripts aracının yeni sürümü
 - [ ] etc'nin durumu
 - [X] ui ve color desteği
-- [ ] test alt yapısı
+- [X] test alt yapısı
+- [ ] test gözden geçirme
