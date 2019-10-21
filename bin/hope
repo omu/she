@@ -162,12 +162,11 @@ module Hope
   end
 
   class Actuals
-    attr_reader :out, :err, :exit_code
+    attr_reader :out, :err
 
-    def initialize(out: nil, err: nil, exit_code: 0)
+    def initialize(out: nil, err: nil)
       @out       = Lines.new(out || [])
       @err       = Lines.new(err || [])
-      @exit_code = exit_code
     end
   end
 
@@ -185,9 +184,9 @@ module Hope
       lines = Lines.new []
 
       raw_lines.each do |raw|
-        next unless (line = Line.parse(raw))
+        next unless (expect = Expect.parse(raw))
 
-        lines << line
+        lines << expect
       end
 
       lines
@@ -212,7 +211,7 @@ module Hope
       end
     end
 
-    class Line
+    class Expect
       attr_reader :raw, :expectation, :starting, :ending, :negate
 
       def initialize(raw:, expectation:, starting:, ending:, negate: false)
@@ -280,7 +279,7 @@ module Hope
           else                                raise "Error: #{type}"
           end
 
-          Line.new(raw: raw, expectation: expectation, negate: negate, **scope(m))
+          Expect.new(raw: raw, expectation: expectation, negate: negate, **scope(m))
         end
 
         def scope(match)
