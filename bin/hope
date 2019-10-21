@@ -10,7 +10,7 @@ module Hope
   TOKEN_MATCH = '~'
   TOKEN_REGNE = '^'
 
-  class Bag
+  class Result
     attr_accessor :ok
 
     def initialize
@@ -29,7 +29,7 @@ module Hope
       ok
     end
 
-    def unload
+    def reset
       self.bag = {}
       self.ok  = nil
     end
@@ -38,7 +38,7 @@ module Hope
       messages.each { |message| warn(message) }
       bag.each_value { |value| warn value }
 
-      unload
+      reset
     end
 
     private
@@ -246,7 +246,7 @@ module Hope
 
     def initialize(actual_lines)
       @actual_lines  = actual_lines
-      @result        = Bag.new
+      @result        = Result.new
     end
 
     def call(expect_lines)
