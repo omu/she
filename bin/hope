@@ -1,6 +1,8 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
+require 'open3'
+
 module Hope
   TOKEN_LNUMC = '.'
   TOKEN_LNUML = '$'
@@ -13,8 +15,10 @@ module Hope
   class Result
     attr_accessor :ok
 
-    def initialize
+    def initialize(**items)
       @bag = {}
+
+      put(**items)
     end
 
     def get(item)
@@ -46,7 +50,62 @@ module Hope
     attr_accessor :bag
   end
 
+  class Runner
+    def self.run(*args)
+      new.run(*args)
+    end
+
+    def initialize
+      @coathooks = 0
+    end
+
+    def run(*args)
+      out, err, status =
+        Open3.popen3(*args) do |_, stdout, stderr, wait_thread|
+          block(stdout, stderr, wait_thread)
+        end
+
+      result = Result.new cmd: args.join(' '), out: out, err: err
+      result.ok = status.exitstatus&.zero?
+
+      result
+    end
+
+    private
+
+    attr_reader :coathooks
+
+    def block(stdout, stderr, wait_thread)
+      # Handle `^C`
+      trap('INT') { handle_sigint(wait_thread.pid) }
+
+      out = stdout.readlines.map(&:chomp)
+      err = stderr.readlines.map(&:chomp)
+
+      [out, err, wait_thread.value]
+    end
+
+    def handle_sigint(pid)
+      message, signal = message_and_signal
+      warn "\n" + message
+      ::Process.kill signal, pid
+      @coathooks += 1
+    rescue Errno::ESRCH
+      warn 'No process to kill.'
+    end
+
+    def message_and_signal
+      if coathooks > 1
+        ['SIGINT received again. Force quitting...', 'KILL']
+      else
+        ['SIGINT received.', 'TERM']
+      end
+    end
+  end
+
   class Lines < SimpleDelegator
+    NotApplicableError = Class.new StandardError
+
     def current_index
       @current_index ||= 0
     end
@@ -67,17 +126,11 @@ module Hope
       to_lnum last_index
     end
 
-    def advance(step = 1)
-      self.current_index += step
-    end
-
-    def slice_from_lnum(starting: TOKEN_LNUMC, ending: TOKEN_LNUML)
+    def slice_between(starting: TOKEN_LNUMC, ending: TOKEN_LNUML)
       self[from_lnum(starting)..from_lnum(ending)]
     end
 
-    NotApplicableError = Class.new StandardError
-
-    def lnum_slice_match(starting: TOKEN_LNUMC, ending: TOKEN_LNUML)
+    def match_slice_between(starting: TOKEN_LNUMC, ending: TOKEN_LNUML)
       slice = self[(start = from_lnum(starting))..from_lnum(ending)]
       raise NotApplicableError if !slice || slice.empty?
 
@@ -141,13 +194,21 @@ module Hope
     end
 
     class << self
-      def slice(lines, *names)
-        streams = lines.map(&:chomp).slice_when(&:empty?)
-        raise 'Error' if streams.size > names.size
+      def slice(lines, *names) # rubocop:disable Metrics/MethodLength
+        result = {}
 
-        new Hash[
-          *names.map { |name| [name.to_sym, streams.shift] }.flatten
-        ]
+        i = 0
+        lines.each do |line|
+          line.chomp!
+          if line.empty?
+            raise 'Error' if i > names.size
+
+            i += 1
+          end
+          (result[names[i].to_sym] ||= []) << line
+        end
+
+        result
       end
     end
 
@@ -264,7 +325,7 @@ module Hope
     protected
 
     def assert(expect)
-      actual_lines.lnum_slice_match(starting: expect.starting, ending: expect.ending) do |actual|
+      actual_lines.match_slice_between(starting: expect.starting, ending: expect.ending) do |actual|
         expect.ok? actual
       end
     end
@@ -278,7 +339,7 @@ module Hope
     end
 
     def error_not_expected(expect)
-      actual_lines_in_range = actual_lines.slice_from_lnum(starting: expect.starting, ending: expect.ending)
+      actual_lines_in_range = actual_lines.slice_between(starting: expect.starting, ending: expect.ending)
 
       result.put error: [
         "Expectation failed at line: #{actual_lines.current_lnum}",
@@ -298,27 +359,47 @@ module Hope
     end
   end
 
-  def actuals(_argv = ARGV)
-    Actuals.new out: [
-      'foo bar',
-      'xxx yyy',
-      'aa aaa'
-    ]
+  def actuals(**args)
+    Actuals.new(**args)
   end
 
-  def expects(_argv = ARGV)
-    Expects.new out: [
-      '1:~ ba[zr]$',
-      '-2 xxx yyy',
-      '~ ^a',
-      '-2~ y'
-    ]
+  def expects(**args)
+    Expects.new(**args)
+  end
+
+  def sanitize(flag, result) # rubocop:disable Metrics/MethodLength
+    case flag
+    when '-success=true', NilClass
+      return %i[out err] if result.ok?
+
+      puts "Command expected to succeed where it failed: #{result.get :cmd}"
+      puts result.get(:err)
+
+      exit 1
+    when '-success=false'
+      return %i[err out] unless result.ok?
+
+      puts "Command expected to fail where it succeeded: #{result.get :cmd}"
+      puts result.get(:err)
+
+      exit 1
+    end
+  end
+
+  def main(argv = ARGV)
+    stdin = STDIN.tty? ? [] : STDIN.readlines
+    flag = argv.shift if argv.first.start_with? '-success'
+    result = Runner.run(*argv)
+
+    streams = sanitize(flag, result)
+
+    result = self.(
+      actuals(out: result.get(:out), err: result.get(:err)),
+      expects(Expects.slice(stdin, *streams))
+    )
+
+    result.flash
   end
 end
 
-def main
-  result = Hope.(Hope.actuals, Hope.expects)
-  result.flash
-end
-
-main
+Hope.main

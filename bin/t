@@ -1129,7 +1129,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			local -n assert_out_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 			assert_out_=("$(
-				expectations -success=true "$@"
+				hope -success=true "$@"
 			)")
 		}
 
@@ -1138,7 +1138,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			local -n assert_err_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 			assert_err_=("$(
-				expectations -success=false "$@"
+				hope -success=false "$@"
 			)")
 		}
 
