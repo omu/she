@@ -13,11 +13,14 @@ test:hmm() {
 
 t ok [[ ok = ok ]] -- ok is ok
 
-t out true -- command must be silent
+# t out true -- command must be silent
 
-t out echo -e "foo\nbar" -- command must match <<'EOF'
-	a
-	b
-EOF
+# t out echo -e "foo\nbar" -- command must match <<'EOF'
+# 	a
+# 	b
+#
+# 	stderr1
+# 	stderr2
+# EOF
 
 t go

@@ -310,7 +310,8 @@ module Hope
     Expects.new out: [
       '1:~ ba[zr]$',
       '-2 xxx yyy',
-      '~ ^a'
+      '~ ^a',
+      '-2~ y'
     ]
   end
 end
