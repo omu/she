@@ -203,18 +203,15 @@ t go
 
   + Negatif sayılar sondan eşleme yapar
   + `$` son satır (`-1`)
+  + `.` güncel satır (son eşleşmeden **hemen sonraki satır**, eşleme henüz yoksa 1)
 
-- range: `[line]-[line]`
+- range: `[line]:[line]`
 
   + Aralık başlangıcı boşsa 1, bitişi boşsa `$` alınır
 
 - Satır başlangıcında "matcher" + 1 boşluk veya tab olmalı
 
-- scope `.` ise son eşleşmeden **hemen sonraki satırda** eşleme yapar, eşleme henüz yoksa son eşleme satırı 0 alınır
-
-- scope `+` ise son eşleşmeden **sonraki herhangi bir satırda** eşleme yapar, eşleme henüz yoksa son eşleme satırı 0 alınır
-
-- scope `*` ise **herhangi bir satırda** eşleşme olması yeterli
+- line `.` ise güncel satırda
 
 - Matcher boşsa (yani satır bir boşluk veya sekme ile başlıyorsa) `.=` kullanılır, yani
 
@@ -284,65 +281,6 @@ Komut başarılı ve stdout çıktısında:
 - 10'ncu satır `d` değil
 - Sondan iki önceki satır `x`
 - Son satır `e`
-
-```sh
-t out cmd arg1 arg2 <<-'EOF'
-	.	a
-	+	b
-	.	c
-	.	d
-	*	e
-	.	f
-EOF
-```
-
-(Örnekte `<<-'EOF'` kullanılmasına dikkat, satır başlangıçlarındaki sekmeler dikkate alınmadığından ayrıştırma hatası
- olmaması için satır numarası girmek yerine `.` kullanıyoruz)
-
-Komut başarılı ve stdout çıktısında:
-
-- 1'nci satır `a`
-- 1'inci satırdan sonraki herhangi bir satır `b`  (bulamazsa hata), bu satırın numarası n olsun
-- n+1'nci satır `c`
-- n+2'nci satır `d`
-- Herhangi bir satır `e`, bu satırın numarası m olsun
-- m+1'nci satır `f`
-
-```sh
-t out cmd arg1 arg2 <<'EOF'
-	a
-+	b
-	c
-	d
-*	e
-	f
-EOF
-```
-
-(Örnekte `<<'EOF'` kullanılmasına dikkat, bu sayede satır başlangıçlarındaki sekmeler dikkate alınıyor ve `.`
- kullanmamız gerekmiyor)
-
-Önceki örnekle eşdeğer
-
-```sh
-t out cmd arg1 arg2 <<'EOF'
-	a
-+	b
-	c
-	d
-*	e
-	f
-
-	W: missing file(s)
-	foo.txt
-EOF
-```
-
-Komut başarılı ve stdout/stderr çıktılarında:
-
-- stdout önceki örnekle eşdeğer
-- stderr'de 1'nci satır `W: missing file(s)`
-- 2'nci satır `foo.txt`
 
 ```sh
 t err cmd arg1 arg2 <<-'EOF'
