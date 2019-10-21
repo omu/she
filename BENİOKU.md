@@ -199,7 +199,7 @@ t go
 
 - scope, line veya range olabilir
 
-- line: `-*[1-9][0-9]+`
+- line: `-?\d+`
 
   + Negatif sayılar sondan eşleme yapar
   + `$` son satır (`-1`)
