@@ -10,13 +10,21 @@ declare -Ag _test_=(
 }
 
 :load() {
-	local src
+	local _load_old=$PWD
 
-	for src; do
-		if [[ -f $src ]]; then
-			builtin source "$src"
+	local _load_dir_
+	_load_dir_=$(dirname "$(readlink -f "$0")")
+
+	cd "$_load_dir_" || exit $?
+
+	local _load_src_
+	for _load_src_; do
+		if [[ -f $_load_src_ ]]; then
+			builtin source "$_load_src_"
 		fi
 	done
+
+	cd "$_load_old" || exit $?
 }
 
 :assert() {
