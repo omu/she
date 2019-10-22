@@ -129,23 +129,36 @@
 }
 
 .load() {
-	local _load_old_=$PWD _load_dir_ _load_src_
+	local _load_old_=$PWD
+
+	[[ -v _load_dirs_ ]] || declare -ag _load_dirs_=(
+		"$(dirname "$(readlink -f "$0")")"
+	)
+
+	local _load_src_
 
 	for _load_src_; do
-		if [[ ! $_load_src_ =~ ^/ ]] && [[ -z ${_load_dir:-} ]]; then
-			_load_dir_=$(dirname "$(readlink -f "$0")")
+		builtin cd "${_load_dirs_[-1]}" || .die "Chdir error: ${_load_dirs_[-1]}"
 
-			builtin cd "$_load_dir_" || .die "Chdir error: $_load_dir_"
-		fi
+		local _load_src_found_
 
-		if [[ -f $_load_src_ ]]; then
-			builtin source "$_load_src_"
-		elif [[ ! $_load_src_ =~ [.]sh$ ]] && [[ -f $_load_src_.sh ]]; then
-			builtin source "$_load_src_".sh
-		fi
+		for _load_src_found_ in "$_load_src_" "$_load_src_".sh; do
+			if [[ -f $_load_src_found_ ]]; then
+				_load_src_found_=$(readlink -f "$_load_src_found_")
+
+				_load_dirs_+=("$(dirname "$_load_src_found_")")
+
+				builtin source "$_load_src_found_"
+			fi
+		done
+
+		unset _load_src_found_
 	done
 
-	[[ -z ${_load_old_:-} ]] || builtin cd "$_load_old_" || .die "Chdir error: $_load_old_"
+	unset _load_src_
+
+	builtin cd "$_load_old_" || .die "Chdir error: $_load_old_"
+	unset _load_old_
 }
 
 _.read() {

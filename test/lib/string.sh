@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # shellcheck disable=1090
-. <(t) ../../bin/_ ../t
+. <(t) ../t
 
 string='foo/bar/'
 
