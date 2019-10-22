@@ -128,6 +128,24 @@
 	esac
 }
 
+.load() {
+	local _load_old_=$PWD _load_dir_ _load_src_
+
+	for _load_src_; do
+		if [[ ! $_load_src_ =~ ^/ ]] && [[ -z ${_load_dir:-} ]]; then
+			_load_dir_=$(dirname "$(readlink -f "$0")")
+
+			builtin cd "$_load_dir_" || .die "Chdir error: $_load_dir_"
+		fi
+
+		if [[ -f $_load_src_ ]]; then
+			builtin source "$_load_src_"
+		fi
+	done
+
+	[[ -z ${_load_old_:-} ]] || builtin cd "$_load_old_" || .die "Chdir error: $_load_old_"
+}
+
 _.read() {
 	local -i i=1
 

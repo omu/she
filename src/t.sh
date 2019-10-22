@@ -9,24 +9,6 @@ declare -Ag _test_=(
 	"$_SELF" "$@"
 }
 
-:load() {
-	local _load_old=$PWD
-
-	local _load_dir_
-	_load_dir_=$(dirname "$(readlink -f "$0")")
-
-	cd "$_load_dir_" || exit $?
-
-	local _load_src_
-	for _load_src_; do
-		if [[ -f $_load_src_ ]]; then
-			builtin source "$_load_src_"
-		fi
-	done
-
-	cd "$_load_old" || exit $?
-}
-
 :assert() {
 	local assert=assert.${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -98,4 +80,4 @@ t() {
 	fi
 }
 
-:load "$@"
+[[ $# -eq 0 ]] || .load "$@"
