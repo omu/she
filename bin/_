@@ -145,6 +145,8 @@
 
 		if [[ -f $_load_src_ ]]; then
 			builtin source "$_load_src_"
+		elif [[ ! $_load_src_ =~ [.]sh$ ]] && [[ -f $_load_src_.sh ]]; then
+			builtin source "$_load_src_".sh
 		fi
 	done
 
