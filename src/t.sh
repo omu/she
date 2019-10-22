@@ -5,11 +5,11 @@ declare -Ag _test_=(
 	[start]=$SECONDS
 )
 
-:self() {
+.self() {
 	"$_SELF" "$@"
 }
 
-:assert() {
+.assert() {
 	local assert=assert.${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local -a args
@@ -31,10 +31,10 @@ declare -Ag _test_=(
 	local -a err
 
 	if "$assert" err "${args[@]}"; then
-		:self tap success test="$message" number="$current"
+		.self tap success test="$message" number="$current"
 		_test_[success]=$((${_test_[success]:-0} + 1))
 	else
-		:self tap failure test="$message" number="$current" "${err[@]}"
+		.self tap failure test="$message" number="$current" "${err[@]}"
 		_test_[failure]=$((${_test_[failure]:-0} + 1))
 	fi
 }
@@ -62,7 +62,7 @@ t.go() {
 		! .callable test:teardown || test:teardown
 	done
 
-	:self tap plan total="${_test_[current]:-}"
+	.self tap plan total="${_test_[current]:-}"
 }
 
 # shellcheck disable=2034
@@ -77,11 +77,11 @@ t() {
 	[[ $cmd =~ ^[a-z][a-z0-9-]+$ ]] || .die "Invalid command name: $cmd"
 
 	if .callable assert."$cmd"; then
-		:assert "$cmd" "$@"
+		.assert "$cmd" "$@"
 	elif .callable t."$cmd"; then
 		t."$cmd"
 	else
-		:self "$@"
+		.self "$@"
 	fi
 }
 
