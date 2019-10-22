@@ -7,6 +7,14 @@ string='foo/bar/'
 
 t ok string.has_suffix_deleted string / -- string.has_suffix_deleted works
 
+test:setup() {
+	echo setup
+}
+
+test:teardown() {
+	echo teardown
+}
+
 test:hmm() {
 	t like "$string" '^foo/bar$' -- string has no suffix
 }

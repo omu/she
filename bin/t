@@ -1225,20 +1225,25 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 		# shellcheck disable=2034
 		t.go() {
-			local t
+			local -a _t_go_tests_
 
-			local -a tests
-
-			mapfile -t tests < <(
+			mapfile -t _t_go_tests_ < <(
 				shopt -s extdebug
 
-				declare -F | grep 'declare -f test[:_]' | awk '{ print $3 }' |
+				declare -F | grep 'declare -f test:' | awk '{ print $3 }' |
 				while read -r t; do declare -F "$t"; done |
-				sort -u | awk '{ print $1 }'
+				sort -u | awk '
+					$1 !~ /test:setup|test:teardown/ {
+						print $1
+					}
+				'
 			)
 
-			for t in "${tests[@]}"; do
-				"$t"
+			local _t_go_
+			for _t_go_ in "${_t_go_tests_[@]}"; do
+				! .callable test:setup    || test:setup
+				"$_t_go_"
+				! .callable test:teardown || test:teardown
 			done
 
 			:self tap plan total="${_test_[current]:-}"
