@@ -172,7 +172,7 @@ test:test_suite() {
 t go
 ```
 
-- Her `.t` dosyası `test:` veya `test_` ile başlayan fonksiyonlarla kurulan bir süit topluluğu
+- Her `.t` dosyası `test:` ile başlayan fonksiyonlarla kurulan bir süit topluluğu
 
 - `test:startup` ve `test:shutdown` her test dosyasında çalışan özel setup/teardown fonksiyonları
 

@@ -49,11 +49,13 @@ t.go() {
 		declare -F | grep 'declare -f test:' | awk '{ print $3 }' |
 		while read -r t; do declare -F "$t"; done |
 		sort -u | awk '
-			$1 !~ /test:setup|test:teardown/ {
+			$1 !~ /test:setup|test:teardown|test:startup|test:shutdown/ {
 				print $1
 			}
 		'
 	)
+
+	! .callable test:startup || test:startup
 
 	local _t_go_
 	for _t_go_ in "${_t_go_tests_[@]}"; do
@@ -61,6 +63,8 @@ t.go() {
 		"$_t_go_"
 		! .callable test:teardown || test:teardown
 	done
+
+	! .callable test:shutdown || test:shutdown
 
 	.self tap plan total="${_test_[current]:-}"
 }

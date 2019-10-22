@@ -7,6 +7,14 @@ string='foo/bar/'
 
 t ok string.has_suffix_deleted string / -- string.has_suffix_deleted works
 
+test:startup() {
+	:
+}
+
+test:shutdown() {
+	:
+}
+
 test:setup() {
 	:
 }
