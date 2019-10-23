@@ -7,23 +7,23 @@ string='foo/bar/'
 
 t ok string.has_suffix_deleted string / -- string.has_suffix_deleted works
 
-test:startup() {
+test.startup() {
 	:
 }
 
-test:shutdown() {
+test.shutdown() {
 	:
 }
 
-test:setup() {
+test.setup() {
 	:
 }
 
-test:teardown() {
+test.teardown() {
 	:
 }
 
-test:hmm() {
+test.hmm() {
 	t like "$string" '^foo/bar$' -- string has no suffix
 }
 

@@ -46,25 +46,25 @@ t.go() {
 	mapfile -t _t_go_tests_ < <(
 		shopt -s extdebug
 
-		declare -F | grep 'declare -f test:' | awk '{ print $3 }' |
+		declare -F | grep 'declare -f test[.]' | awk '{ print $3 }' |
 		while read -r t; do declare -F "$t"; done |
-		sort -u | awk '
-			$1 !~ /test:setup|test:teardown|test:startup|test:shutdown/ {
+		sort -t' ' -k2 -n | awk '
+			$1 !~ /test[.]setup|test[.]teardown|test[.]startup|test[.]shutdown/ {
 				print $1
 			}
 		'
 	)
 
-	! .callable test:startup || test:startup
+	! .callable test.startup || test.startup
 
 	local _t_go_
 	for _t_go_ in "${_t_go_tests_[@]}"; do
-		! .callable test:setup    || test:setup
+		! .callable test.setup    || test.setup
 		"$_t_go_"
-		! .callable test:teardown || test:teardown
+		! .callable test.teardown || test.teardown
 	done
 
-	! .callable test:shutdown || test:shutdown
+	! .callable test.shutdown || test.shutdown
 
 	.self tap plan total="${_test_[current]:-}"
 }
