@@ -28,8 +28,6 @@ declare -Ag _test_=(
 
 	local current=${_test_[current]} message
 
-	local -a err
-
 	if [[ ${1:-} =~ [sS][kK][iI][pP]\S* ]]; then
 		shift; message="$*"
 
@@ -44,6 +42,8 @@ declare -Ag _test_=(
 		_test_[failure]=$((${_test_[failure]:-0} + 1))
 	else
 		message="$*"
+
+		local -a err
 
 		if "$assert" err "${args[@]}"; then
 			.self tap success test="$message" number="$current"
