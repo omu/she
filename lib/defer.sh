@@ -79,7 +79,7 @@ defer.init() {
 
 # Register files/directories to clean up at exit
 .clean() {
-	[[ -v _defer_initialized_ ]] || trap.init
+	[[ -v _defer_initialized_ ]] || defer.init
 
 	_defer_clean_+=("$@")
 }
