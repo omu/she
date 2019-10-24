@@ -54,8 +54,9 @@ tap.plan() {
 	flag.parse
 
 	echo "1..${_[total]}"
+	echo
 	echo "# ${_[success]} test(s) succeeded, ${_[failure]} test(s) failed, ${_[skip]} test(s) skipped."
-	echo "# There are ${_[todo]} todo test(s) waiting to be completed."
+	echo "# There are ${_[todo]} todo test(s) waiting to be done."
 }
 
 # Success
