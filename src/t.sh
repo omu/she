@@ -39,6 +39,23 @@ declare -Ag _test_=(
 	fi
 }
 
+t.tmp() {
+	local tempdir
+
+	if [[ -n ${PWD[tmp]:-} ]]; then
+		tempdir=${PWD[tmp]}
+
+		temp.clean tempdir
+	fi
+
+	temp.dir tempdir
+
+	cd "$tempdir" || .die "Chdir error: $tempdir"
+
+	# shellcheck disable=2128
+	PWD[tmp]=$PWD
+}
+
 # shellcheck disable=2034
 t.go() {
 	local -a _t_go_tests_

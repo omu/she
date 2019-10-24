@@ -5,13 +5,15 @@
 
 # _.sh - Essential functions
 
+# shellcheck disable=2034,2128
 .prelude() {
 	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
 	export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-	# shellcheck disable=2034
 	declare -ag PROGNAME=("${0##*/}") # Program name
+
+	declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
 }
 
 .prelude
@@ -134,6 +136,7 @@
 }
 
 .load() {
+	# shellcheck disable=2128
 	local _load_old_=$PWD
 
 	[[ -v _load_dirs_ ]] || declare -ag _load_dirs_=(
@@ -953,65 +956,91 @@ path.parse_() {
 }
 
 
-# trap.sh - Trap setup
-
-declare -ag _at_exit_funcs_=()
-
-declare -ag _at_exit_files_=()
+# defer.sh - Deferred functions
 
 # shellcheck disable=2120
-trap._init() {
-	local -a signals=(EXIT HUP INT QUIT TERM)
+defer.init() {
+	if [[ -v _defer_initialized_ ]]; then
+		return
+	else
+		_defer_initialized_=true
 
-	[[ $# -eq 0 ]] || signals=("$@")
+		declare -ag _defer_clean_=()
 
-	# shellcheck disable=2154,2218
-	builtin trap _exit_ "${signals[@]}"
+		if [[ -n $(builtin trap -p 2>/dev/null) ]]; then
+			.cry 'Trap already taken.'
 
-	at_exit _at_exit_cleanup_
-}
+			return
+		fi
+	fi
 
-# Prevent using trap
-trap() {
-	bug 'Using trap is forbidden; please use at_exit to register hooks.'
-}
+	local -a signals=("$@")
+	[[ $# -gt 0 ]] || signals=(EXIT HUP INT KILL QUIT TERM)
 
-# Register hooks at exit
-at_exit() {
-	local arg
-
-	for arg; do
-		[[ $(type -t "$arg" || true) == function ]] || bug "Not a function: $arg"
+	local signal
+	for signal in "${signals[@]}"; do
+		# shellcheck disable=2064
+		builtin trap "_defer_ $signal" "$signal"
 	done
 
-	_at_exit_funcs_=("$@" "${_at_exit_funcs_[@]}")
+	# Prevent using trap
+	trap() {
+		.bug 'Using trap is forbidden; please use defer.* functions.'
+	}
+
+	# shellcheck disable=2139
+	alias .untrap="trap - ${signals[*]}"
+
+	# defer - Private functions
+
+	_defer_() {
+		local -r SIG=$1 ERR=$?
+
+		local -a _defer_funcs_
+
+		mapfile -t _defer_funcs_ < <(
+			shopt -s extdebug
+
+			declare -F | grep 'declare -f defer[.]' | awk '{ print $3 }' |
+			while read -r func; do declare -F "$func"; done |
+			sort -t' ' -k2 -n | awk '
+				$1 !~ /defer[.]early|defer[.]late/ {
+					print $1
+				}
+			'
+		)
+
+		! .callable defer.early || defer.early
+
+		local func
+		for func in "${_defer_funcs_[@]}"; do
+			"$func" || .cry "Deferred function failed: $func"
+		done
+
+		if [[ -v _defer_clean_ ]] && [[ "${#_defer_clean_[@]}" -gt 0 ]]; then
+			rm -rf -- "${_defer_clean_[@]}"
+		fi
+
+		! .callable defer.late || defer.late
+
+		builtin trap - EXIT
+
+		if [[ $SIG = INT ]] || [[ $SIG = QUIT ]]; then
+			builtin trap - "$SIG"; kill -s "$SIG" "$$"
+		fi
+
+		return "$ERR"
+	}
+
+	readonly -f _defer_
 }
 
 # Register files/directories to clean up at exit
-at_exit_files() {
-	_at_exit_files_+=("$@")
+.clean() {
+	[[ -v _defer_initialized_ ]] || trap.init
+
+	_defer_clean_+=("$@")
 }
-
-# trap - Private functions
-
-_exit_() {
-	local err=$?
-
-	local func
-	for func in "${_at_exit_funcs_[@]}"; do
-		"$func" || cry "Exit hook failed: $func"
-	done
-
-	return "$err"
-}
-
-_at_exit_cleanup_() {
-	[[ ${#_at_exit_files_[@]} -gt 0 ]] || return 0
-
-	rm -rf -- "${_at_exit_files_[@]}"
-}
-
-trap._init
 
 # temp.sh - Functions involving temporary directories or files
 
@@ -1023,7 +1052,7 @@ temp.file() {
 
 	# shellcheck disable=2128
 	file=$(mktemp -p "${TMPDIR:-/tmp}" "$PROGNAME".XXXXXXXX) || .die 'Fatal error: mktemp'
-	at_exit_files "$file"
+	.clean "$file"
 
 	# shellcheck disable=2034
 	temp_file_=$file
@@ -1037,7 +1066,7 @@ temp.dir() {
 
 	# shellcheck disable=2128
 	dir=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || .die 'Fatal error: mktemp'
-	at_exit_files "$dir"
+	.clean "$dir"
 
 	# shellcheck disable=2034
 	temp_dir_=$dir
@@ -1045,6 +1074,7 @@ temp.dir() {
 
 # Execute command in temp dir
 temp.inside() {
+	# shellcheck disable=2128
 	local temp_dir orig_dir=$PWD
 	temp.dir temp_dir
 
@@ -1629,11 +1659,13 @@ git.is.clean() {
 	git diff-index --cached --quiet --ignore-submodules HEAD --
 }
 
+# shellcheck disable=2128
 git.must.sane() {
 	git rev-parse --is-inside-work-tree &>/dev/null || .die "Must be inside a git work tree: $PWD"
 	git rev-parse --verify HEAD >/dev/null          || .die "Unverified git HEAD: $PWD"
 }
 
+# shellcheck disable=2128
 git.must.clean() {
 	git.is.clean || .die "Must be a clean git work tree: $PWD"
 }
@@ -1676,6 +1708,7 @@ git.is.exist_() {
 	[[ -d $dst ]]
 }
 
+# shellcheck disable=2128
 git.enter_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -1780,6 +1813,7 @@ src.enter() {
 
 	src.install_ "$@" >/dev/null
 
+	# shellcheck disable=2128
 	echo "$PWD"
 }
 
@@ -2516,6 +2550,7 @@ zip._prep_untar_() {
 
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
+		['.prelude']='shellcheck disable=2034,2128'
 		['ui.bug']='Report bug and exit failure'
 		['ui.say']='Print messages on standard error'
 		['ui.bye']='Print messages on standard error and exit success'
@@ -2547,9 +2582,8 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['array.join']='Join array with the given separator'
 		['array.dup']='Duplicate array'
 		['array.contains']='Array contains the given element'
-		['trap']='Prevent using trap'
-		['at_exit']='Register hooks at exit'
-		['at_exit_files']='Register files/directories to clean up at exit'
+		['defer.init']='shellcheck disable=2120'
+		['.clean']='Register files/directories to clean up at exit'
 		['temp.inside']='Execute command in temp dir'
 		['os.virtual']='Virtualization type'
 		['os.dist']='Distribution name'
@@ -2564,6 +2598,8 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['file.link']='Link file/directory to dstination creating all parents if necessary'
 		['bin.install']='Install program to path'
 		['bin.use']='Use program'
+		['git.must.sane']='shellcheck disable=2128'
+		['git.must.clean']='shellcheck disable=2128'
 		['src.install']='Install to a known location'
 		['src.use']='Install src into the runtime tree'
 		['src.enter']='Get src from URL and enter to the directory'
@@ -2701,13 +2737,15 @@ EOF
 		echo "_SELF=$(self.path)"
 		echo
 		sed 's/^\t\t//' <<'EOF'
+		# shellcheck disable=2034,2128
 		.prelude() {
 			set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
 			export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-			# shellcheck disable=2034
 			declare -ag PROGNAME=("${0##*/}") # Program name
+
+			declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
 		}
 
 		.prelude

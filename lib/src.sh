@@ -49,6 +49,7 @@ src.enter() {
 
 	src.install_ "$@" >/dev/null
 
+	# shellcheck disable=2128
 	echo "$PWD"
 }
 

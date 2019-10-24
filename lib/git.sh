@@ -31,11 +31,13 @@ git.is.clean() {
 	git diff-index --cached --quiet --ignore-submodules HEAD --
 }
 
+# shellcheck disable=2128
 git.must.sane() {
 	git rev-parse --is-inside-work-tree &>/dev/null || .die "Must be inside a git work tree: $PWD"
 	git rev-parse --verify HEAD >/dev/null          || .die "Unverified git HEAD: $PWD"
 }
 
+# shellcheck disable=2128
 git.must.clean() {
 	git.is.clean || .die "Must be a clean git work tree: $PWD"
 }
@@ -78,6 +80,7 @@ git.is.exist_() {
 	[[ -d $dst ]]
 }
 
+# shellcheck disable=2128
 git.enter_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 

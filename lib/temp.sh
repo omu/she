@@ -8,7 +8,7 @@ temp.file() {
 
 	# shellcheck disable=2128
 	file=$(mktemp -p "${TMPDIR:-/tmp}" "$PROGNAME".XXXXXXXX) || .die 'Fatal error: mktemp'
-	at_exit_files "$file"
+	.clean "$file"
 
 	# shellcheck disable=2034
 	temp_file_=$file
@@ -22,7 +22,7 @@ temp.dir() {
 
 	# shellcheck disable=2128
 	dir=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || .die 'Fatal error: mktemp'
-	at_exit_files "$dir"
+	.clean "$dir"
 
 	# shellcheck disable=2034
 	temp_dir_=$dir
@@ -30,6 +30,7 @@ temp.dir() {
 
 # Execute command in temp dir
 temp.inside() {
+	# shellcheck disable=2128
 	local temp_dir orig_dir=$PWD
 	temp.dir temp_dir
 

@@ -5,13 +5,15 @@
 
 # _.sh - Essential functions
 
+# shellcheck disable=2034,2128
 .prelude() {
 	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
 	export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-	# shellcheck disable=2034
 	declare -ag PROGNAME=("${0##*/}") # Program name
+
+	declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
 }
 
 .prelude
@@ -134,6 +136,7 @@
 }
 
 .load() {
+	# shellcheck disable=2128
 	local _load_old_=$PWD
 
 	[[ -v _load_dirs_ ]] || declare -ag _load_dirs_=(
@@ -895,6 +898,7 @@ self.install() {
 
 if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
+		['.prelude']='shellcheck disable=2034,2128'
 		['must.e']='Test -e'
 		['must.f']='Test -f'
 		['must.d']='Test -d'
@@ -926,6 +930,9 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self.path']='Print self path'
 		['self.install']='Install self'
 		['app.dispatch']='shellcheck disable=2154'
+		['defer.init']='shellcheck disable=2120'
+		['.clean']='Register files/directories to clean up at exit'
+		['temp.inside']='Execute command in temp dir'
 		['assert.ok']='Assert command succeed'
 		['assert.notok']='Assert command failed'
 		['assert.is']='Assert actual value equals to the expected'
@@ -1023,13 +1030,15 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		echo "_SELF=$(self.path)"
 		echo
 		sed 's/^\t\t//' <<'EOF'
+		# shellcheck disable=2034,2128
 		.prelude() {
 			set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
 			export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-			# shellcheck disable=2034
 			declare -ag PROGNAME=("${0##*/}") # Program name
+
+			declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
 		}
 
 		.say() {
@@ -1087,6 +1096,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		}
 
 		.load() {
+			# shellcheck disable=2128
 			local _load_old_=$PWD
 
 			[[ -v _load_dirs_ ]] || declare -ag _load_dirs_=(
@@ -1120,6 +1130,115 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		}
 
 		.prelude
+
+		# defer.sh - Deferred functions
+
+		# shellcheck disable=2120
+		defer.init() {
+			if [[ -v _defer_initialized_ ]]; then
+				return
+			else
+				_defer_initialized_=true
+
+				declare -ag _defer_clean_=()
+
+				if [[ -n $(builtin trap -p 2>/dev/null) ]]; then
+					.cry 'Trap already taken.'
+
+					return
+				fi
+			fi
+
+			local -a signals=("$@")
+			[[ $# -gt 0 ]] || signals=(EXIT HUP INT KILL QUIT TERM)
+
+			local signal
+			for signal in "${signals[@]}"; do
+				# shellcheck disable=2064
+				builtin trap "_defer_ $signal" "$signal"
+			done
+
+			# Prevent using trap
+			trap() {
+				.bug 'Using trap is forbidden; please use defer.* functions.'
+			}
+
+			# shellcheck disable=2139
+			alias .untrap="trap - ${signals[*]}"
+
+			# defer - Private functions
+
+			_defer_() {
+				local -r SIG=$1 ERR=$?
+
+				local -a _defer_funcs_
+
+				mapfile -t _defer_funcs_ < <(
+					shopt -s extdebug
+
+					declare -F | grep 'declare -f defer[.]' | awk '{ print $3 }' |
+					while read -r func; do declare -F "$func"; done |
+					sort -t' ' -k2 -n | awk '
+						$1 !~ /defer[.]early|defer[.]late/ {
+							print $1
+						}
+					'
+				)
+
+				! .callable defer.early || defer.early
+
+				local func
+				for func in "${_defer_funcs_[@]}"; do
+					"$func" || .cry "Deferred function failed: $func"
+				done
+
+				if [[ -v _defer_clean_ ]] && [[ "${#_defer_clean_[@]}" -gt 0 ]]; then
+					rm -rf -- "${_defer_clean_[@]}"
+				fi
+
+				! .callable defer.late || defer.late
+
+				builtin trap - EXIT
+
+				if [[ $SIG = INT ]] || [[ $SIG = QUIT ]]; then
+					builtin trap - "$SIG"; kill -s "$SIG" "$$"
+				fi
+
+				return "$ERR"
+			}
+
+			readonly -f _defer_
+		}
+
+		# Register files/directories to clean up at exit
+		.clean() {
+			[[ -v _defer_initialized_ ]] || trap.init
+
+			_defer_clean_+=("$@")
+		}
+
+		temp.dir() {
+			# shellcheck disable=2155
+			local -n temp_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+			local dir
+
+			# shellcheck disable=2128
+			dir=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || .die 'Fatal error: mktemp'
+			.clean "$dir"
+
+			# shellcheck disable=2034
+			temp_dir_=$dir
+		}
+
+		temp.clean() {
+			while [[ $# -gt 0 ]]; do
+				local -n temp_clean_=$1; shift
+
+				[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
+			done
+		}
+
 
 		# assert.sh - Assert functions
 
@@ -1247,6 +1366,23 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				.self tap failure test="$message" number="$current" "${err[@]}"
 				_test_[failure]=$((${_test_[failure]:-0} + 1))
 			fi
+		}
+
+		t.tmp() {
+			local tempdir
+
+			if [[ -n ${PWD[tmp]:-} ]]; then
+				tempdir=${PWD[tmp]}
+
+				temp.clean tempdir
+			fi
+
+			temp.dir tempdir
+
+			cd "$tempdir" || .die "Chdir error: $tempdir"
+
+			# shellcheck disable=2128
+			PWD[tmp]=$PWD
 		}
 
 		# shellcheck disable=2034

@@ -1,12 +1,14 @@
 # _.sh - Essential functions
 
+# shellcheck disable=2034,2128
 .prelude() {
 	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
 	export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-	# shellcheck disable=2034
 	declare -ag PROGNAME=("${0##*/}") # Program name
+
+	declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
 }
 
 .prelude
@@ -129,6 +131,7 @@
 }
 
 .load() {
+	# shellcheck disable=2128
 	local _load_old_=$PWD
 
 	[[ -v _load_dirs_ ]] || declare -ag _load_dirs_=(

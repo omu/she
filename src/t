@@ -37,6 +37,10 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		sed 's/^\t\t//' <<'EOF'
 		#:lib/_.sh: .prelude+ .say .cry .die .bug .contains .available .callable .load
 
+		#:lib/defer.sh
+
+		#:lib/temp.sh: temp.dir temp.clean
+
 		#:lib/assert.sh
 
 		#:src/t.sh
