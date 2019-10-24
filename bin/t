@@ -1433,8 +1433,6 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				.self tap skip test="$message" number="$current"
 				_test_[skip]=$((${_test_[skip]:-0} + 1))
 				_test_[success]=$((${_test_[success]:-0} + 1))
-
-				return
 			elif [[ ${1:-} =~ [tT][oO][dD][oO]\S* ]]; then
 				shift
 
@@ -1443,18 +1441,16 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				.self tap todo test="$message" number="$current"
 				_test_[todo]=$((${_test_[todo]:-0} + 1))
 				_test_[failure]=$((${_test_[failure]:-0} + 1))
-
-				return
-			fi
-
-			message="$*"
-
-			if "$assert" err "${args[@]}"; then
-				.self tap success test="$message" number="$current"
-				_test_[success]=$((${_test_[success]:-0} + 1))
 			else
-				.self tap failure test="$message" number="$current" "${err[@]}"
-				_test_[failure]=$((${_test_[failure]:-0} + 1))
+				message="$*"
+
+				if "$assert" err "${args[@]}"; then
+					.self tap success test="$message" number="$current"
+					_test_[success]=$((${_test_[success]:-0} + 1))
+				else
+					.self tap failure test="$message" number="$current" "${err[@]}"
+					_test_[failure]=$((${_test_[failure]:-0} + 1))
+				fi
 			fi
 		}
 
