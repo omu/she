@@ -31,17 +31,13 @@ declare -Ag _test_=(
 	local -a err
 
 	if [[ ${1:-} =~ [sS][kK][iI][pP]\S* ]]; then
-		shift
-
-		message="$*"
+		shift; message="$*"
 
 		.self tap skip test="$message" number="$current"
 		_test_[skip]=$((${_test_[skip]:-0} + 1))
 		_test_[success]=$((${_test_[success]:-0} + 1))
 	elif [[ ${1:-} =~ [tT][oO][dD][oO]\S* ]]; then
-		shift
-
-		message="$*"
+		shift; message="$*"
 
 		.self tap todo test="$message" number="$current"
 		_test_[todo]=$((${_test_[todo]:-0} + 1))
