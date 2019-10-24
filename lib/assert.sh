@@ -84,3 +84,13 @@ assert.err() {
 		hope -success=false "$@"
 	)")
 }
+
+# Just pass
+assert.pass() {
+	true
+}
+
+# Just fail
+assert.fail() {
+	false
+}

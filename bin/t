@@ -599,6 +599,17 @@ color.out() {
 	echo -en "$reset"
 }
 
+color.echo() {
+	local color=${1?missing argument}
+	shift
+
+	local code reset
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -e "${code}${*}${reset}"
+}
+
 color._init
 
 # ui.sh - UI functions
@@ -633,11 +644,11 @@ ui._echo() {
 	echo -e "${sign_color}${sign}${reset} ${text_color}$*${reset}"
 }
 
-ui.panic()    { ui._echo "$@"; }
 ui.caution()  { ui._echo "$@"; }
 ui.failure()  { ui._echo "$@"; }
 ui.headline() { ui._echo "$@"; }
 ui.info()     { ui._echo "$@"; }
+ui.panic()    { ui._echo "$@"; }
 ui.plain()    { ui._echo "$@"; }
 ui.question() { ui._echo "$@"; }
 ui.success()  { ui._echo "$@"; }
@@ -740,36 +751,20 @@ tap.version() {
 tap.plan() {
 	# shellcheck disable=2192
 	local -A _=(
+		[failure]=$NIL
+		[skip]=0
+		[success]=$NIL
+		[todo]=0
 		[total]=$NIL
 
-		[.help]='total=NUM'
+		[.help]='total=NUM success=NUM failure=NUM [todo=NUM] [skip=NUM]'
 	)
 
 	flag.parse
 
 	echo "1..${_[total]}"
-}
-
-tap.pending() {
-	# shellcheck disable=2192
-	local -A _=(
-		[test]=$NIL
-		[number]=
-
-		[.help]='test=MSG [number=NUM]'
-	)
-
-	flag.parse
-
-	echo -n ok | ui.out warning
-
-	if [[ -n ${_[number]:-} ]]; then
-		echo "${_[number]} - ${_[test]}"
-	else
-		echo "${_[test]}"
-	fi | color.out +blue
-
-	echo ' # skip test to be written' | color.out +yellow
+	echo "# ${_[success]} test(s) succeeded, ${_[failure]} test(s) failed, ${_[skip]} test(s) skipped."
+	echo "# There are ${_[todo]} todo test(s) waiting to be completed."
 }
 
 # Success
@@ -815,6 +810,62 @@ tap.failure() {
 	else
 		echo "${_[test]}"
 	fi | color.out +blue
+
+	local message
+	for message; do
+		echo "$message"
+	done | sed -u -e 's/^/# /'
+}
+
+# Skip
+tap.skip() {
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+
+		[.help]='test=MSG [number=NUM]'
+	)
+
+	flag.parse
+
+	echo -n 'ok     '
+	ui.out question
+
+	{
+		if [[ -n ${_[number]:-} ]]; then
+			echo -n "${_[number]} - ${_[test]}"
+		else
+			echo -n "${_[test]}"
+		fi
+
+		color.echo +yellow ' # SKIP'
+	} | color.out +blue
+}
+
+tap.todo() {
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+
+		[.help]='test=MSG [number=NUM]'
+	)
+
+	flag.parse
+
+	echo -n 'not ok '
+	ui.out failure
+
+	{
+		if [[ -n ${_[number]:-} ]]; then
+			echo -n "${_[number]} - ${_[test]}"
+		else
+			echo -n "${_[test]}"
+		fi
+
+		color.echo +yellow ' # TODO'
+	} | color.out +blue
 
 	local message
 	for message; do
@@ -924,6 +975,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['ui.hey']='Print messages taking attention'
 		['tap.success']='Success'
 		['tap.failure']='Failure'
+		['tap.skip']='Skip'
 		['self']='Print self'
 		['self.version']='Print self version'
 		['self.name']='Print self name'
@@ -941,6 +993,8 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['assert.unlike']='Assert got value not matches with the expected'
 		['assert.out']='Assert successful command outputs'
 		['assert.err']='Assert failed command outputs'
+		['assert.pass']='Just pass'
+		['assert.fail']='Just fail'
 		['t.go']='shellcheck disable=2034'
 		['t']='shellcheck disable=2034'
 	)
@@ -950,11 +1004,13 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['is']='test.is'
 		['notok']='test.notok'
 		['ok']='test.ok'
-		['tap success']='tap.success'
-		['tap failure']='tap.failure'
-		['tap version']='tap.version'
-		['tap plan']='tap.plan'
 		['tap err']='tap.err'
+		['tap failure']='tap.failure'
+		['tap plan']='tap.plan'
+		['tap skip']='tap.skip'
+		['tap success']='tap.success'
+		['tap todo']='tap.todo'
+		['tap version']='tap.version'
 	)
 
 	# app.sh - Application handling
@@ -1327,6 +1383,16 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			)")
 		}
 
+		# Just pass
+		assert.pass() {
+			true
+		}
+
+		# Just fail
+		assert.fail() {
+			false
+		}
+
 		declare -gr _SELF=$_SELF
 
 		declare -Ag _test_=(
@@ -1355,9 +1421,33 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 			_test_[current]=$((${_test_[current]:-0} + 1))
 
-			local current=${_test_[current]} message="$*"
+			local current=${_test_[current]} message
 
 			local -a err
+
+			if [[ ${1:-} =~ [sS][kK][iI][pP]\S* ]]; then
+				shift
+
+				message="$*"
+
+				.self tap skip test="$message" number="$current"
+				_test_[skip]=$((${_test_[skip]:-0} + 1))
+				_test_[success]=$((${_test_[success]:-0} + 1))
+
+				return
+			elif [[ ${1:-} =~ [tT][oO][dD][oO]\S* ]]; then
+				shift
+
+				message="$*"
+
+				.self tap todo test="$message" number="$current"
+				_test_[todo]=$((${_test_[todo]:-0} + 1))
+				_test_[failure]=$((${_test_[failure]:-0} + 1))
+
+				return
+			fi
+
+			message="$*"
 
 			if "$assert" err "${args[@]}"; then
 				.self tap success test="$message" number="$current"
@@ -1366,6 +1456,17 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				.self tap failure test="$message" number="$current" "${err[@]}"
 				_test_[failure]=$((${_test_[failure]:-0} + 1))
 			fi
+		}
+
+		t.skip() {
+			local message=${1?${FUNCNAME[0]}: missing argument}; shift
+
+			_test_[current]=$((${_test_[current]:-0} + 1))
+
+			local current=${_test_[current]}
+
+			.self tap success test="$message" number="$current"
+			_test_[success]=$((${_test_[success]:-0} + 1))
 		}
 
 		t.temp() {
@@ -1412,7 +1513,11 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 			! .callable test.shutdown || test.shutdown
 
-			.self tap plan total="${_test_[current]:-}"
+			.self tap plan	total="${_test_[current]:-}" \
+					success="${_test_[success]:-}" \
+					failure="${_test_[failure]:-0}" \
+					todo="${_test_[todo]:-0}" \
+					skip="${_test_[skip]:-0}"
 		}
 
 		# shellcheck disable=2034

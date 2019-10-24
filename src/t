@@ -22,11 +22,13 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['is']='test.is'
 		['notok']='test.notok'
 		['ok']='test.ok'
-		['tap success']='tap.success'
-		['tap failure']='tap.failure'
-		['tap version']='tap.version'
-		['tap plan']='tap.plan'
 		['tap err']='tap.err'
+		['tap failure']='tap.failure'
+		['tap plan']='tap.plan'
+		['tap skip']='tap.skip'
+		['tap success']='tap.success'
+		['tap todo']='tap.todo'
+		['tap version']='tap.version'
 	)
 
 	#:lib/app.sh

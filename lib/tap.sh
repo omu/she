@@ -42,36 +42,20 @@ tap.version() {
 tap.plan() {
 	# shellcheck disable=2192
 	local -A _=(
+		[failure]=$NIL
+		[skip]=0
+		[success]=$NIL
+		[todo]=0
 		[total]=$NIL
 
-		[.help]='total=NUM'
+		[.help]='total=NUM success=NUM failure=NUM [todo=NUM] [skip=NUM]'
 	)
 
 	flag.parse
 
 	echo "1..${_[total]}"
-}
-
-tap.pending() {
-	# shellcheck disable=2192
-	local -A _=(
-		[test]=$NIL
-		[number]=
-
-		[.help]='test=MSG [number=NUM]'
-	)
-
-	flag.parse
-
-	echo -n ok | ui.out warning
-
-	if [[ -n ${_[number]:-} ]]; then
-		echo "${_[number]} - ${_[test]}"
-	else
-		echo "${_[test]}"
-	fi | color.out +blue
-
-	echo ' # skip test to be written' | color.out +yellow
+	echo "# ${_[success]} test(s) succeeded, ${_[failure]} test(s) failed, ${_[skip]} test(s) skipped."
+	echo "# There are ${_[todo]} todo test(s) waiting to be completed."
 }
 
 # Success
@@ -117,6 +101,62 @@ tap.failure() {
 	else
 		echo "${_[test]}"
 	fi | color.out +blue
+
+	local message
+	for message; do
+		echo "$message"
+	done | sed -u -e 's/^/# /'
+}
+
+# Skip
+tap.skip() {
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+
+		[.help]='test=MSG [number=NUM]'
+	)
+
+	flag.parse
+
+	echo -n 'ok     '
+	ui.out question
+
+	{
+		if [[ -n ${_[number]:-} ]]; then
+			echo -n "${_[number]} - ${_[test]}"
+		else
+			echo -n "${_[test]}"
+		fi
+
+		color.echo +yellow ' # SKIP'
+	} | color.out +blue
+}
+
+tap.todo() {
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+
+		[.help]='test=MSG [number=NUM]'
+	)
+
+	flag.parse
+
+	echo -n 'not ok '
+	ui.out failure
+
+	{
+		if [[ -n ${_[number]:-} ]]; then
+			echo -n "${_[number]} - ${_[test]}"
+		else
+			echo -n "${_[test]}"
+		fi
+
+		color.echo +yellow ' # TODO'
+	} | color.out +blue
 
 	local message
 	for message; do

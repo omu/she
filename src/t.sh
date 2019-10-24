@@ -26,9 +26,33 @@ declare -Ag _test_=(
 
 	_test_[current]=$((${_test_[current]:-0} + 1))
 
-	local current=${_test_[current]} message="$*"
+	local current=${_test_[current]} message
 
 	local -a err
+
+	if [[ ${1:-} =~ [sS][kK][iI][pP]\S* ]]; then
+		shift
+
+		message="$*"
+
+		.self tap skip test="$message" number="$current"
+		_test_[skip]=$((${_test_[skip]:-0} + 1))
+		_test_[success]=$((${_test_[success]:-0} + 1))
+
+		return
+	elif [[ ${1:-} =~ [tT][oO][dD][oO]\S* ]]; then
+		shift
+
+		message="$*"
+
+		.self tap todo test="$message" number="$current"
+		_test_[todo]=$((${_test_[todo]:-0} + 1))
+		_test_[failure]=$((${_test_[failure]:-0} + 1))
+
+		return
+	fi
+
+	message="$*"
 
 	if "$assert" err "${args[@]}"; then
 		.self tap success test="$message" number="$current"
@@ -37,6 +61,17 @@ declare -Ag _test_=(
 		.self tap failure test="$message" number="$current" "${err[@]}"
 		_test_[failure]=$((${_test_[failure]:-0} + 1))
 	fi
+}
+
+t.skip() {
+	local message=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	_test_[current]=$((${_test_[current]:-0} + 1))
+
+	local current=${_test_[current]}
+
+	.self tap success test="$message" number="$current"
+	_test_[success]=$((${_test_[success]:-0} + 1))
 }
 
 t.temp() {
@@ -83,7 +118,11 @@ t.go() {
 
 	! .callable test.shutdown || test.shutdown
 
-	.self tap plan total="${_test_[current]:-}"
+	.self tap plan	total="${_test_[current]:-}" \
+			success="${_test_[success]:-}" \
+			failure="${_test_[failure]:-0}" \
+			todo="${_test_[todo]:-0}" \
+			skip="${_test_[skip]:-0}"
 }
 
 # shellcheck disable=2034

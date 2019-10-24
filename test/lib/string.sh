@@ -27,9 +27,9 @@ test.hmm() {
 	t like "$string" '^foo/bar$' -- string has no suffix
 }
 
-t ok [[ ok = ok ]] -- ok is ok
+t ok [[ ok = ok ]] -- SKIP ok is ok
 
-t out true -- command must be silent
+t out true -- TODO command must be silent
 
 t out echo -e "foo\nbar" -- command must match <<'EOF'
 	foo

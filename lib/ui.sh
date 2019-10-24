@@ -30,11 +30,11 @@ ui._echo() {
 	echo -e "${sign_color}${sign}${reset} ${text_color}$*${reset}"
 }
 
-ui.panic()    { ui._echo "$@"; }
 ui.caution()  { ui._echo "$@"; }
 ui.failure()  { ui._echo "$@"; }
 ui.headline() { ui._echo "$@"; }
 ui.info()     { ui._echo "$@"; }
+ui.panic()    { ui._echo "$@"; }
 ui.plain()    { ui._echo "$@"; }
 ui.question() { ui._echo "$@"; }
 ui.success()  { ui._echo "$@"; }

@@ -88,4 +88,15 @@ color.out() {
 	echo -en "$reset"
 }
 
+color.echo() {
+	local color=${1?missing argument}
+	shift
+
+	local code reset
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -e "${code}${*}${reset}"
+}
+
 color._init
