@@ -66,7 +66,7 @@ must.z() {
 
 # Must be root
 must.root() {
-	[[ ${EUID:-} -eq 0 ]]
+	[[ ${EUID:-} -eq 0 ]] || .die 'Root permissions required; please use sudo.'
 }
 
 # Command must success

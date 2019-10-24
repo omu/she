@@ -13,7 +13,7 @@ url.is() {
 
 	if [[ $feature = local ]]; then
 		[[ $url =~ ^(/|./|file://) ]]
-		return
+		return 0
 	fi
 
 	url.parse_ "$url"

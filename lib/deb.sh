@@ -6,12 +6,15 @@ export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontW
 
 # Install Debian packages
 deb.install() {
+	must.root
+
 	# shellcheck disable=2192
 	local -A _=(
 		[-missings]=false
 		[-shiny]=false
 
 		[.help]='PACKAGE...'
+		[.argc]=1-
 	)
 
 	flag.parse
@@ -23,14 +26,14 @@ deb.install() {
 		--no-install-recommends
 	)
 
-	local -a packages urls non_urls
+	local -a packages=() urls=() non_urls=()
 
 	local arg
 	for arg; do
-		if is.url "$arg"; then
-			urls+=("$arg")
-		else
+		if url.is "$arg" local || [[ -z $(url.is "$arg" proto) ]]; then
 			non_urls+=("$arg")
+		else
+			urls+=("$arg")
 		fi
 	done
 
@@ -112,7 +115,7 @@ deb.update() {
 
 	flag.parse
 
-	.expired 60 /var/cache/apt/pkgcache.bin || apt-get update -y
+	util.expired 60 /var/cache/apt/pkgcache.bin || apt-get update -y
 }
 
 # Add Debian repository

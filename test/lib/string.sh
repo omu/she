@@ -29,7 +29,7 @@ test.hmm() {
 
 t ok [[ ok = ok ]] -- SKIP ok is ok
 
-t out true -- TODO command must be silent
+# t out true -- TODO command must be silent
 
 t out echo -e "foo\nbar" -- command must match <<'EOF'
 	foo
