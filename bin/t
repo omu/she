@@ -1368,7 +1368,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			fi
 		}
 
-		t.tmp() {
+		t.temp() {
 			local tempdir
 
 			if [[ -n ${PWD[tmp]:-} ]]; then

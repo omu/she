@@ -39,7 +39,7 @@ declare -Ag _test_=(
 	fi
 }
 
-t.tmp() {
+t.temp() {
 	local tempdir
 
 	if [[ -n ${PWD[tmp]:-} ]]; then
