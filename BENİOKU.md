@@ -102,7 +102,7 @@ ister istemez betiğin gerçekleme detaylarına girebilmeli.
 
 - Perl `.t` test dosyalarından esinlen
 
-- Her `.t` dosyası doğrudan Bash ile çalıştırılabilir bir test betiği
+- Her test dosyası doğrudan Bash ile çalıştırılabilir bir test betiği
 
 - TAP uyumlu çıktı biçimi
 
@@ -111,8 +111,6 @@ ister istemez betiğin gerçekleme detaylarına girebilmeli.
 - `prove` gibi (fakat tercihen Docker altında) test dosyalarını orkestra eden araç ayrı yazılacak
 
 - Testler daima `. <(t) [.|_|RELPATH]...` satırı ile başlıyor.  Opsiyonel argümanlar:
-
-  + `.`: Yukarı doğru `t.sh` araması yapar ve varsa yükler
 
   + `_`: `_` yerleşiğini yükler
 
@@ -165,9 +163,6 @@ test:teardown() {
       :
 }
 
-test:test_suite() {
-      t ok CASE
-}
 
 t go
 ```
@@ -182,10 +177,33 @@ t go
 
 ### Doğrulayıcılar
 
-- ok/notok
-- is/isnt
-- like/unlike
-- out/err
+- `t ok`/`t notok`
+
+   Verilen argümanları değerlendirerek ("eval") sonucun doğruluğuna baka
+
+- `t is`/`t isnt`
+
+   Verilen ilk argümanın (gerçekteki değer) ikinci argümana (beklenen değer) denkliğini doğrular
+
+- `t like`/`t unlike`
+
+   Verilen ilk argümanın (gerçekteki değer) ikinci argümanla verilen düzenli ifadeyle (beklenen değer) uyuştuğunu doğrular
+
+- `t out`/`t err`
+
+  Verilen argümanlara karşı düşen komutu çalıştırarak stdin'deki belirtime uygunluğunu denetler
+
+- `t pass`/`t fail`
+
+  Başarılı/başarısız test sonucu döner
+
+- `t skip`
+
+  Testi başarılı olarak işaretleyerek atlar ve SKIP olduğunu vurgular
+
+- `t todo`
+
+  Testi başarısız olarak işaretleyerek TODO olduğunu vurgular
 
 #### out/err
 
@@ -311,4 +329,4 @@ TODO
 - [ ] etc'nin durumu
 - [X] ui ve color desteği
 - [X] test alt yapısı
-- [ ] test gözden geçirme
+- [X] test gözden geçirme
