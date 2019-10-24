@@ -197,13 +197,9 @@ t go
 
   Başarılı/başarısız test sonucu döner
 
-- `t skip`
+- Testi başarılı olarak işaretleyerek atlamak için açıklamanın başına `SKIP` (veya `skip`) ekle
 
-  Testi başarılı olarak işaretleyerek atlar ve SKIP olduğunu vurgular
-
-- `t todo`
-
-  Testi başarısız olarak işaretleyerek TODO olduğunu vurgular
+- Testi başarısız olarak işaretleyerek TODO olduğunu vurgulamak için açıklamanın başına `TODO` (veya `todo`) ekle
 
 #### out/err
 
