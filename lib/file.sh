@@ -82,7 +82,7 @@ file.download() {
 	local    url=${1?${FUNCNAME[0]}: missing argument};                shift
 	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	.say "Downloading $url..."
+	ui.info "Downloading $url..."
 
 	local download
 
@@ -116,20 +116,19 @@ file.do_() {
 	case $op in
 	copy)
 		must.success cp -a "$src" "$dst"
-		flag.true -quiet || .say "File copied to $dst."
 		;;
 	move)
 		must.success mv -f "$src" "$dst"
-		flag.true -quiet || .say "File moved to $dst."
 		;;
 	link)
 		file.ln "$src" "$dst"
-		flag.true -quiet || .say "File linked to $dst."
 		;;
 	*)
 		.bug "Unrecognized operation: $op"
 		;;
 	esac
+
+	flag.true -quiet || ui.success "$dst"
 
 	file._chogm_ "$dst"
 }
