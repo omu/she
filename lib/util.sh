@@ -4,16 +4,16 @@
 util.expired() {
 	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ $expiry -gt 0 ]] || return 1
+	[[ $expiry -gt 0 ]] || return 0
 
 	local file
 	for file; do
 		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
-			return 1
+			return 0
 		fi
 	done
 
-	return 0
+	return 1
 }
 
 # Capture outputs to arrays and return exit code

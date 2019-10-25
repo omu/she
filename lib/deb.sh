@@ -30,10 +30,10 @@ deb.install() {
 
 	local arg
 	for arg; do
-		if url.is "$arg" local || [[ -z $(url.is "$arg" proto) ]]; then
-			non_urls+=("$arg")
-		else
+		if url.getable "$arg"; then
 			urls+=("$arg")
+		else
+			non_urls+=("$arg")
 		fi
 	done
 

@@ -3,21 +3,30 @@
 # Assert URL feature
 url.is() {
 	local -A _=(
-		[.help]='URL local|((proto|host|port|path|userinfo|frag) VALUE)'
-		[.argc]=2-
+		[.help]='URL (proto|host|port|path|userinfo|frag) VALUE)'
+		[.argc]=3
 	)
 
 	flag.parse
 
-	local url=$1 feature=$2
-
-	if [[ $feature = local ]]; then
-		[[ $url =~ ^(/|./|file://) ]]
-		return 0
-	fi
+	local url=$1 feature=$2 value=$3
 
 	url.parse_ "$url"
-	url.is_ "$feature" "$@"
+	url.is_ "$feature" "$value"
+}
+
+# Assert URL is getable (via supported protocols)
+url.getable() {
+	local -A _=(
+		[.help]='URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	local url=$1
+
+	[[ $url =~ ^(https|http|ssh|git|ftp):// ]]
 }
 
 # url - Protected functions
