@@ -63,7 +63,7 @@ src.run() {
 		[-shallow]=false
 		[-test]=false
 
-		[.help]='[-(expiry=MINUTES|prefix=DIR|pwd=DIR|shallow=BOOL|test=BOOL)] url'
+		[.help]='[-(expiry=MINUTES|prefix=DIR|pwd=DIR|shallow=BOOL|test=BOOL)] URL'
 		[.argc]=1
 	)
 
@@ -89,7 +89,7 @@ src.interprete() {
 		file=$file.$ext
 	fi
 
-	[[ -f $file ]] || .die "Not file found to interprete: $file"
+	[[ -f $file ]] || .die "No file found to interprete: $file"
 
 	local interpreter
 	case $ext in
@@ -134,7 +134,7 @@ src.run_() {
 
 	path.base file
 
-	hey "$file"
+	.hey "$file"
 	src.exe_ "$file"
 }
 

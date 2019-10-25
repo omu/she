@@ -124,10 +124,10 @@ git.update_() {
 	git.switch "${_[.branch]:-}"
 
 	local -i expiry=${_[-expiry]:-3}
-	if util.expired "$expiry" .git/FETCH_HEAD; then
+	if util.expired "$expiry" "$(git.topdir)"/.git/FETCH_HEAD; then
 		git.must.clean
 
-		.say 'Updating repository...'
+		ui.info 'Updating repository...'
 		git pull --quiet origin
 	fi
 

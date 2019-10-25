@@ -4,7 +4,7 @@
 util.expired() {
 	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ $expiry -gt 0 ]] || return 0
+	[[ $expiry -gt 0 ]] || return 1
 
 	local file
 	for file; do
