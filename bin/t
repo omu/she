@@ -3,8 +3,6 @@
 [ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
 
-# _.sh - Essential functions
-
 # shellcheck disable=2034,2128
 .prelude() {
 	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
@@ -20,22 +18,6 @@
 
 .say() {
 	echo -e "${@-""}"
-}
-
-.out() {
-	local arg
-
-	for arg; do
-		echo -e "$arg"
-	done
-
-	if .piped; then
-		cat
-	fi
-}
-
-.err() {
-	.out "$@" >&2
 }
 
 .cry() {
@@ -66,35 +48,6 @@
 	exit 127
 }
 
-.bye() {
-	.out "$@"
-
-	exit 0
-}
-
-.net() {
-	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	.say "$message..."
-	"$@"
-}
-
-.dbg() {
-	[[ $# -gt 0 ]] || return 0
-
-	# shellcheck disable=2178,2155
-	local -n dbg_=$1
-
-	echo "${!dbg_}"
-
-	local key
-	for key in "${!dbg_[@]}"; do
-		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
-	done | sort
-
-	echo
-}
-
 .contains() {
 	: "${1?${FUNCNAME[0]}: missing argument}"
 
@@ -115,31 +68,6 @@
 
 .callable() {
 	[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
-}
-
-.piped() {
-	[[ ! -t 0 ]]
-}
-
-.interactive() {
-	[[   -t 1 ]]
-}
-
-.bool() {
-	local value=${1:-}
-
-	value=${value,,}
-
-	case $value in
-	true|t|1|on|yes|y)
-		return 0
-		;;
-	false|f|0|off|no|n|"")
-		return 1
-		;;
-	*)
-		.bug "Invalid boolean: $value"
-	esac
 }
 
 .load() {
@@ -174,6 +102,78 @@
 
 	builtin cd "$_load_old_" || .die "Chdir error: $_load_old_"
 	unset _load_old_
+}
+
+# _.sh - Required functions
+
+.out() {
+	local arg
+
+	for arg; do
+		echo -e "$arg"
+	done
+
+	if .piped; then
+		cat
+	fi
+}
+
+.err() {
+	.out "$@" >&2
+}
+
+.bye() {
+	.out "$@"
+
+	exit 0
+}
+
+.net() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "$message..."
+	"$@"
+}
+
+.dbg() {
+	[[ $# -gt 0 ]] || return 0
+
+	# shellcheck disable=2178,2155
+	local -n dbg_=$1
+
+	echo "${!dbg_}"
+
+	local key
+	for key in "${!dbg_[@]}"; do
+		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
+	done | sort
+
+	echo
+}
+
+.piped() {
+	[[ ! -t 0 ]]
+}
+
+.interactive() {
+	[[   -t 1 ]]
+}
+
+.bool() {
+	local value=${1:-}
+
+	value=${value,,}
+
+	case $value in
+	true|t|1|on|yes|y)
+		return 0
+		;;
+	false|f|0|off|no|n|"")
+		return 1
+		;;
+	*)
+		.bug "Invalid boolean: $value"
+	esac
 }
 
 # Initialize underscore system
@@ -1083,6 +1083,11 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		echo "_SELF=$(self.path)"
 		echo
 		sed 's/^\t\t//' <<'EOF'
+		#!/usr/bin/env bash
+
+		[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
+		[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
+
 		# shellcheck disable=2034,2128
 		.prelude() {
 			set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
@@ -1093,6 +1098,8 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 			declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
 		}
+
+		.prelude
 
 		.say() {
 			echo -e "${@-""}"
@@ -1181,8 +1188,6 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			builtin cd "$_load_old_" || .die "Chdir error: $_load_old_"
 			unset _load_old_
 		}
-
-		.prelude
 
 		# defer.sh - Deferred functions
 

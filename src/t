@@ -1,4 +1,4 @@
-#:lib/shebang.sh
+#:lib/!.sh
 
 #:lib/_.sh
 
@@ -37,7 +37,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		echo "_SELF=$(self.path)"
 		echo
 		sed 's/^\t\t//' <<'EOF'
-		#:lib/_.sh: .prelude+ .say .cry .die .bug .contains .available .callable .load
+		#:lib/!.sh
 
 		#:lib/defer.sh
 

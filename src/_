@@ -1,4 +1,4 @@
-#:lib/shebang.sh
+#:lib/!.sh
 
 #:lib/_.sh
 
@@ -91,16 +91,11 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#:lib/app.sh
 
 	.source() {
-		sed 's/^\t\t//' <<'EOF'
-		#:lib/shebang.sh
-EOF
-		echo
 		echo "_SELF=$(self.path)"
 		echo
 		sed 's/^\t\t//' <<'EOF'
-		#:lib/_.sh: .prelude+
-EOF
-		sed 's/^\t\t//' <<'EOF'
+		#:lib/!.sh: .prelude+
+
 		#:src/_.sh
 EOF
 	}
