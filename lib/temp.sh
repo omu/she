@@ -31,20 +31,20 @@ temp.dir() {
 # Execute command in temp dir
 temp.inside() {
 	# shellcheck disable=2128
-	local temp_dir orig_dir=$PWD
-	temp.dir temp_dir
+	local temp_inside_ orig_dir_=$PWD
+	temp.dir temp_inside_
 
-	must.success cd "$temp_dir"
+	must.success cd "$temp_inside_"
 	"$@"
-	must.success cd "$orig_dir"
+	must.success cd "$orig_dir_"
 
-	rm -rf -- "$temp_dir"
+	rm -rf -- "$temp_inside_"
 }
 
 temp.clean() {
 	while [[ $# -gt 0 ]]; do
 		local -n temp_clean_=$1; shift
 
-		[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
+		rm -rf -- "$temp_clean_"
 	done
 }

@@ -26,8 +26,8 @@ filetype.is() {
 	local -A _=(
 		[-zip]=false
 
-		[.help]='FILE'
-		[.argc]=1
+		[.help]='FILE TYPE'
+		[.argc]=2
 	)
 
 	flag.parse

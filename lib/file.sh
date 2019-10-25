@@ -8,9 +8,10 @@ file.install() {
 		[-mode]=
 		[-owner]=
 		[-prefix]=
+		[-quiet]=
 
 		[.help]='[-(group|mode|owner|prefix)=VALUE] URL [FILE]'
-		[.argc]=1
+		[.argc]=1-
 	)
 
 	flag.parse
@@ -43,7 +44,7 @@ file.chogm() {
 		[-owner]=
 
 		[.help]='[-(group|mode|owner)=VALUE] URL [FILE]'
-		[.argc]=1
+		[.argc]=1-
 	)
 
 	flag.parse
@@ -81,13 +82,16 @@ file.download() {
 	local    url=${1?${FUNCNAME[0]}: missing argument};                shift
 	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local tempfile
+	.say "Downloading $url..."
 
-	temp.file tempfile
-	must.success http.get "$url" >"$tempfile"
+	local download
+
+	temp.file download
+	must.success http.get "$url" >"$download"
+	must.success chmod 644 "$download"
 
 	# shellcheck disable=2034
-	file_download_dst_=$tempfile
+	file_download_dst_=$download
 }
 
 file.do_() {
@@ -112,12 +116,15 @@ file.do_() {
 	case $op in
 	copy)
 		must.success cp -a "$src" "$dst"
+		flag.true -quiet || .say "File copied to $dst."
 		;;
 	move)
 		must.success mv -f "$src" "$dst"
+		flag.true -quiet || .say "File moved to $dst."
 		;;
 	link)
 		file.ln "$src" "$dst"
+		flag.true -quiet || .say "File linked to $dst."
 		;;
 	*)
 		.bug "Unrecognized operation: $op"
@@ -134,22 +141,16 @@ file.dst_() {
 }
 
 file.install_() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local tempfile=
-
-	if url.is "$url" local; then
-		src=$url
+	if url.getable src; then
+		file.download "$src" src
+		file.do_ copy "$src" "$dst"
+		temp.clean src
 	else
-		temp.file tempfile
-		http.get "$url" >"$tempfile"
-		src=$tempfile
+		file.do_ copy "$src" "$dst"
 	fi
-
-	file.do_ copy "$src" "$dst"
-
-	temp.clean tempfile
 }
 
 # Private functions
@@ -165,7 +166,7 @@ file._do_args_() {
 		[-prefix]=
 
 		[.help]='[-(GROUP|MODE|OWNER|PREFIX)=VALUE] SRC [DST]'
-		[.argc]=1
+		[.argc]=1-
 	)
 
 	flag.parse

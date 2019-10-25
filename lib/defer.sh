@@ -56,7 +56,7 @@ defer.init() {
 
 		local func
 		for func in "${_defer_funcs_[@]}"; do
-			"$func" || .cry "Deferred function failed: $func"
+			"$func" || [[ $SIG = INT ]] || [[ $SIG = QUIT ]] || .cry "Deferred function failed: $func"
 		done
 
 		if [[ -v _defer_clean_ ]] && [[ "${#_defer_clean_[@]}" -gt 0 ]]; then

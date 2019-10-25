@@ -1246,7 +1246,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 				local func
 				for func in "${_defer_funcs_[@]}"; do
-					"$func" || .cry "Deferred function failed: $func"
+					"$func" || [[ $SIG = INT ]] || [[ $SIG = QUIT ]] || .cry "Deferred function failed: $func"
 				done
 
 				if [[ -v _defer_clean_ ]] && [[ "${#_defer_clean_[@]}" -gt 0 ]]; then
@@ -1292,7 +1292,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			while [[ $# -gt 0 ]]; do
 				local -n temp_clean_=$1; shift
 
-				[[ -z ${!temp_clean_:-} ]] || rm -f -- "${!temp_clean_}"
+				rm -rf -- "$temp_clean_"
 			done
 		}
 

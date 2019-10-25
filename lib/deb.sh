@@ -30,10 +30,12 @@ deb.install() {
 
 	local arg
 	for arg; do
-		if url.getable "$arg"; then
-			urls+=("$arg")
+		local url=$arg
+
+		if url.getable url; then
+			urls+=("$url")
 		else
-			non_urls+=("$arg")
+			non_urls+=("$url")
 		fi
 	done
 
@@ -183,15 +185,15 @@ deb._dist_added() {
 deb._apt_key_add() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local tempfile
-	temp.file tempfile
+	local temp_file
+	temp.file temp_file
 
-	http.get "$url" >"$tempfile" || .die "Couldn't get key file: $url"
+	http.get "$url" >"$temp_file" || .die "Couldn't get key file: $url"
 
 	local -a questioned_fingerprints installed_fingerprints
 
 	mapfile -t questioned_fingerprints < <(
-		gpg -nq --import --import-options import-show --with-colons "$tempfile" | awk -F: '$1 == "fpr" { print $10 }' 2>/dev/null
+		gpg -nq --import --import-options import-show --with-colons "$temp_file" | awk -F: '$1 == "fpr" { print $10 }' 2>/dev/null
 	)
 
 	# shellcheck disable=2034
@@ -204,9 +206,9 @@ deb._apt_key_add() {
 		.contains "$fingerprint" "${installed_fingerprints[@]}" || return 1
 	done
 
-	apt-key add "$tempfile"
+	apt-key add "$temp_file"
 
-	rm -f -- "$tempfile"
+	rm -f -- "$temp_file"
 }
 
 deb._missings() {

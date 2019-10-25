@@ -38,21 +38,23 @@ bin.install_() {
 	local url=$1
 
 	# shellcheck disable=1007
-	local bin= tempfile= tempdir=
+	local bin= temp_bin_file= temp_bin_dir=
 
-	if url.is "$url" local; then
-		bin=$url
+	if url.getable url; then
+		file.download "$url" temp_bin_file
+		bin=$temp_bin_file
 	else
-		file.download tempfile
-		bin=$tempfile
+		bin=$url
 	fi
 
-	if is.file compressed "$bin"; then
-		zip.unpack "$bin" tempdir
-		bin=$tempdir
+	if filetype.is "$bin" compressed; then
+		temp.dir temp_bin_dir
+
+		zip.unpack -force=true "$bin" "$temp_bin_dir"
+		bin=$temp_bin_dir
 	fi
 
-	local -a bins
+	local -a bins=()
 	bin._inspect "$bin" bins
 
 	if [[ ${#bins[@]} -eq 1 ]]; then
@@ -70,7 +72,7 @@ bin.install_() {
 		.die "No program found: $url"
 	fi
 
-	temp.clean tempfile tempdir
+	temp.clean temp_bin_file temp_bin_dir
 }
 
 # bin - Private functions
@@ -82,10 +84,10 @@ bin._inspect() {
 	if [[ -d $bin ]]; then
 		local file
 		for file in "$bin"/*; do
-			is.file program "$file" || continue
+			filetype.is "$file" program || continue
 			bin_inspect_+=("$file")
 		done
-	elif is.file program "$bin"; then
+	elif filetype.is "$bin" program; then
 		bin_inspect_+=("$file")
 	fi
 }

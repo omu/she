@@ -15,18 +15,19 @@ url.is() {
 	url.is_ "$feature" "$value"
 }
 
-# Assert URL is getable (via supported protocols)
+# Transform URL to a getable (via supported providers) form
 url.getable() {
-	local -A _=(
-		[.help]='URL'
-		[.argc]=1
-	)
+	local -n url_getable_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	flag.parse
+	if [[ $url_getable_ =~ ^[^:]+:// ]]; then
+		return 0
+	elif [[ $url_getable_ =~ ^(github.com|gitlab.com|bitbucket.com) ]]; then
+		url_getable_="https://$url_getable_"
 
-	local url=$1
+		return 0
+	fi
 
-	[[ $url =~ ^(https|http|ssh|git|ftp):// ]]
+	return 1
 }
 
 # url - Protected functions

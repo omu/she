@@ -107,8 +107,8 @@ git.clone_() {
 	[[ -z ${_[.branch]:-}   ]] || opt+=(--branch "${_[.branch]}")
 
 	_func_() {
-		git clone "${opt[@]}" "$url" .
-		file.do_ copy . "$dst"
+		git clone "${opt[@]}" "$url" clone
+		file.do_ copy clone "$dst"
 	}
 
 	temp.inside _func_

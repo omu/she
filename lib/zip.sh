@@ -6,7 +6,7 @@ zip.unpack() {
 		[-force]=false
 		[-clean]=false
 
-		[.help]='[-(force|clean)=BOOL] FILE'
+		[.help]='[-(force|clean)=BOOL] FILE [DIR]'
 		[.argc]=1-
 	)
 
@@ -28,96 +28,93 @@ zip.unpack() {
 }
 
 zip._unpack_.tar.gz() {
+	zip._prep_untar_ "$@"
+
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
-	zip._prep_untar_
-
-	tar --strip-components=1 -zxvf "$in" -C "$out"
+	tar --strip-components=1 -zxf "$in" -C "$out"
 }
 
 zip._unpack_.tar.bz2() {
+	must.available bzip2 && zip._prep_untar_ "$@"
+
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
-	zip._prep_untar_ bzip2
-
-	tar --strip-components=1 -jxvf "$in" -C "$out"
+	tar --strip-components=1 -jxf "$in" -C "$out"
 }
 
 zip._unpack_.tar.xz() {
+	must.available xz && zip._prep_untar_ "$@"
+
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
-	zip._prep_untar_ xz
-
-	tar --strip-components=1 -Jxvf "$in" -C "$out"
+	tar --strip-components=1 -Jxf "$in" -C "$out"
 }
 
 zip._unpack_.tar.zst() {
+	must.available zstd && zip._prep_untar_ "$@"
+
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
-	zip._prep_untar_ zstd
-
-	tar --strip-components=1 --zstd -xvf "$in" -C "$out"
+	tar --strip-components=1 --zstd -xf "$in" -C "$out"
 }
 
 zip._unpack_.zip() {
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+	must.available unzip && zip._prep_unzip_ "$@"
 
-	zip._prep_unzip_ unzip
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	unzip -q -d "$out" "$in"
 }
 
 zip._unpack_.gz() {
+	must.available zcat && zip._prep_unzip_ "$@"
+
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	zip._prep_unzip_ zcat
 
-	local tempfile
-	temp.file tempfile
+	local temp_file
+	temp.file temp_file
 
-	zcat "$in" >"$tempfile" && mv "$tempfile" "$out"
+	zcat "$in" >"$temp_file" && mv "$temp_file" "$out"
 }
 
 zip._unpack_.bz2() {
+	must.available bzcat && zip._prep_unzip_ "$@"
+
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
-	zip._prep_unzip_ bzcat
+	local temp_file
+	temp.file temp_file
 
-	local tempfile
-	temp.file tempfile
-
-	bzcat "$in" >"$tempfile" && mv "$tempfile" "$out"
+	bzcat "$in" >"$temp_file" && mv "$temp_file" "$out"
 }
 
 zip._unpack_.xz() {
+	must.available unxz && zip._prep_unzip_ "$@"
+
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
-	zip._prep_unzip_ unxz
+	local temp_file
+	temp.file temp_file
 
-	local tempfile
-	temp.file tempfile
-
-	unxz "$in" >"$tempfile" && mv "$tempfile" "$out"
+	unxz "$in" >"$temp_file" && mv "$temp_file" "$out"
 }
 
 zip._unpack_.zst() {
+	must.available zstdcat && zip._prep_unzip_ "$@"
+
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
-	zip._prep_unzip_ zstdcat
+	local temp_file
+	temp.file temp_file
 
-	local tempfile
-	temp.file tempfile
-
-	zstdcat -f "$in" >"$tempfile" && mv "$tempfile" "$out"
+	zstdcat -f "$in" >"$temp_file" && mv "$temp_file" "$out"
 }
 
 zip._prep_unzip_() {
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	local prog
-	for prog; do
-		must.available "$prog"
-	done
 
 	[[ -n $out ]] || out=${in%.*}
 
@@ -132,11 +129,6 @@ zip._prep_unzip_() {
 
 zip._prep_untar_() {
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	local prog
-	for prog; do
-		must.available "$prog"
-	done
 
 	[[ -n $out ]] || out=${in%.tar.*}
 
