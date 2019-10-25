@@ -51,17 +51,58 @@ flag.parse_() {
 		shift
 	done
 
-	_.load flag_result_
+	flag.load flag_result_
 
 	flag._validate_ $argc
 }
 
+flag.load() {
+	# shellcheck disable=2034
+	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!_load_src_[@]}"; do
+		# shellcheck disable=2034
+		_[$key]=${_load_src_[$key]}
+	done
+}
+
+flag.values() {
+	local pattern=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local -a keys
+
+	mapfile -t keys < <(
+		for key in "${!_[@]}"; do
+			[[ $key =~ $pattern ]] || continue
+
+			echo "$key"
+		done | sort -u
+	)
+
+	local key
+
+	if [[ $# -gt 0 ]]; then
+		local -n _values_=$1
+
+		for key in "${keys[@]}"; do
+			_values_+=("${_[$key]}")
+		done
+
+		_values_=("${_values_[@]}")
+	else
+		for key in "${keys[@]}"; do
+			echo "${_[$key]}"
+		done
+	fi
+}
+
 flag.args_() {
-	_.values '^[1-9][0-9]*$' "$@"
+	flag.values '^[1-9][0-9]*$' "$@"
 }
 
 flag.env_() {
-	_.values '^[[:alpha:]_][[:alnum:]_]*$' "$@"
+	flag.values '^[[:alpha:]_][[:alnum:]_]*$' "$@"
 }
 
 flag.true() {
