@@ -12,7 +12,7 @@ git.update() {
 
 	if util.expired "${_[-expiry]}" .git/FETCH_HEAD; then
 		git.must.clean
-		git pull --quiet origin
+		.net 'Updating repository' git pull --quiet origin
 	fi
 }
 
@@ -107,7 +107,7 @@ git.clone_() {
 	[[ -z ${_[.branch]:-}   ]] || opt+=(--branch "${_[.branch]}")
 
 	_func_() {
-		git clone "${opt[@]}" "$url" clone
+		.net 'Cloning repository' git clone "${opt[@]}" "$url" clone
 		file.do_ copy clone "$dst"
 	}
 
@@ -127,8 +127,7 @@ git.update_() {
 	if util.expired "$expiry" "$(git.topdir)"/.git/FETCH_HEAD; then
 		git.must.clean
 
-		ui.info 'Updating repository...'
-		git pull --quiet origin
+		.net 'Updating repository' git pull --quiet origin
 	fi
 
 	must.success popd >/dev/null

@@ -67,6 +67,13 @@
 	exit 0
 }
 
+.net() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "$message..."
+	"$@"
+}
+
 .dbg() {
 	[[ $# -gt 0 ]] || return 0
 

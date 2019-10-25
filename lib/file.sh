@@ -82,12 +82,10 @@ file.download() {
 	local    url=${1?${FUNCNAME[0]}: missing argument};                shift
 	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	ui.info "Downloading $url..."
-
 	local download
 
 	temp.file download
-	must.success http.get "$url" >"$download"
+	must.success .net "Downloading $url" http.get "$url" >"$download"
 	must.success chmod 644 "$download"
 
 	# shellcheck disable=2034

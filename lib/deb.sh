@@ -84,6 +84,8 @@ deb.uninstall() {
 	deb._missings packages "$@"
 	[[ ${#packages[@]} -gt 0 ]] || return 0
 
+	must.root
+
 	apt-get purge -y "${packages[@]}"
 
 	must.proceed apt-get autoremove -y && must.proceed apt-get autoclean -y
@@ -117,11 +119,17 @@ deb.update() {
 
 	flag.parse
 
-	util.expired 60 /var/cache/apt/pkgcache.bin || apt-get update -y
+	if ! util.expired 60 /var/cache/apt/pkgcache.bin; then
+		must.root
+
+		.net 'Updating APT index' apt-get update -y
+	fi
 }
 
 # Add Debian repository
 deb.repository() {
+	must.root && must.piped
+
 	# shellcheck disable=2192
 	local -A _=(
 		[.help]='NAME [URL]'
@@ -131,8 +139,6 @@ deb.repository() {
 	flag.parse
 
 	local name=$1 url=${2:-}
-
-	must.piped
 
 	if [[ -n ${url:-} ]]; then
 		deb._apt_key_add "$url" || return 0
@@ -144,6 +150,8 @@ deb.repository() {
 
 # Use given official Debian distributions
 deb.using() {
+	must.root
+
 	# shellcheck disable=2192
 	local -A _=(
 		[.help]='DIST...'

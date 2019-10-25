@@ -72,6 +72,13 @@
 	exit 0
 }
 
+.net() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "$message..."
+	"$@"
+}
+
 .dbg() {
 	[[ $# -gt 0 ]] || return 0
 
@@ -550,6 +557,7 @@ ui._init() {
 	_sign[failure]='✗';    _sign_color[failure]=+red;       _text_color[failure]=high
 	_sign[headline]='>';   _sign_color[headline]=+cyan;     _text_color[headline]=high
 	_sign[info]='ℹ';       _sign_color[info]=-yellow;       _text_color[info]=low
+	_sign[network]='↓';    _sign_color[network]=+cyan;      _text_color[network]=low
 	_sign[panic]='✖';      _sign_color[panic]=red;          _text_color[panic]=high
 	_sign[plain]=' ';      _sign_color[plain]=+white;       _text_color[plain]=medium
 	_sign[question]='?';   _sign_color[question]=+yellow;   _text_color[question]=high
@@ -574,6 +582,7 @@ ui.caution()  { ui._echo "$@"; }
 ui.failure()  { ui._echo "$@"; }
 ui.headline() { ui._echo "$@"; }
 ui.info()     { ui._echo "$@"; }
+ui.network()  { ui._echo "$@"; }
 ui.panic()    { ui._echo "$@"; }
 ui.plain()    { ui._echo "$@"; }
 ui.question() { ui._echo "$@"; }
@@ -610,6 +619,13 @@ ui.hey() {
 	ui.headline "$@" >&2
 }
 
+ui.net() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	ui.network "$message"
+	"$@"
+}
+
 ui._init
 
 shopt -s expand_aliases
@@ -619,6 +635,7 @@ alias .bye=ui.bye
 alias .cry=ui.cry
 alias .die=ui.die
 alias .hey=ui.hey
+alias .net=ui.net
 
 ui.out() {
 	local name=$1
@@ -1506,12 +1523,10 @@ file.download() {
 	local    url=${1?${FUNCNAME[0]}: missing argument};                shift
 	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	ui.info "Downloading $url..."
-
 	local download
 
 	temp.file download
-	must.success http.get "$url" >"$download"
+	must.success .net "Downloading $url" http.get "$url" >"$download"
 	must.success chmod 644 "$download"
 
 	# shellcheck disable=2034
@@ -1715,7 +1730,7 @@ git.update() {
 
 	if util.expired "${_[-expiry]}" .git/FETCH_HEAD; then
 		git.must.clean
-		git pull --quiet origin
+		.net 'Updating repository' git pull --quiet origin
 	fi
 }
 
@@ -1810,7 +1825,7 @@ git.clone_() {
 	[[ -z ${_[.branch]:-}   ]] || opt+=(--branch "${_[.branch]}")
 
 	_func_() {
-		git clone "${opt[@]}" "$url" clone
+		.net 'Cloning repository' git clone "${opt[@]}" "$url" clone
 		file.do_ copy clone "$dst"
 	}
 
@@ -1830,8 +1845,7 @@ git.update_() {
 	if util.expired "$expiry" "$(git.topdir)"/.git/FETCH_HEAD; then
 		git.must.clean
 
-		ui.info 'Updating repository...'
-		git pull --quiet origin
+		.net 'Updating repository' git pull --quiet origin
 	fi
 
 	must.success popd >/dev/null
@@ -2160,6 +2174,8 @@ deb.uninstall() {
 	deb._missings packages "$@"
 	[[ ${#packages[@]} -gt 0 ]] || return 0
 
+	must.root
+
 	apt-get purge -y "${packages[@]}"
 
 	must.proceed apt-get autoremove -y && must.proceed apt-get autoclean -y
@@ -2193,11 +2209,17 @@ deb.update() {
 
 	flag.parse
 
-	util.expired 60 /var/cache/apt/pkgcache.bin || apt-get update -y
+	if ! util.expired 60 /var/cache/apt/pkgcache.bin; then
+		must.root
+
+		.net 'Updating APT index' apt-get update -y
+	fi
 }
 
 # Add Debian repository
 deb.repository() {
+	must.root && must.piped
+
 	# shellcheck disable=2192
 	local -A _=(
 		[.help]='NAME [URL]'
@@ -2207,8 +2229,6 @@ deb.repository() {
 	flag.parse
 
 	local name=$1 url=${2:-}
-
-	must.piped
 
 	if [[ -n ${url:-} ]]; then
 		deb._apt_key_add "$url" || return 0
@@ -2220,6 +2240,8 @@ deb.repository() {
 
 # Use given official Debian distributions
 deb.using() {
+	must.root
+
 	# shellcheck disable=2192
 	local -A _=(
 		[.help]='DIST...'
