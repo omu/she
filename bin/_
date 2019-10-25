@@ -2156,7 +2156,7 @@ deb.install() {
 
 	deb.update
 
-	[[ "${#packages[@]}" -eq 0 ]] || apt-get install "${opts[@]}" "${packages[@]}"
+	[[ "${#packages[@]}" -eq 0 ]] || .net 'Installing packages' apt-get install "${opts[@]}" "${packages[@]}"
 	[[ "${#urls[@]}" -eq 0     ]] || deb._install_from_urls "${urls[@]}"
 }
 
@@ -2212,7 +2212,7 @@ deb.update() {
 	if ! util.expired 60 /var/cache/apt/pkgcache.bin; then
 		must.root
 
-		.net 'Updating APT index' apt-get update -y
+		.net 'Updating package index' apt-get update -y
 	fi
 }
 
