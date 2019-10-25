@@ -122,7 +122,7 @@ tap.skip() {
 	flag.parse
 
 	echo -n 'ok     '
-	ui.out question
+	ui.out plain
 
 	{
 		if [[ -n ${_[number]:-} ]]; then
