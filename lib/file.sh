@@ -112,6 +112,8 @@ file.do_() {
 
 	[[ $dstdir = . ]] || must.success mkdir -p "$dstdir"
 
+	local installed=$dst/${src##*/}
+
 	case $op in
 	copy)
 		must.success cp -a "$src" "$dst"
@@ -127,9 +129,11 @@ file.do_() {
 		;;
 	esac
 
-	flag.true -quiet || ui.success "$dst"
+	flag.true -quiet || ui.success "$installed"
 
-	file._chogm_ "$dst"
+	file._chogm_ "$installed"
+
+	_[.installed]=$installed
 }
 
 file.dst_() {

@@ -1536,6 +1536,8 @@ file.do_() {
 
 	[[ $dstdir = . ]] || must.success mkdir -p "$dstdir"
 
+	local installed=$dst/${src##*/}
+
 	case $op in
 	copy)
 		must.success cp -a "$src" "$dst"
@@ -1551,9 +1553,11 @@ file.do_() {
 		;;
 	esac
 
-	flag.true -quiet || ui.success "$dst"
+	flag.true -quiet || ui.success "$installed"
 
-	file._chogm_ "$dst"
+	file._chogm_ "$installed"
+
+	_[.installed]=$installed
 }
 
 file.dst_() {
@@ -1640,6 +1644,36 @@ bin.use() {
 	bin.install_ "$@"
 }
 
+# Run program
+bin.run() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-name]=
+
+		[.help]='[-name=NAME] URL|FILE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	_[-prefix]="$_RUN/tmp"
+	_[-quiet]=true
+
+	bin.install_ "$@"
+
+	local file=${_[.installed]:-}
+	[[ -n $file ]] || .bug 'No file installed'
+
+	ui.plain 'Running downloaded file'
+
+	local err
+	src.exe_ "$file" || err=$? && err=$?
+
+	rm -f "$file"
+
+	return "$err"
+}
+
 # bin - Protected functions
 
 bin.install_() {
@@ -1665,16 +1699,18 @@ bin.install_() {
 	local -a bins=()
 	bin._inspect "$bin" bins
 
+	[[ -n ${_[-mode]:-} ]] || _[-mode]=755
+
 	if [[ ${#bins[@]} -eq 1 ]]; then
 		local src=${bins[0]} dst=${_[-name]:-}
 
-		file.install -prefix="${_[-prefix]}" -mode=755 "$src" "$dst"
+		file.install_ "$src" "$dst"
 	elif [[ ${#bins[@]} -gt 1 ]]; then
 		[[ -n ${_[-name]:-} ]] || .die "Ambiguous usage of name argument: ${_[-name]}"
 
 		local src
 		for src in "${bins[@]}"; do
-			file.install -prefix="${_[-prefix]}" -mode=755 "$src"
+			file.install_ "$src"
 		done
 	else
 		.die "No program found: $url"
@@ -1696,7 +1732,7 @@ bin._inspect() {
 			bin_inspect_+=("$file")
 		done
 	elif filetype.is "$bin" program; then
-		bin_inspect_+=("$file")
+		bin_inspect_+=("$bin")
 	fi
 }
 
@@ -2456,7 +2492,7 @@ filetype.is._program_() {
 	else
 		if head -n 1 "$file" | grep -q '^#!'; then
 			_[.file.program]=script
-			return 1
+			return 0
 		fi
 	fi
 
@@ -2679,6 +2715,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['file.link']='Link file/directory to dstination creating all parents if necessary'
 		['bin.install']='Install program to path'
 		['bin.use']='Use program'
+		['bin.run']='Run program'
 		['git.must.sane']='shellcheck disable=2128'
 		['git.must.clean']='shellcheck disable=2128'
 		['src.install']='Install to a known location'
@@ -2702,6 +2739,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _command=(
 		['bin install']='bin.install'
 		['bin use']='bin.use'
+		['bin run']='bin.run'
 		['bug']='ui.bug'
 		['cry']='ui.cry'
 		['deb install']='deb.install'

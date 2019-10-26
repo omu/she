@@ -316,8 +316,9 @@ TODO
 
 - [ ] manuel test
   + [ ] ui.info için kısayol
-  + [ ] bin.run
+  + [ ] bin.run ve src.run'ı seçerek çalıştıran bir run
   + [ ] expired lojiğini ters yap
+  + [ ] ui.plain ile uzun çalışanları yönetiyoruz, kısayol?
 
 - [X] API overhaul ve ekleme/düzeltmeler
 - [ ] Stil/tutarlılık bakımı

@@ -32,6 +32,36 @@ bin.use() {
 	bin.install_ "$@"
 }
 
+# Run program
+bin.run() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-name]=
+
+		[.help]='[-name=NAME] URL|FILE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	_[-prefix]="$_RUN/tmp"
+	_[-quiet]=true
+
+	bin.install_ "$@"
+
+	local file=${_[.installed]:-}
+	[[ -n $file ]] || .bug 'No file installed'
+
+	ui.plain 'Running downloaded file'
+
+	local err
+	src.exe_ "$file" || err=$? && err=$?
+
+	rm -f "$file"
+
+	return "$err"
+}
+
 # bin - Protected functions
 
 bin.install_() {
@@ -57,16 +87,18 @@ bin.install_() {
 	local -a bins=()
 	bin._inspect "$bin" bins
 
+	[[ -n ${_[-mode]:-} ]] || _[-mode]=755
+
 	if [[ ${#bins[@]} -eq 1 ]]; then
 		local src=${bins[0]} dst=${_[-name]:-}
 
-		file.install -prefix="${_[-prefix]}" -mode=755 "$src" "$dst"
+		file.install_ "$src" "$dst"
 	elif [[ ${#bins[@]} -gt 1 ]]; then
 		[[ -n ${_[-name]:-} ]] || .die "Ambiguous usage of name argument: ${_[-name]}"
 
 		local src
 		for src in "${bins[@]}"; do
-			file.install -prefix="${_[-prefix]}" -mode=755 "$src"
+			file.install_ "$src"
 		done
 	else
 		.die "No program found: $url"
@@ -88,6 +120,6 @@ bin._inspect() {
 			bin_inspect_+=("$file")
 		done
 	elif filetype.is "$bin" program; then
-		bin_inspect_+=("$file")
+		bin_inspect_+=("$bin")
 	fi
 }

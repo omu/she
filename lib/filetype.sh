@@ -83,7 +83,7 @@ filetype.is._program_() {
 	else
 		if head -n 1 "$file" | grep -q '^#!'; then
 			_[.file.program]=script
-			return 1
+			return 0
 		fi
 	fi
 

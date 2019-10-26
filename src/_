@@ -50,6 +50,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _command=(
 		['bin install']='bin.install'
 		['bin use']='bin.use'
+		['bin run']='bin.run'
 		['bug']='ui.bug'
 		['cry']='ui.cry'
 		['deb install']='deb.install'
