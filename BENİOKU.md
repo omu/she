@@ -319,6 +319,9 @@ TODO
   + [ ] bin.run ve src.run'ı seçerek çalıştıran bir run
   + [ ] expired lojiğini ters yap
   + [ ] ui.plain ile uzun çalışanları yönetiyoruz, kısayol?
+  + [ ] `_[.target]` vb durumlar için genel tasarımı denetle
+  + [ ] `bin.install_` yerine `bin.install -prefix=...` vs olsa daha iyi olur
+        ("çalıştırmadan önce değişkeni set et" mantığı tehlikeli, `_` readonly olmalı)
 
 - [X] API overhaul ve ekleme/düzeltmeler
 - [ ] Stil/tutarlılık bakımı
