@@ -7,7 +7,7 @@ bin.install() {
 		[-prefix]="$_USR"/bin
 		[-name]=
 
-		[.help]='URL|FILE'
+		[.help]='[-name=NAME] [-prefix=DIR] URL|FILE'
 		[.argc]=1
 	)
 
@@ -23,7 +23,7 @@ bin.use() {
 		[-prefix]="$_RUN"/bin
 		[-name]=
 
-		[.help]='URL|FILE'
+		[.help]='[-name=NAME] [-prefix=DIR] URL|FILE'
 		[.argc]=1
 	)
 

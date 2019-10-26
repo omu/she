@@ -1,16 +1,5 @@
 # ui.sh - UI functions
 
-ui.caution()  { ui._echo "$@"; }
-ui.failure()  { ui._echo "$@"; }
-ui.headline() { ui._echo "$@"; }
-ui.info()     { ui._echo "$@"; }
-ui.network()  { ui._echo "$@"; }
-ui.panic()    { ui._echo "$@"; }
-ui.plain()    { ui._echo "$@"; }
-ui.question() { ui._echo "$@"; }
-ui.success()  { ui._echo "$@"; }
-ui.warning()  { ui._echo "$@"; }
-
 # Report bug and exit failure
 ui.bug() {
 	ui.panic "$@" >&2; exit 127
@@ -31,9 +20,14 @@ ui.cry() {
 	ui.warning "$@" >&2
 }
 
+# Print error messages without exiting
+ui.die-() {
+	ui.failure "$@" >&2
+}
+
 # Print error messages and exit failure
 ui.die() {
-	ui.failure "$@" >&2; exit 1
+	ui.die- "$@"; exit 1
 }
 
 # Print messages taking attention
@@ -82,6 +76,25 @@ ui._init() {
 	_sign[warning]='!';    _sign_color[warning]=+yellow;    _text_color[warning]=medium
 
 	color.expand _sign_color _text_color
+
+	ui.caution()  { ui._echo "$@"; }
+	ui.failure()  { ui._echo "$@"; }
+	ui.headline() { ui._echo "$@"; }
+	ui.info()     { ui._echo "$@"; }
+	ui.network()  { ui._echo "$@"; }
+	ui.panic()    { ui._echo "$@"; }
+	ui.plain()    { ui._echo "$@"; }
+	ui.question() { ui._echo "$@"; }
+	ui.success()  { ui._echo "$@"; }
+	ui.warning()  { ui._echo "$@"; }
+
+	.bug()  { ui.bug "$@"; }
+	.bye()  { ui.bye "$@"; }
+	.cry()  { ui.cry "$@"; }
+	.hey()  { ui.hey "$@"; }
+	.net()  { ui.net "$@"; }
+	.die()  { ui.die "$@"; }
+	.die-() { ui.die- "$@"; }
 }
 
 # shellcheck disable=2034,2154
@@ -96,12 +109,3 @@ ui._echo() {
 }
 
 ui._init
-
-shopt -s expand_aliases
-
-alias .bug=ui.bug
-alias .bye=ui.bye
-alias .cry=ui.cry
-alias .die=ui.die
-alias .hey=ui.hey
-alias .net=ui.net

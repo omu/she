@@ -1,7 +1,7 @@
 # defer.sh - Deferred functions
 
 # shellcheck disable=2120
-defer.init() {
+.defer() {
 	if [[ -v _defer_initialized_ ]]; then
 		return
 	else
@@ -79,7 +79,7 @@ defer.init() {
 
 # Register files/directories to clean up at exit
 .clean() {
-	[[ -v _defer_initialized_ ]] || defer.init
+	[[ -v _defer_initialized_ ]] || .defer
 
 	_defer_clean_+=("$@")
 }

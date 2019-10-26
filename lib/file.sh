@@ -85,7 +85,8 @@ file.download() {
 	local download
 
 	temp.file download
-	must.success .net "Downloading $url" http.get "$url" >"$download"
+	.net "Downloading $url"
+	must.success http.get "$url" >"$download"
 	must.success chmod 644 "$download"
 
 	# shellcheck disable=2034
