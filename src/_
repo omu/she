@@ -66,6 +66,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['hey']='ui.hey'
 		['http get']='http.get'
 		['http is']='http.is'
+		['net']='ui.net'
 		['os codename']='os.codename'
 		['os dist']='os.dist'
 		['os is']='os.is'
