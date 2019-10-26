@@ -84,7 +84,7 @@ class Source
       end
 
       def private?
-        fun.match?(/(_$|\b_)/)
+        fun.match?(/(^[._]|[._]$|\b_)/)
       end
 
       protected

@@ -997,9 +997,6 @@ self.install() {
 
 if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
-		['.prelude']='shellcheck disable=2034,2128'
-		['.expired']='Check the expirations of given files'
-		['.capture']='Capture outputs to arrays and return exit code'
 		['must.e']='Test -e'
 		['must.f']='Test -f'
 		['must.d']='Test -d'
@@ -1033,7 +1030,6 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self.install']='Install self'
 		['app.dispatch']='shellcheck disable=2154'
 		['defer.init']='shellcheck disable=2120'
-		['.clean']='Register files/directories to clean up at exit'
 		['temp.inside']='Execute command in temp dir'
 		['assert.ok']='Assert command succeed'
 		['assert.notok']='Assert command failed'

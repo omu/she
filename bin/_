@@ -2621,9 +2621,6 @@ zip._prep_untar_() {
 
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
-		['.prelude']='shellcheck disable=2034,2128'
-		['.expired']='Check the expirations of given files'
-		['.capture']='Capture outputs to arrays and return exit code'
 		['ui.bug']='Report bug and exit failure'
 		['ui.say']='Print messages on standard error'
 		['ui.bye']='Print messages on standard error and exit success'
@@ -2656,7 +2653,6 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['array.dup']='Duplicate array'
 		['array.contains']='Array contains the given element'
 		['defer.init']='shellcheck disable=2120'
-		['.clean']='Register files/directories to clean up at exit'
 		['temp.inside']='Execute command in temp dir'
 		['os.virtual']='Virtualization type'
 		['os.dist']='Distribution name'
