@@ -35,7 +35,7 @@ bin.use() {
 # bin - Protected functions
 
 bin.install_() {
-	local url=$1
+	local url="${1?${FUNCNAME[0]}: missing argument}"; shift
 
 	# shellcheck disable=1007
 	local bin= temp_bin_file= temp_bin_dir=

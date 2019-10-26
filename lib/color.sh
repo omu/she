@@ -68,16 +68,16 @@ color.setup() {
 }
 
 color.code() {
-	local code="${_color[${1?missing argument}]:-}"
+	local name="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local code="${_color[$color]:-}"
 
-	[[ -n $code ]] || .bug "No such color: $1"
+	[[ -n $code ]] || .bug "No such color: $name"
 
 	echo -en "$code"
 }
 
 color.out() {
-	local color=${1?missing argument}
-	shift
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
 
 	local code reset
 	code=$(color.code "$color")
@@ -89,8 +89,7 @@ color.out() {
 }
 
 color.echo() {
-	local color=${1?missing argument}
-	shift
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
 
 	local code reset
 	code=$(color.code "$color")

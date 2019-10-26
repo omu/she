@@ -57,7 +57,6 @@ flag.parse_() {
 }
 
 flag.load() {
-	# shellcheck disable=2034
 	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local key

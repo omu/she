@@ -176,6 +176,56 @@
 	esac
 }
 
+# Check the expirations of given files
+.expired() {
+	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $expiry -gt 0 ]] || return 1
+
+	local file
+	for file; do
+		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+# Capture outputs to arrays and return exit code
+# shellcheck disable=2034,2178
+.capture() {
+	local out err ret
+
+	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
+		local -n util_capture_out_=$1
+
+		out=$(mktemp)
+	fi
+	shift
+
+	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
+		local -n util_capture_err_=$1
+
+		err=$(mktemp)
+	fi
+	shift
+
+	"$@" >"${out:-/dev/stdout}" 2>"${err:-/dev/stderr}" && ret=$? || ret=$?
+
+	if [[ -n ${out:-} ]]; then
+		mapfile -t util_capture_out_ <"$out" || true
+		rm -f -- "$out"
+	fi
+
+	if [[ -n ${err:-} ]]; then
+		mapfile -t util_capture_err_ <"$err" || true
+		rm -f -- "$err"
+	fi
+
+	return $ret
+}
+
 # Initialize underscore system
 
 .init() {
@@ -263,7 +313,6 @@ flag.parse_() {
 }
 
 flag.load() {
-	# shellcheck disable=2034
 	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local key
@@ -565,16 +614,16 @@ color.setup() {
 }
 
 color.code() {
-	local code="${_color[${1?missing argument}]:-}"
+	local name="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local code="${_color[$color]:-}"
 
-	[[ -n $code ]] || .bug "No such color: $1"
+	[[ -n $code ]] || .bug "No such color: $name"
 
 	echo -en "$code"
 }
 
 color.out() {
-	local color=${1?missing argument}
-	shift
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
 
 	local code reset
 	code=$(color.code "$color")
@@ -586,8 +635,7 @@ color.out() {
 }
 
 color.echo() {
-	local color=${1?missing argument}
-	shift
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
 
 	local code reset
 	code=$(color.code "$color")
@@ -599,37 +647,6 @@ color.echo() {
 color._init
 
 # ui.sh - UI functions
-
-# shellcheck disable=2034,2154
-ui._init() {
-	declare -Ag _sign _sign_color _text_color
-
-	# Style
-
-	_sign[caution]='★';    _sign_color[caution]=+cyan;      _text_color[caution]=high
-	_sign[failure]='✗';    _sign_color[failure]=+red;       _text_color[failure]=high
-	_sign[headline]='>';   _sign_color[headline]=+cyan;     _text_color[headline]=high
-	_sign[info]='ℹ';       _sign_color[info]=-yellow;       _text_color[info]=low
-	_sign[network]='↓';    _sign_color[network]=+cyan;      _text_color[network]=low
-	_sign[panic]='✖';      _sign_color[panic]=red;          _text_color[panic]=high
-	_sign[plain]='∙';      _sign_color[plain]=+white;       _text_color[plain]=medium
-	_sign[question]='?';   _sign_color[question]=+yellow;   _text_color[question]=high
-	_sign[success]='✓';    _sign_color[success]=+green;     _text_color[success]=high
-	_sign[warning]='!';    _sign_color[warning]=+yellow;    _text_color[warning]=medium
-
-	color.expand _sign_color _text_color
-}
-
-# shellcheck disable=2034,2154
-ui._echo() {
-	local name=${FUNCNAME[1]#*.}
-
-	local sign=${_sign[$name]}
-
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	echo -e "${sign_color}${sign}${reset} ${text_color}$*${reset}"
-}
 
 ui.caution()  { ui._echo "$@"; }
 ui.failure()  { ui._echo "$@"; }
@@ -679,6 +696,53 @@ ui.net() {
 	"$@"
 }
 
+ui.out() {
+	local name=$1
+	shift
+
+	local sign=${_sign[$name]}
+
+	# shellcheck disable=2154
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	echo -en "${sign_color}${sign}${reset} "
+	.out
+	echo -en "$reset "
+}
+
+# Private functions
+
+# shellcheck disable=2034,2154
+ui._init() {
+	declare -Ag _sign _sign_color _text_color
+
+	# Style
+
+	_sign[caution]='★';    _sign_color[caution]=+cyan;      _text_color[caution]=high
+	_sign[failure]='✗';    _sign_color[failure]=+red;       _text_color[failure]=high
+	_sign[headline]='>';   _sign_color[headline]=+cyan;     _text_color[headline]=high
+	_sign[info]='ℹ';       _sign_color[info]=-yellow;       _text_color[info]=low
+	_sign[network]='↓';    _sign_color[network]=+cyan;      _text_color[network]=low
+	_sign[panic]='✖';      _sign_color[panic]=red;          _text_color[panic]=high
+	_sign[plain]='∙';      _sign_color[plain]=+white;       _text_color[plain]=medium
+	_sign[question]='?';   _sign_color[question]=+yellow;   _text_color[question]=high
+	_sign[success]='✓';    _sign_color[success]=+green;     _text_color[success]=high
+	_sign[warning]='!';    _sign_color[warning]=+yellow;    _text_color[warning]=medium
+
+	color.expand _sign_color _text_color
+}
+
+# shellcheck disable=2034,2154
+ui._echo() {
+	local name=${FUNCNAME[1]#*.}
+
+	local sign=${_sign[$name]}
+
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	echo -e "${sign_color}${sign}${reset} ${text_color}$*${reset}"
+}
+
 ui._init
 
 shopt -s expand_aliases
@@ -689,19 +753,6 @@ alias .cry=ui.cry
 alias .die=ui.die
 alias .hey=ui.hey
 alias .net=ui.net
-
-ui.out() {
-	local name=$1
-	shift
-
-	local sign=${_sign[$name]}
-
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	echo -en "${sign_color}${sign}${reset} "
-	.out
-	echo -en "$reset "
-}
 
 readonly _TAP_VERSION_=13
 
@@ -947,6 +998,8 @@ self.install() {
 if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		['.prelude']='shellcheck disable=2034,2128'
+		['.expired']='Check the expirations of given files'
+		['.capture']='Capture outputs to arrays and return exit code'
 		['must.e']='Test -e'
 		['must.f']='Test -f'
 		['must.d']='Test -d'

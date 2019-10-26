@@ -93,7 +93,6 @@ os.is._proxmox() {
 }
 
 os.is._vagrant() {
-	# shellcheck disable=2119
 	os.is._virtual || return 1
 
 	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null

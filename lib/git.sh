@@ -10,7 +10,7 @@ git.update() {
 
 	flag.parse
 
-	if util.expired "${_[-expiry]}" .git/FETCH_HEAD; then
+	if .expired "${_[-expiry]}" .git/FETCH_HEAD; then
 		git.must.clean
 		.net 'Updating repository' git pull --quiet origin
 	fi
@@ -124,7 +124,7 @@ git.update_() {
 	git.switch "${_[.branch]:-}"
 
 	local -i expiry=${_[-expiry]:-3}
-	if util.expired "$expiry" "$(git.topdir)"/.git/FETCH_HEAD; then
+	if .expired "$expiry" "$(git.topdir)"/.git/FETCH_HEAD; then
 		git.must.clean
 
 		.net 'Updating repository' git pull --quiet origin
