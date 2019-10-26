@@ -315,6 +315,10 @@ TODO
 ----
 
 - [ ] manuel test
+  + [ ] ui.info için kısayol
+  + [ ] bin.run
+  + [ ] expired lojiğini ters yap
+
 - [X] API overhaul ve ekleme/düzeltmeler
 - [ ] Stil/tutarlılık bakımı
 - [X] blob unpack

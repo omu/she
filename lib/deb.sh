@@ -48,13 +48,14 @@ deb.install() {
 	if flag.true -shiny; then
 		local target
 
-		if is.debian stable; then
-			target=$(what.debian codename)-backports
-		elif is.debian unstable; then
+		if os.is debian stable; then
+			target=$(os.codename)-backports
+		elif os.is debian unstable; then
 			target=experimental
 		fi
 
 		if [[ -n ${target:-} ]]; then
+			ui.info "Using $target"
 			deb.using "$target"
 
 			opts+=(
@@ -75,11 +76,12 @@ deb.uninstall() {
 	# shellcheck disable=2192
 	local -A _=(
 		[.help]='PACKAGE...'
+		[.argc]=1-
 	)
 
 	flag.parse
 
-	local -a packages
+	local -a packages=()
 
 	deb._missings packages "$@"
 	[[ ${#packages[@]} -gt 0 ]] || return 0
@@ -145,7 +147,7 @@ deb.repository() {
 	fi
 
 	cat >/etc/apt/sources.list.d/"$name".list
-	apt-get update -y
+	.net 'Updating package index' apt-get update -y
 }
 
 # Use given official Debian distributions
@@ -166,7 +168,7 @@ deb.using() {
 		stable|testing|unstable|sid|experimental)
 			;;
 		*)
-			deb._dist_valid "$dist" || .die "Invalid distribution: $dist"
+			deb._dist_valid "$dist" || .cry "Skipping invalid distribution: $dist"
 			;;
 		esac
 
@@ -181,7 +183,7 @@ deb.using() {
 deb._dist_valid() {
 	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	http.is OK http://ftp.debian.org/debian/dists/"$dist"/
+	http.is http://ftp.debian.org/debian/dists/"$dist"/ OK
 }
 
 deb._dist_added() {
@@ -201,12 +203,14 @@ deb._apt_key_add() {
 	local -a questioned_fingerprints installed_fingerprints
 
 	mapfile -t questioned_fingerprints < <(
-		gpg -nq --import --import-options import-show --with-colons "$temp_file" | awk -F: '$1 == "fpr" { print $10 }' 2>/dev/null
+		gpg -nq --import --import-options import-show --with-colons "$temp_file" |
+		awk -F: '$1 == "fpr" { print $10 }' 2>/dev/null
 	)
 
 	# shellcheck disable=2034
 	mapfile -t installed_fingerprints < <(
-		apt-key adv --list-public-keys --with-fingerprint --with-colon | awk -F: '$1 == "fpr" { print $10 }' 2>/dev/null
+		apt-key adv --list-public-keys --with-fingerprint --with-colon |
+		awk -F: '$1 == "fpr" { print $10 }' 2>/dev/null
 	)
 
 	local fingerprint
@@ -216,14 +220,14 @@ deb._apt_key_add() {
 
 	apt-key add "$temp_file"
 
-	rm -f -- "$temp_file"
+	temp.clean temp_file
 }
 
 deb._missings() {
 	local -a deb_missings_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local package
-	for package in "${[@]}"; do
+	for package; do
 		# shellcheck disable=2016
 		if [ -z "$(dpkg-query -W -f='${Installed-Size}' "$package" 2>/dev/null ||:)" ]; then
 			deb_missings_+=("$package")
