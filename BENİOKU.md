@@ -69,9 +69,9 @@ Stil
 
 - `${_[1]}`, `${_[9]}` değerleri konumsal parametreler için kullanılır
 
-- `.reply` değişkeni (isteğe bağlı olarak) dönüş değerini taşır (alt: `.`)
+- `.` değişkeni (isteğe bağlı olarak) dönüş değerini taşır (alt: `.reply` veya `_`)
 
-- `.error` değişkeni (varsa) hata iletisi taşır (alt: `!`)
+- `!` değişkeni (varsa) hata iletisi taşır (alt: `.error`)
 
 - Bunun dışında kalan (seçenek, ara değişken veya konumsal parametre olmayan) tüm anahtarlar değişken olarak kullanılır
 

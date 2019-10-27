@@ -187,45 +187,11 @@
 	local file
 	for file; do
 		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
-			return 0
+			return 1
 		fi
 	done
 
-	return 1
-}
-
-# Capture outputs to arrays and return exit code
-# shellcheck disable=2034,2178
-.capture() {
-	local out err ret
-
-	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
-		local -n util_capture_out_=$1
-
-		out=$(mktemp)
-	fi
-	shift
-
-	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
-		local -n util_capture_err_=$1
-
-		err=$(mktemp)
-	fi
-	shift
-
-	"$@" >"${out:-/dev/stdout}" 2>"${err:-/dev/stderr}" && ret=$? || ret=$?
-
-	if [[ -n ${out:-} ]]; then
-		mapfile -t util_capture_out_ <"$out" || true
-		rm -f -- "$out"
-	fi
-
-	if [[ -n ${err:-} ]]; then
-		mapfile -t util_capture_err_ <"$err" || true
-		rm -f -- "$err"
-	fi
-
-	return $ret
+	return 0
 }
 
 # Initialize underscore system
@@ -1864,7 +1830,6 @@ git.update_() {
 	local -i expiry=${_[-expiry]:-3}
 	if .expired "$expiry" "$(git.topdir)"/.git/FETCH_HEAD; then
 		git.must.clean
-
 		.net 'Updating repository' git pull --quiet origin
 	fi
 
@@ -2231,7 +2196,7 @@ deb.update() {
 
 	flag.parse
 
-	if ! .expired 60 /var/cache/apt/pkgcache.bin; then
+	if .expired 60 /var/cache/apt/pkgcache.bin; then
 		must.root
 
 		.net 'Updating package index' apt-get update -y
@@ -2666,6 +2631,59 @@ zip._prep_untar_() {
 	fi
 }
 
+# misc.sh - Utilities
+
+# Check the expirations of given files
+misc.expired() {
+	local -A _=(
+		[-expiry]=3
+
+		[.help]='[-expiry=MINUTES] FILE...'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.expired "${_[-expiry]}" "$@"
+}
+
+# Private functions
+
+# Capture outputs to arrays and return exit code
+# shellcheck disable=2034,2178
+.capture() {
+	local out err ret
+
+	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
+		local -n capture_out_=$1
+
+		out=$(mktemp)
+	fi
+	shift
+
+	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
+		local -n capture_err_=$1
+
+		err=$(mktemp)
+	fi
+	shift
+
+	"$@" >"${out:-/dev/stdout}" 2>"${err:-/dev/stderr}" && ret=$? || ret=$?
+
+	if [[ -n ${out:-} ]]; then
+		mapfile -t capture_out_ <"$out" || true
+		rm -f -- "$out"
+	fi
+
+	if [[ -n ${err:-} ]]; then
+		mapfile -t capture_err_ <"$err" || true
+		rm -f -- "$err"
+	fi
+
+	return $ret
+}
+
+
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		['ui.bug']='Report bug and exit failure'
@@ -2733,13 +2751,14 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['filetype.mime']='What mime type'
 		['filetype.is']='Detect file type'
 		['zip.unpack']='Unpack compressed file'
+		['misc.expired']='Check the expirations of given files'
 		['app.dispatch']='shellcheck disable=2154'
 	)
 
 	declare -Ag _command=(
 		['bin install']='bin.install'
-		['bin use']='bin.use'
 		['bin run']='bin.run'
+		['bin use']='bin.use'
 		['bug']='ui.bug'
 		['cry']='ui.cry'
 		['deb install']='deb.install'
@@ -2750,6 +2769,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['deb using']='deb.using'
 		['die']='ui.die'
 		['enter']='src.enter'
+		['expired']='misc.expired'
 		['file install']='file.install'
 		['filetype is']='filetype.is'
 		['filetype mime']='filetype.mime'
@@ -2763,10 +2783,10 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['os virtual']='os.virtual'
 		['run']='src.run'
 		['say']='ui.say'
-		['self']='self'
 		['self install']='self.install'
 		['self name']='self.name'
 		['self path']='self.path'
+		['self']='self'
 		['self version']='self.version'
 		['src install']='src.install'
 		['src use']='src.use'

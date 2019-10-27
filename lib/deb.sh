@@ -121,7 +121,7 @@ deb.update() {
 
 	flag.parse
 
-	if ! .expired 60 /var/cache/apt/pkgcache.bin; then
+	if .expired 60 /var/cache/apt/pkgcache.bin; then
 		must.root
 
 		.net 'Updating package index' apt-get update -y

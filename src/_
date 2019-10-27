@@ -44,13 +44,15 @@
 
 #:lib/zip.sh
 
+#:lib/misc.sh
+
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/
 
 	declare -Ag _command=(
 		['bin install']='bin.install'
-		['bin use']='bin.use'
 		['bin run']='bin.run'
+		['bin use']='bin.use'
 		['bug']='ui.bug'
 		['cry']='ui.cry'
 		['deb install']='deb.install'
@@ -61,6 +63,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['deb using']='deb.using'
 		['die']='ui.die'
 		['enter']='src.enter'
+		['expired']='misc.expired'
 		['file install']='file.install'
 		['filetype is']='filetype.is'
 		['filetype mime']='filetype.mime'
@@ -74,10 +77,10 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['os virtual']='os.virtual'
 		['run']='src.run'
 		['say']='ui.say'
-		['self']='self'
 		['self install']='self.install'
 		['self name']='self.name'
 		['self path']='self.path'
+		['self']='self'
 		['self version']='self.version'
 		['src install']='src.install'
 		['src use']='src.use'

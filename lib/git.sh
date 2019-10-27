@@ -126,7 +126,6 @@ git.update_() {
 	local -i expiry=${_[-expiry]:-3}
 	if .expired "$expiry" "$(git.topdir)"/.git/FETCH_HEAD; then
 		git.must.clean
-
 		.net 'Updating repository' git pull --quiet origin
 	fi
 
