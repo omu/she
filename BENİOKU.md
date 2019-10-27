@@ -318,10 +318,10 @@ TODO
 
 - [ ] manuel test
   + [ ] ui.info için kısayol
-  + [ ] bin.run ve src.run'ı seçerek çalıştıran bir run
-  + [ ] expired lojiğini ters yap
+  + [X] bin.run ve src.run'ı seçerek çalıştıran bir run
+  + [X] expired lojiğini ters yap
   + [ ] ui.plain ile uzun çalışanları yönetiyoruz, kısayol?
-  + [ ] `_[.target]` vb durumlar için genel tasarımı denetle
+  + [X] `_[.target]` vb durumlar için genel tasarımı denetle
   + [ ] `bin.install_` yerine `bin.install -prefix=...` vs olsa daha iyi olur
         ("çalıştırmadan önce değişkeni set et" mantığı tehlikeli, `_` readonly olmalı)
 

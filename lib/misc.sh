@@ -1,5 +1,10 @@
 # misc.sh - Utilities
 
+# Try to run any file or url
+misc.run() {
+	bin.run "$@" # TODO
+}
+
 # Check the expirations of given files
 misc.expired() {
 	local -A _=(

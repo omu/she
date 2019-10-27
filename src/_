@@ -75,7 +75,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['os dist']='os.dist'
 		['os is']='os.is'
 		['os virtual']='os.virtual'
-		['run']='src.run'
+		['run']='misc.run'
 		['say']='ui.say'
 		['self install']='self.install'
 		['self name']='self.name'
