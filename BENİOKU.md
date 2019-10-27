@@ -337,6 +337,9 @@ TODO
 - [X] test alt yapısı
 - [X] test gözden geçirme
 
+- [ ] omu/debian
+  + runtime/chrome
+  + development/crystal
 
 .say
 .die

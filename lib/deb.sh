@@ -90,8 +90,8 @@ deb.uninstall() {
 
 	apt-get purge -y "${packages[@]}"
 
-	.might -- apt-get autoremove -y
-	.might -- apt-get autoclean -y
+	.should -- apt-get autoremove -y
+	.should -- apt-get autoclean -y
 }
 
 # Print missing packages among given packages

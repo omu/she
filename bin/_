@@ -68,7 +68,7 @@
 	fi
 }
 
-.might() {
+.should() {
 	if [[ ${1:-} = -- ]]; then
 		shift
 
@@ -2073,8 +2073,8 @@ deb.uninstall() {
 
 	apt-get purge -y "${packages[@]}"
 
-	.might -- apt-get autoremove -y
-	.might -- apt-get autoclean -y
+	.should -- apt-get autoremove -y
+	.should -- apt-get autoclean -y
 }
 
 # Print missing packages among given packages
@@ -2655,6 +2655,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	)
 
 	declare -Ag _command=(
+		['available']='.available'
 		['bin install']='bin.install'
 		['bin run']='bin.run'
 		['bin use']='bin.use'
@@ -2675,6 +2676,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['hey']='ui.hey'
 		['http get']='http.get'
 		['http is']='http.is'
+		['must']='.must'
 		['net']='ui.net'
 		['os codename']='os.codename'
 		['os dist']='os.dist'
@@ -2687,6 +2689,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self path']='self.path'
 		['self']='self'
 		['self version']='self.version'
+		['should']='.should'
 		['src install']='src.install'
 		['src use']='src.use'
 		['temp inside']='temp.inside'
@@ -2808,6 +2811,10 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				"$_SELF" bug "$@"; exit $?
 			}
 
+			_.must() {
+				"$_SELF" must "$@" || exit $?
+			}
+
 			_.enter() {
 				local dir
 
@@ -2827,8 +2834,8 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			local cmd=$1
 
 			case $cmd in
-			die|cry|bye|bug|enter|leave) shift; _."$cmd" "$@" ;;
-			*)                           "$_SELF" "$@"        ;;
+			die|cry|bye|bug|must|enter|leave) shift; _."$cmd" "$@" ;;
+			*)                                       "$_SELF" "$@" ;;
 			esac
 		}
 

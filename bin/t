@@ -68,7 +68,7 @@
 	fi
 }
 
-.might() {
+.should() {
 	if [[ ${1:-} = -- ]]; then
 		shift
 
@@ -1065,7 +1065,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			fi
 		}
 
-		.might() {
+		.should() {
 			if [[ ${1:-} = -- ]]; then
 				shift
 

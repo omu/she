@@ -48,6 +48,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/
 
 	declare -Ag _command=(
+		['available']='.available'
 		['bin install']='bin.install'
 		['bin run']='bin.run'
 		['bin use']='bin.use'
@@ -68,6 +69,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['hey']='ui.hey'
 		['http get']='http.get'
 		['http is']='http.is'
+		['must']='.must'
 		['net']='ui.net'
 		['os codename']='os.codename'
 		['os dist']='os.dist'
@@ -80,6 +82,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self path']='self.path'
 		['self']='self'
 		['self version']='self.version'
+		['should']='.should'
 		['src install']='src.install'
 		['src use']='src.use'
 		['temp inside']='temp.inside'

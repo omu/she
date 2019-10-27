@@ -24,6 +24,10 @@ declare -gr _SELF=$_SELF
 		"$_SELF" bug "$@"; exit $?
 	}
 
+	_.must() {
+		"$_SELF" must "$@" || exit $?
+	}
+
 	_.enter() {
 		local dir
 
@@ -43,8 +47,8 @@ _() {
 	local cmd=$1
 
 	case $cmd in
-	die|cry|bye|bug|enter|leave) shift; _."$cmd" "$@" ;;
-	*)                           "$_SELF" "$@"        ;;
+	die|cry|bye|bug|must|enter|leave) shift; _."$cmd" "$@" ;;
+	*)                                       "$_SELF" "$@" ;;
 	esac
 }
 

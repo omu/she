@@ -68,7 +68,7 @@
 	fi
 }
 
-.might() {
+.should() {
 	if [[ ${1:-} = -- ]]; then
 		shift
 
