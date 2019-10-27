@@ -704,12 +704,12 @@ ui._init() {
 	ui.success()  { ui._echo "$@"; }
 	ui.warning()  { ui._echo "$@"; }
 
-	.bug()  { ui.bug "$@"; }
-	.bye()  { ui.bye "$@"; }
-	.cry()  { ui.cry "$@"; }
-	.hey()  { ui.hey "$@"; }
-	.net()  { ui.net "$@"; }
-	.die()  { ui.die "$@"; }
+	.bug()  { ui.bug  "$@"; }
+	.bye()  { ui.bye  "$@"; }
+	.cry()  { ui.cry  "$@"; }
+	.hey()  { ui.hey  "$@"; }
+	.net()  { ui.net  "$@"; }
+	.die()  { ui.die  "$@"; }
 	.die-() { ui.die- "$@"; }
 }
 
