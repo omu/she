@@ -16,10 +16,16 @@
 	.out "$@" >&2
 }
 
-.bye() {
-	.out "$@"
+.cry() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "W: $*"
+	else
+		echo >&2 ""
+	fi
+}
 
-	exit 0
+.hey() {
+	.say "$@"
 }
 
 .net() {

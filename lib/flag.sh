@@ -16,16 +16,24 @@ flag.usage_() {
 		# shellcheck disable=2128
 		.say "Usage: ${PROGNAME[*]}"
 	fi
+}
 
-	[[ $# -gt 0 ]] || return 0
+flag.usage_and_die_() {
+	flag.usage_
 
-	exit "$1"
+	.die "$@"
+}
+
+flag.usage_and_die_() {
+	flag.usage_
+
+	.bye "$@"
 }
 
 # shellcheck disable=2034
 flag.parse_() {
 	if .contains -help "$@"; then
-		flag.usage_ 0
+		flag.usage_and_bye_
 	fi
 
 	local -A flag_result_
@@ -146,15 +154,16 @@ flag._args_() {
 		.bug "Incorrect range: $argc"
 	fi
 
+	local message
 	if   [[ -n ${lo:-} ]] && [[ $n -lt $lo ]]; then
-		.die- 'Too few arguments'
+		message='Too few arguments'
 	elif [[ -n ${hi:-} ]] && [[ $n -gt $hi ]]; then
-		.die- 'Too many arguments'
+		message='Too many arguments'
 	else
 		return 0
 	fi
 
-	flag.usage_ 1
+	flag.usage_and_die "$message"
 }
 
 flag._validate_() {

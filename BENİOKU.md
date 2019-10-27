@@ -336,3 +336,16 @@ TODO
 - [X] ui ve color desteği
 - [X] test alt yapısı
 - [X] test gözden geçirme
+
+
+.say
+.die
+.bug
+.bye
+
+.running
+.getting
+.warning
+.calling
+.telling
+.noticing

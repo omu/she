@@ -20,24 +20,14 @@
 	echo -e "${@-""}"
 }
 
-.cry() {
-	if [[ $# -gt 0 ]]; then
-		echo -e >&2 "W: $*"
-	else
-		echo >&2 ""
-	fi
-}
-
-.die-() {
+.die() {
 	if [[ $# -gt 0 ]]; then
 		echo -e >&2 "E: $*"
 	else
 		echo >&2 ""
 	fi
-}
 
-.die() {
-	.die- "$@"; exit 1
+	exit 1
 }
 
 .bug() {
@@ -48,6 +38,16 @@
 	fi
 
 	exit 127
+}
+
+.bye() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "$*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 0
 }
 
 .contains() {
@@ -124,10 +124,16 @@
 	.out "$@" >&2
 }
 
-.bye() {
-	.out "$@"
+.cry() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "W: $*"
+	else
+		echo >&2 ""
+	fi
+}
 
-	exit 0
+.hey() {
+	.say "$@"
 }
 
 .net() {
@@ -240,16 +246,24 @@ flag.usage_() {
 		# shellcheck disable=2128
 		.say "Usage: ${PROGNAME[*]}"
 	fi
+}
 
-	[[ $# -gt 0 ]] || return 0
+flag.usage_and_die_() {
+	flag.usage_
 
-	exit "$1"
+	.die "$@"
+}
+
+flag.usage_and_die_() {
+	flag.usage_
+
+	.bye "$@"
 }
 
 # shellcheck disable=2034
 flag.parse_() {
 	if .contains -help "$@"; then
-		flag.usage_ 0
+		flag.usage_and_bye_
 	fi
 
 	local -A flag_result_
@@ -370,15 +384,16 @@ flag._args_() {
 		.bug "Incorrect range: $argc"
 	fi
 
+	local message
 	if   [[ -n ${lo:-} ]] && [[ $n -lt $lo ]]; then
-		.die- 'Too few arguments'
+		message='Too few arguments'
 	elif [[ -n ${hi:-} ]] && [[ $n -gt $hi ]]; then
-		.die- 'Too many arguments'
+		message='Too many arguments'
 	else
 		return 0
 	fi
 
-	flag.usage_ 1
+	flag.usage_and_die "$message"
 }
 
 flag._validate_() {
@@ -704,13 +719,12 @@ ui._init() {
 	ui.success()  { ui._echo "$@"; }
 	ui.warning()  { ui._echo "$@"; }
 
-	.bug()  { ui.bug  "$@"; }
-	.bye()  { ui.bye  "$@"; }
-	.cry()  { ui.cry  "$@"; }
-	.hey()  { ui.hey  "$@"; }
-	.net()  { ui.net  "$@"; }
-	.die()  { ui.die  "$@"; }
-	.die-() { ui.die- "$@"; }
+	.bug() { ui.bug  "$@"; }
+	.bye() { ui.bye  "$@"; }
+	.cry() { ui.cry  "$@"; }
+	.hey() { ui.hey  "$@"; }
+	.net() { ui.net  "$@"; }
+	.die() { ui.die  "$@"; }
 }
 
 # shellcheck disable=2034,2154
@@ -1126,24 +1140,14 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			echo -e "${@-""}"
 		}
 
-		.cry() {
-			if [[ $# -gt 0 ]]; then
-				echo -e >&2 "W: $*"
-			else
-				echo >&2 ""
-			fi
-		}
-
-		.die-() {
+		.die() {
 			if [[ $# -gt 0 ]]; then
 				echo -e >&2 "E: $*"
 			else
 				echo >&2 ""
 			fi
-		}
 
-		.die() {
-			.die- "$@"; exit 1
+			exit 1
 		}
 
 		.bug() {
@@ -1154,6 +1158,16 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			fi
 
 			exit 127
+		}
+
+		.bye() {
+			if [[ $# -gt 0 ]]; then
+				echo -e >&2 "$*"
+			else
+				echo >&2 ""
+			fi
+
+			exit 0
 		}
 
 		.contains() {

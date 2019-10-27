@@ -20,24 +20,14 @@
 	echo -e "${@-""}"
 }
 
-.cry() {
-	if [[ $# -gt 0 ]]; then
-		echo -e >&2 "W: $*"
-	else
-		echo >&2 ""
-	fi
-}
-
-.die-() {
+.die() {
 	if [[ $# -gt 0 ]]; then
 		echo -e >&2 "E: $*"
 	else
 		echo >&2 ""
 	fi
-}
 
-.die() {
-	.die- "$@"; exit 1
+	exit 1
 }
 
 .bug() {
@@ -48,6 +38,16 @@
 	fi
 
 	exit 127
+}
+
+.bye() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "$*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 0
 }
 
 .contains() {
