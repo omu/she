@@ -9,7 +9,7 @@ text.fix() {
 
 	flag.parse
 
-	local file=$1; must.f "$file"
+	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
 
 	text._unfix "$file"
 
@@ -29,7 +29,7 @@ text.unfix() {
 
 	flag.parse
 
-	local file=$1; must.f "$file"
+	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
 
 	text._unfix "$file"
 }
@@ -40,6 +40,6 @@ text._unfix() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	grep -qE '(BEGIN|END) FIX' "$file" || return 0
-	must.w "$file"
+	.must "No such file or file is not writable: $file" [[ -w "$file" ]]
 	sed -i '/BEGIN FIX/,/END FIX/d' "$file"
 }

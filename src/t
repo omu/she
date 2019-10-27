@@ -4,8 +4,6 @@
 
 #:lib/flag.sh
 
-#:lib/must.sh
-
 #:lib/color.sh
 
 #:lib/ui.sh

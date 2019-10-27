@@ -11,7 +11,7 @@ filetype.mime() {
 
 	flag.parse
 
-	local file=$1; must.f "$file"
+	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
 
 	if flag.true -zip; then
 		file --mime-type --brief --uncompress-noreport "$file"
@@ -32,7 +32,7 @@ filetype.is() {
 
 	flag.parse
 
-	local file=$1; must.f "$file"
+	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
 
 	filetype.is_ "$@"
 }
@@ -45,7 +45,7 @@ filetype.is_() {
 
 	local func=filetype.is._"${type}"_
 
-	must.callable "$func" "Unable to know type: $type"
+	.must "Unable to know type: $type" .callable "$func"
 
 	"$func" "$file" "$@"
 }

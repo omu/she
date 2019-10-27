@@ -12,13 +12,13 @@ zip.unpack() {
 
 	flag.parse
 
-	local in=$1 out=${2:-};	must.f "$in"
+	local in=$1 out=${2:-};	.must "No such file: $in" [[ -f "$in" ]]
 
-	filetype.is_ "$in" compressed || .die "Not a compressed file of known type: $in"
+	.must "Not a compressed file of known type: $in" filetype.is_ "$in" compressed
 
 	local func=zip._unpack_.${_[.file.zip]:-}
 
-	must.callable "$func" "Unsupported compressed file: $in"
+	.must "Unsupported compressed file: $in" .callable "$func"
 
 	"$func" "$in" "$out"
 
@@ -36,7 +36,7 @@ zip._unpack_.tar.gz() {
 }
 
 zip._unpack_.tar.bz2() {
-	must.available bzip2 && zip._prep_untar_ "$@"
+	.must 'No program found: bzip2' .available bzip2 && zip._prep_untar_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -44,7 +44,7 @@ zip._unpack_.tar.bz2() {
 }
 
 zip._unpack_.tar.xz() {
-	must.available xz && zip._prep_untar_ "$@"
+	.must 'No program found: xz' .available xz && zip._prep_untar_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -52,7 +52,7 @@ zip._unpack_.tar.xz() {
 }
 
 zip._unpack_.tar.zst() {
-	must.available zstd && zip._prep_untar_ "$@"
+	.must 'No program found: zstd' .available zstd && zip._prep_untar_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -60,7 +60,7 @@ zip._unpack_.tar.zst() {
 }
 
 zip._unpack_.zip() {
-	must.available unzip && zip._prep_unzip_ "$@"
+	.must 'No program found: unzip' .available unzip && zip._prep_unzip_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -68,7 +68,7 @@ zip._unpack_.zip() {
 }
 
 zip._unpack_.gz() {
-	must.available zcat && zip._prep_unzip_ "$@"
+	.must 'No program found: zcat' .available zcat && zip._prep_unzip_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -81,7 +81,7 @@ zip._unpack_.gz() {
 }
 
 zip._unpack_.bz2() {
-	must.available bzcat && zip._prep_unzip_ "$@"
+	.must 'No program found: bzcat' .available bzcat && zip._prep_unzip_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -92,7 +92,7 @@ zip._unpack_.bz2() {
 }
 
 zip._unpack_.xz() {
-	must.available unxz && zip._prep_unzip_ "$@"
+	.must 'No program found: unxz' .available unxz && zip._prep_unzip_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -103,7 +103,7 @@ zip._unpack_.xz() {
 }
 
 zip._unpack_.zst() {
-	must.available zstdcat && zip._prep_unzip_ "$@"
+	.must 'No program found: zstdcat' .available zstdcat && zip._prep_unzip_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -120,7 +120,7 @@ zip._prep_unzip_() {
 
 	if [[ -e $out ]]; then
 		if flag.true -force; then
-			must.success rm -rf -- "$out"
+			rm -rf -- "$out"
 		else
 			.die "File already exist: $out"
 		fi
@@ -134,12 +134,12 @@ zip._prep_untar_() {
 
 	if [[ -e $out ]]; then
 		if flag.true -force; then
-			must.success rm -rf -- "$out"
+			rm -rf -- "$out"
 		else
 			.die "Directory already exist: $out"
 		fi
-		must.success mkdir -p "$out"
+		.must -- mkdir -p "$out"
 	else
-		must.success mkdir -p "$out"
+		.must -- mkdir -p "$out"
 	fi
 }

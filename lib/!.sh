@@ -58,6 +58,26 @@
 	exit 0
 }
 
+.must() {
+	if [[ ${1:-} = -- ]]; then
+		shift
+
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .die "Command failed: $*"
+	else
+		eval -- "${@:2}" || .die "${1?${FUNCNAME[0]}: missing argument}"
+	fi
+}
+
+.might() {
+	if [[ ${1:-} = -- ]]; then
+		shift
+
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .cry "Exit code $? is suppressed: $*"
+	else
+		eval -- "${@:2}" || .cry "${1?${FUNCNAME[0]}: missing argument}"
+	fi
+}
+
 .contains() {
 	: "${1?${FUNCNAME[0]}: missing argument}"
 

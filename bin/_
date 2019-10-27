@@ -58,6 +58,26 @@
 	exit 0
 }
 
+.must() {
+	if [[ ${1:-} = -- ]]; then
+		shift
+
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .die "Command failed: $*"
+	else
+		eval -- "${@:2}" || .die "${1?${FUNCNAME[0]}: missing argument}"
+	fi
+}
+
+.might() {
+	if [[ ${1:-} = -- ]]; then
+		shift
+
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .cry "Exit code $? is suppressed: $*"
+	else
+		eval -- "${@:2}" || .cry "${1?${FUNCNAME[0]}: missing argument}"
+	fi
+}
+
 .contains() {
 	: "${1?${FUNCNAME[0]}: missing argument}"
 
@@ -614,132 +634,6 @@ ui._echo() {
 
 ui._init
 
-# must.sh - Guard functions
-
-# Test -e
-must.e() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"No such file or directory: $arg"}
-
-	[[ -e $arg ]] || .die "$message"
-}
-
-# Test -f
-must.f() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"No such file: $arg"}
-
-	[[ -f $arg ]] || .die "$message"
-}
-
-# Test -d
-must.d() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"No such directory: $arg"}
-
-	[[ -d $arg ]] || .die "$message"
-}
-
-# Test -x
-must.x() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"Not executable: $arg"}
-
-	[[ -x $arg ]] || .die "$message"
-}
-
-# Test -r
-must.r() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"No such file: $arg"}
-
-	[[ -r $arg ]] || .die "$message"
-}
-
-# Test -w
-must.w() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"No such file: $arg"}
-
-	[[ -w $arg ]] || .die "$message"
-}
-
-# Test -n
-must.n() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"Empty value: $arg"}
-
-	[[ -n $arg ]] || .die "$message"
-}
-
-# Test -z
-must.z() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"Empty value: $arg"}
-
-	[[ -z $arg ]] || .die "$message"
-}
-
-# Must be root
-must.root() {
-	[[ ${EUID:-} -eq 0 ]] || .die 'Root permissions required; please use sudo.'
-}
-
-# Command must success
-must.success() {
-	"$@" || .die "Command failed: $*"
-}
-
-# Command may fail but must proceed
-must.proceed() {
-	"$@" || .cry "Exit code $? is suppressed: $*"
-}
-
-# Condition must be true
-must.true() {
-	local message=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	"$@" || .die "$message"
-}
-
-# Condition must be false
-must.false() {
-	local message=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	"$@" && .die "$message"
-}
-
-# Program must exist
-must.available() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"No program found: $arg"}
-
-	command -v "$arg" &>/dev/null || .die "$message"
-}
-
-# Function must exist
-must.callable() {
-	local arg=${1?${FUNCNAME[0]}: missing argument}; shift
-	local message=${1:-"No function found: $arg"}
-
-	.callable "$arg" || .die "$message"
-}
-
-# Stdin must exist
-# shellcheck disable=2120
-must.piped() {
-	local message=${1:-'No stdin data found'}
-
-	.piped || .die "$message"
-}
-
-# Stdout must exist
-must.interactive() {
-	local message=${1:-'No stdout found'}
-
-	.interactive || .die "$message"
-}
-
 # self.sh - Functions related to program itself
 
 # Print self
@@ -1122,9 +1016,9 @@ temp.inside() {
 	local temp_inside_ orig_dir_=$PWD
 	temp.dir temp_inside_
 
-	must.success cd "$temp_inside_"
+	.must -- cd "$temp_inside_"
 	"$@"
-	must.success cd "$orig_dir_"
+	.must -- cd "$orig_dir_"
 
 	rm -rf -- "$temp_inside_"
 }
@@ -1182,7 +1076,7 @@ os.is() {
 
 	local func=os.is._"${feature}"
 
-	must.callable "$func" "Unable to detect: $feature"
+	.must "Unable to detect: $feature" .callable "$func"
 
 	"$func" "$@"
 }
@@ -1465,7 +1359,7 @@ file.ln() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	src=$(realpath -m --relative-base "${dst%/*}" "$src")
-	must.success ln -sf "$src" "$dst"
+	.must -- ln -sf "$src" "$dst"
 }
 
 file.enter() {
@@ -1474,11 +1368,11 @@ file.enter() {
 	[[ -n $dir ]] || return 0
 
 	if [[ -d $dir ]]; then
-		must.success cd "$dir"
+		.must -- cd "$dir"
 	else
 		dir=${dir%/*}
 		[[ -d $dir ]] || .die "No path found to enter: $dir"
-		must.success cd "$dir"
+		.must -- cd "$dir"
 	fi
 }
 
@@ -1490,8 +1384,8 @@ file.download() {
 
 	temp.file download
 	.net "Downloading $url"
-	must.success http.get "$url" >"$download"
-	must.success chmod 644 "$download"
+	.must -- http.get "$url" >"$download"
+	.must -- chmod 644 "$download"
 
 	# shellcheck disable=2034
 	file_download_dst_=$download
@@ -1514,16 +1408,16 @@ file.do_() {
 		path.dir dstdir
 	fi
 
-	[[ $dstdir = . ]] || must.success mkdir -p "$dstdir"
+	[[ $dstdir = . ]] || .must -- mkdir -p "$dstdir"
 
 	local installed=$dst/${src##*/}
 
 	case $op in
 	copy)
-		must.success cp -a "$src" "$dst"
+		.must -- cp -a "$src" "$dst"
 		;;
 	move)
-		must.success mv -f "$src" "$dst"
+		.must -- mv -f "$src" "$dst"
 		;;
 	link)
 		file.ln "$src" "$dst"
@@ -1585,9 +1479,9 @@ file._do_args_() {
 file._chogm_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ -z ${_[-mode]:-}  ]] || must.success chmod "${_[-mode]}"  "$dst"
-	[[ -z ${_[-owner]:-} ]] || must.success chown "${_[-owner]}" "$dst"
-	[[ -z ${_[-group]:-} ]] || must.success chgrp "${_[-group]}" "$dst"
+	[[ -z ${_[-mode]:-}  ]] || .must -- chmod "${_[-mode]}"  "$dst"
+	[[ -z ${_[-owner]:-} ]] || .must -- chown "${_[-owner]}" "$dst"
+	[[ -z ${_[-group]:-} ]] || .must -- chgrp "${_[-group]}" "$dst"
 }
 
 # bin.sh - Executable files
@@ -1769,7 +1663,7 @@ git.topdir() {
 git.top() {
 	git.must.sane
 
-	must.success cd "$(git.topdir)"
+	.must -- cd "$(git.topdir)"
 }
 
 git.default_branch() {
@@ -1806,7 +1700,7 @@ git.enter_() {
 
 	[[ -d $dst ]] || .die "Destination not found: $dst"
 
-	must.success pushd "$dst" >/dev/null
+	.must -- pushd "$dst" >/dev/null
 
 	git.is.git . || .die "Not a git repository: $PWD"
 
@@ -1847,7 +1741,7 @@ git.update_() {
 		.net 'Updating repository' git pull --quiet origin
 	fi
 
-	must.success popd >/dev/null
+	.must -- popd >/dev/null
 }
 
 # src.sh - Source management
@@ -2095,7 +1989,7 @@ export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontW
 
 # Install Debian packages
 deb.install() {
-	must.root
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
 
 	# shellcheck disable=2192
 	local -A _=(
@@ -2175,11 +2069,12 @@ deb.uninstall() {
 	deb._missings packages "$@"
 	[[ ${#packages[@]} -gt 0 ]] || return 0
 
-	must.root
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
 
 	apt-get purge -y "${packages[@]}"
 
-	must.proceed apt-get autoremove -y && must.proceed apt-get autoclean -y
+	.might -- apt-get autoremove -y
+	.might -- apt-get autoclean -y
 }
 
 # Print missing packages among given packages
@@ -2211,7 +2106,7 @@ deb.update() {
 	flag.parse
 
 	if .expired 60 /var/cache/apt/pkgcache.bin; then
-		must.root
+		.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
 
 		.net 'Updating package index' apt-get update -y
 	fi
@@ -2219,7 +2114,8 @@ deb.update() {
 
 # Add Debian repository
 deb.repository() {
-	must.root && must.piped
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
+	.must 'No data found at stdin' .piped
 
 	# shellcheck disable=2192
 	local -A _=(
@@ -2241,7 +2137,7 @@ deb.repository() {
 
 # Use given official Debian distributions
 deb.using() {
-	must.root
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
 
 	# shellcheck disable=2192
 	local -A _=(
@@ -2351,7 +2247,7 @@ text.fix() {
 
 	flag.parse
 
-	local file=$1; must.f "$file"
+	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
 
 	text._unfix "$file"
 
@@ -2371,7 +2267,7 @@ text.unfix() {
 
 	flag.parse
 
-	local file=$1; must.f "$file"
+	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
 
 	text._unfix "$file"
 }
@@ -2382,7 +2278,7 @@ text._unfix() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	grep -qE '(BEGIN|END) FIX' "$file" || return 0
-	must.w "$file"
+	.must "No such file or file is not writable: $file" [[ -w "$file" ]]
 	sed -i '/BEGIN FIX/,/END FIX/d' "$file"
 }
 
@@ -2399,7 +2295,7 @@ filetype.mime() {
 
 	flag.parse
 
-	local file=$1; must.f "$file"
+	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
 
 	if flag.true -zip; then
 		file --mime-type --brief --uncompress-noreport "$file"
@@ -2420,7 +2316,7 @@ filetype.is() {
 
 	flag.parse
 
-	local file=$1; must.f "$file"
+	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
 
 	filetype.is_ "$@"
 }
@@ -2433,7 +2329,7 @@ filetype.is_() {
 
 	local func=filetype.is._"${type}"_
 
-	must.callable "$func" "Unable to know type: $type"
+	.must "Unable to know type: $type" .callable "$func"
 
 	"$func" "$file" "$@"
 }
@@ -2513,13 +2409,13 @@ zip.unpack() {
 
 	flag.parse
 
-	local in=$1 out=${2:-};	must.f "$in"
+	local in=$1 out=${2:-};	.must "No such file: $in" [[ -f "$in" ]]
 
-	filetype.is_ "$in" compressed || .die "Not a compressed file of known type: $in"
+	.must "Not a compressed file of known type: $in" filetype.is_ "$in" compressed
 
 	local func=zip._unpack_.${_[.file.zip]:-}
 
-	must.callable "$func" "Unsupported compressed file: $in"
+	.must "Unsupported compressed file: $in" .callable "$func"
 
 	"$func" "$in" "$out"
 
@@ -2537,7 +2433,7 @@ zip._unpack_.tar.gz() {
 }
 
 zip._unpack_.tar.bz2() {
-	must.available bzip2 && zip._prep_untar_ "$@"
+	.must 'No program found: bzip2' .available bzip2 && zip._prep_untar_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -2545,7 +2441,7 @@ zip._unpack_.tar.bz2() {
 }
 
 zip._unpack_.tar.xz() {
-	must.available xz && zip._prep_untar_ "$@"
+	.must 'No program found: xz' .available xz && zip._prep_untar_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -2553,7 +2449,7 @@ zip._unpack_.tar.xz() {
 }
 
 zip._unpack_.tar.zst() {
-	must.available zstd && zip._prep_untar_ "$@"
+	.must 'No program found: zstd' .available zstd && zip._prep_untar_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -2561,7 +2457,7 @@ zip._unpack_.tar.zst() {
 }
 
 zip._unpack_.zip() {
-	must.available unzip && zip._prep_unzip_ "$@"
+	.must 'No program found: unzip' .available unzip && zip._prep_unzip_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -2569,7 +2465,7 @@ zip._unpack_.zip() {
 }
 
 zip._unpack_.gz() {
-	must.available zcat && zip._prep_unzip_ "$@"
+	.must 'No program found: zcat' .available zcat && zip._prep_unzip_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -2582,7 +2478,7 @@ zip._unpack_.gz() {
 }
 
 zip._unpack_.bz2() {
-	must.available bzcat && zip._prep_unzip_ "$@"
+	.must 'No program found: bzcat' .available bzcat && zip._prep_unzip_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -2593,7 +2489,7 @@ zip._unpack_.bz2() {
 }
 
 zip._unpack_.xz() {
-	must.available unxz && zip._prep_unzip_ "$@"
+	.must 'No program found: unxz' .available unxz && zip._prep_unzip_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -2604,7 +2500,7 @@ zip._unpack_.xz() {
 }
 
 zip._unpack_.zst() {
-	must.available zstdcat && zip._prep_unzip_ "$@"
+	.must 'No program found: zstdcat' .available zstdcat && zip._prep_unzip_ "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -2621,7 +2517,7 @@ zip._prep_unzip_() {
 
 	if [[ -e $out ]]; then
 		if flag.true -force; then
-			must.success rm -rf -- "$out"
+			rm -rf -- "$out"
 		else
 			.die "File already exist: $out"
 		fi
@@ -2635,13 +2531,13 @@ zip._prep_untar_() {
 
 	if [[ -e $out ]]; then
 		if flag.true -force; then
-			must.success rm -rf -- "$out"
+			rm -rf -- "$out"
 		else
 			.die "Directory already exist: $out"
 		fi
-		must.success mkdir -p "$out"
+		.must -- mkdir -p "$out"
 	else
-		must.success mkdir -p "$out"
+		.must -- mkdir -p "$out"
 	fi
 }
 
@@ -2712,23 +2608,6 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['ui.die-']='Print error messages without exiting'
 		['ui.die']='Print error messages and exit failure'
 		['ui.hey']='Print messages taking attention'
-		['must.e']='Test -e'
-		['must.f']='Test -f'
-		['must.d']='Test -d'
-		['must.x']='Test -x'
-		['must.r']='Test -r'
-		['must.w']='Test -w'
-		['must.n']='Test -n'
-		['must.z']='Test -z'
-		['must.root']='Must be root'
-		['must.success']='Command must success'
-		['must.proceed']='Command may fail but must proceed'
-		['must.true']='Condition must be true'
-		['must.false']='Condition must be false'
-		['must.available']='Program must exist'
-		['must.callable']='Function must exist'
-		['must.piped']='Stdin must exist'
-		['must.interactive']='Stdout must exist'
 		['self']='Print self'
 		['self.version']='Print self version'
 		['self.name']='Print self name'

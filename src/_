@@ -8,8 +8,6 @@
 
 #:lib/ui.sh
 
-#:lib/must.sh
-
 #:lib/self.sh
 
 #:lib/string.sh

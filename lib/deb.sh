@@ -6,7 +6,7 @@ export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontW
 
 # Install Debian packages
 deb.install() {
-	must.root
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
 
 	# shellcheck disable=2192
 	local -A _=(
@@ -86,11 +86,12 @@ deb.uninstall() {
 	deb._missings packages "$@"
 	[[ ${#packages[@]} -gt 0 ]] || return 0
 
-	must.root
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
 
 	apt-get purge -y "${packages[@]}"
 
-	must.proceed apt-get autoremove -y && must.proceed apt-get autoclean -y
+	.might -- apt-get autoremove -y
+	.might -- apt-get autoclean -y
 }
 
 # Print missing packages among given packages
@@ -122,7 +123,7 @@ deb.update() {
 	flag.parse
 
 	if .expired 60 /var/cache/apt/pkgcache.bin; then
-		must.root
+		.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
 
 		.net 'Updating package index' apt-get update -y
 	fi
@@ -130,7 +131,8 @@ deb.update() {
 
 # Add Debian repository
 deb.repository() {
-	must.root && must.piped
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
+	.must 'No data found at stdin' .piped
 
 	# shellcheck disable=2192
 	local -A _=(
@@ -152,7 +154,7 @@ deb.repository() {
 
 # Use given official Debian distributions
 deb.using() {
-	must.root
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
 
 	# shellcheck disable=2192
 	local -A _=(

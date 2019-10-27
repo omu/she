@@ -61,7 +61,7 @@ file.ln() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	src=$(realpath -m --relative-base "${dst%/*}" "$src")
-	must.success ln -sf "$src" "$dst"
+	.must -- ln -sf "$src" "$dst"
 }
 
 file.enter() {
@@ -70,11 +70,11 @@ file.enter() {
 	[[ -n $dir ]] || return 0
 
 	if [[ -d $dir ]]; then
-		must.success cd "$dir"
+		.must -- cd "$dir"
 	else
 		dir=${dir%/*}
 		[[ -d $dir ]] || .die "No path found to enter: $dir"
-		must.success cd "$dir"
+		.must -- cd "$dir"
 	fi
 }
 
@@ -86,8 +86,8 @@ file.download() {
 
 	temp.file download
 	.net "Downloading $url"
-	must.success http.get "$url" >"$download"
-	must.success chmod 644 "$download"
+	.must -- http.get "$url" >"$download"
+	.must -- chmod 644 "$download"
 
 	# shellcheck disable=2034
 	file_download_dst_=$download
@@ -110,16 +110,16 @@ file.do_() {
 		path.dir dstdir
 	fi
 
-	[[ $dstdir = . ]] || must.success mkdir -p "$dstdir"
+	[[ $dstdir = . ]] || .must -- mkdir -p "$dstdir"
 
 	local installed=$dst/${src##*/}
 
 	case $op in
 	copy)
-		must.success cp -a "$src" "$dst"
+		.must -- cp -a "$src" "$dst"
 		;;
 	move)
-		must.success mv -f "$src" "$dst"
+		.must -- mv -f "$src" "$dst"
 		;;
 	link)
 		file.ln "$src" "$dst"
@@ -181,7 +181,7 @@ file._do_args_() {
 file._chogm_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ -z ${_[-mode]:-}  ]] || must.success chmod "${_[-mode]}"  "$dst"
-	[[ -z ${_[-owner]:-} ]] || must.success chown "${_[-owner]}" "$dst"
-	[[ -z ${_[-group]:-} ]] || must.success chgrp "${_[-group]}" "$dst"
+	[[ -z ${_[-mode]:-}  ]] || .must -- chmod "${_[-mode]}"  "$dst"
+	[[ -z ${_[-owner]:-} ]] || .must -- chown "${_[-owner]}" "$dst"
+	[[ -z ${_[-group]:-} ]] || .must -- chgrp "${_[-group]}" "$dst"
 }

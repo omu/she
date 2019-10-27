@@ -34,9 +34,9 @@ temp.inside() {
 	local temp_inside_ orig_dir_=$PWD
 	temp.dir temp_inside_
 
-	must.success cd "$temp_inside_"
+	.must -- cd "$temp_inside_"
 	"$@"
-	must.success cd "$orig_dir_"
+	.must -- cd "$orig_dir_"
 
 	rm -rf -- "$temp_inside_"
 }
