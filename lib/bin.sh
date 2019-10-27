@@ -49,7 +49,7 @@ bin.run() {
 
 	bin.install_ "$@"
 
-	local file=${_[.installed]:-}
+	local file=${_[.]:-}
 	[[ -n $file ]] || .bug 'No file installed'
 
 	ui.plain 'Running downloaded file'

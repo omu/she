@@ -63,13 +63,15 @@ Stil
 
 - Seçeneklerde `-option` biçimi kullanılır
 
-- Ara değişkenler için `.variable` biçimi kullanılır
+- Internal değişkenler için `.variable` biçimi kullanılır
 
 - `0` anahtarı asla kullanılmaz
 
 - `${_[1]}`, `${_[9]}` değerleri konumsal parametreler için kullanılır
 
-- `.error` değişkeni (varsa) hata iletisi taşır
+- `.reply` değişkeni (isteğe bağlı olarak) dönüş değerini taşır (alt: `.`)
+
+- `.error` değişkeni (varsa) hata iletisi taşır (alt: `!`)
 
 - Bunun dışında kalan (seçenek, ara değişken veya konumsal parametre olmayan) tüm anahtarlar değişken olarak kullanılır
 

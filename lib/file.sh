@@ -133,7 +133,7 @@ file.do_() {
 
 	file._chogm_ "$installed"
 
-	_[.installed]=$installed
+	_[.]=$installed
 }
 
 file.dst_() {

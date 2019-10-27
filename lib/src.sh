@@ -114,9 +114,9 @@ src.managed_() {
 src.install_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	url.parse_ "$url" || .die "Error parsing URL: ${_[.error]}: $url"
+	url.parse_ "$url" || .die "Error parsing URL: ${_[!]}: $url"
 
-	src._plan_ || .die "Error planning URL: ${_[.error]}: $url"
+	src._plan_ || .die "Error planning URL: ${_[!]}: $url"
 
 	local src=${_[1]} dst=${_[2]:-}
 
@@ -192,14 +192,14 @@ src._plan_() {
 	local owner repo auth path
 
 	if [[ ! ${_[.host]} =~ ^(github.com|gitlab.com|bitbucket.com)$ ]]; then
-		_[.error]='unsupported provider'
+		_[!]='unsupported provider'
 		return 1
 	fi
 
 	path=${_[.path]:-}
 
 	if [[ ! $path =~ [^/]+/[^/]+ ]]; then
-		_[.error]='incomplete url'
+		_[!]='incomplete url'
 		return 1
 	fi
 

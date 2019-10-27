@@ -80,7 +80,7 @@ url.parse_() {
 		if [[ -n $proto ]]; then
 			if [[ $proto != ssh ]]; then
 				# shellcheck disable=2154
-				url_parse_[.error]='protocol mismatch'
+				url_parse_['!']='protocol mismatch'
 				return 1
 			fi
 		else
@@ -90,7 +90,7 @@ url.parse_() {
 		url=${url#/}
 
 		if [[ -n $proto && $proto = ssh ]]; then
-			url_parse_[.error]='invalid SSH url'
+			url_parse_['!']='invalid SSH url'
 			return 1
 		fi
 	fi
