@@ -317,14 +317,17 @@ TODO
 ----
 
 - [ ] manuel test
-  + [ ] ui.info için kısayol
+  + [X] ui.info için kısayol
   + [X] bin.run ve src.run'ı seçerek çalıştıran bir run
   + [X] expired lojiğini ters yap
-  + [ ] ui.plain ile uzun çalışanları yönetiyoruz, kısayol?
+  + [X] ui.plain ile uzun çalışanları yönetiyoruz, kısayol?
   + [X] `_[.target]` vb durumlar için genel tasarımı denetle
-  + [ ] `bin.install_` yerine `bin.install -prefix=...` vs olsa daha iyi olur
+  + [X] `bin.install_` yerine `bin.install -prefix=...` vs olsa daha iyi olur
         ("çalıştırmadan önce değişkeni set et" mantığı tehlikeli, `_` readonly olmalı)
-
+- [ ] omu/debian
+  + runtime/chrome
+  + [X] development/crystal
+  + [ ] fixme'ler
 - [X] API overhaul ve ekleme/düzeltmeler
 - [ ] Stil/tutarlılık bakımı
 - [X] blob unpack
@@ -336,20 +339,3 @@ TODO
 - [X] ui ve color desteği
 - [X] test alt yapısı
 - [X] test gözden geçirme
-
-- [ ] omu/debian
-  + runtime/chrome
-  + development/crystal
-
-.say
-.die
-.bug
-.bye
-.cry
-
-.running
-.getting
-.calling
-
-.ok
-.notok
