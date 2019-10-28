@@ -914,8 +914,6 @@ path.parse_() {
 	# shellcheck disable=2139
 	alias .untrap="trap - ${signals[*]}"
 
-	# defer - Private functions
-
 	_defer_() {
 		local -r SIG=$1 ERR=$?
 
@@ -1438,7 +1436,7 @@ file.install_() {
 	fi
 }
 
-# Private functions
+# file - Private functions
 
 file._do_args_() {
 	local op=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -2458,6 +2456,8 @@ zip.unpack() {
 	fi
 }
 
+# zip - Private functions
+
 zip._unpack_.tar.gz() {
 	zip._prep_untar_ "$@"
 
@@ -2596,7 +2596,7 @@ misc.expired() {
 	.expired "${_[-expiry]}" "$@"
 }
 
-# Private functions
+# misc - Private functions
 
 # Capture outputs to arrays and return exit code
 # shellcheck disable=2034,2178

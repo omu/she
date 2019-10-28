@@ -33,8 +33,6 @@
 	# shellcheck disable=2139
 	alias .untrap="trap - ${signals[*]}"
 
-	# defer - Private functions
-
 	_defer_() {
 		local -r SIG=$1 ERR=$?
 

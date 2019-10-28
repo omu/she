@@ -1147,8 +1147,6 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			# shellcheck disable=2139
 			alias .untrap="trap - ${signals[*]}"
 
-			# defer - Private functions
-
 			_defer_() {
 				local -r SIG=$1 ERR=$?
 

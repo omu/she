@@ -155,7 +155,7 @@ file.install_() {
 	fi
 }
 
-# Private functions
+# file - Private functions
 
 file._do_args_() {
 	local op=${1?${FUNCNAME[0]}: missing argument}; shift

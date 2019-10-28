@@ -19,7 +19,7 @@ misc.expired() {
 	.expired "${_[-expiry]}" "$@"
 }
 
-# Private functions
+# misc - Private functions
 
 # Capture outputs to arrays and return exit code
 # shellcheck disable=2034,2178

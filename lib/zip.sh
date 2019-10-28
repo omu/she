@@ -27,6 +27,8 @@ zip.unpack() {
 	fi
 }
 
+# zip - Private functions
+
 zip._unpack_.tar.gz() {
 	zip._prep_untar_ "$@"
 
