@@ -83,8 +83,8 @@ file.download() {
 	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local download
-
 	temp.file download
+
 	.getting "Downloading $url"
 	.must -- http.get "$url" >"$download"
 	.must -- chmod 644 "$download"
