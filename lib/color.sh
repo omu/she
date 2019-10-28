@@ -1,7 +1,7 @@
 # color.sh - Colors
 
 # shellcheck disable=2034
-color._init() {
+color.init() {
 	declare -Ag _color=(
 		# Basic colors with variants - prefix +: bold, prefix -: dim, suffix -: reverse
 
@@ -39,6 +39,8 @@ color._init() {
 	)
 }
 
+color.init
+
 color.expand() {
 	while [[ $# -gt 0 ]]; do
 		local -n color_expand_=${1?missing argument}
@@ -69,7 +71,7 @@ color.setup() {
 
 color.code() {
 	local name="${1?${FUNCNAME[0]}: missing argument}"; shift
-	local code="${_color[$color]:-}"
+	local code="${_color[$name]:-}"
 
 	[[ -n $code ]] || .bug "No such color: $name"
 
@@ -80,6 +82,7 @@ color.out() {
 	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
 
 	local code reset
+
 	code=$(color.code "$color")
 	reset=$(color.code reset)
 
@@ -97,5 +100,3 @@ color.echo() {
 
 	echo -e "${code}${*}${reset}"
 }
-
-color._init

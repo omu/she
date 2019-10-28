@@ -26,20 +26,20 @@ ui.init() {
 
 ui.init
 
-.ask()     { ui.do "$@";          }
-.bug()     { ui.do "$@" exit 127; }
-.bye()     { ui.do "$@" exit 0;   }
-.cry()     { ui.do "$@";          }
-.die()     { ui.do "$@" exit 1;   }
-.hmm()     { ui.do "$@";          }
-.say()     { ui.do "$@";          }
+.ask()     { ui.echo "$@" >&2;           }
+.bug()     { ui.echo "$@" >&2; exit 127; }
+.bye()     { ui.echo "$@" >&2; exit 0;   }
+.cry()     { ui.echo "$@" >&2;           }
+.die()     { ui.echo "$@" >&2; exit 1;   }
+.hmm()     { ui.echo "$@" >&2;           }
+.say()     { ui.echo "$@" >&2;           }
 
-.ok()      { ui.do "$@";          }
-.notok()   { ui.do "$@";          }
+.ok()      { ui.echo "$@" >&2;           }
+.notok()   { ui.echo "$@" >&2;           }
 
-.calling() { ui.do "$@";          }
-.getting() { ui.do "$@";          }
-.running() { ui.do "$@";          }
+.calling() { ui.echo "$1" >&2; "${@:2}"; }
+.getting() { ui.echo "$1" >&2; "${@:2}"; }
+.running() { ui.echo "$1" >&2; "${@:2}"; }
 
 ui.out() {
 	local name=${1:-default}
@@ -56,7 +56,7 @@ ui.out() {
 }
 
 # shellcheck disable=2034,2154
-ui.do() {
+ui.echo() {
 	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
 
 	local name=${FUNCNAME[1]#*.}
@@ -65,7 +65,5 @@ ui.do() {
 
 	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
 
-	echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}" >&2
-
-	"$@"
+	echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
 }
