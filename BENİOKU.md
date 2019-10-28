@@ -325,7 +325,7 @@ TODO
   + [X] `bin.install_` yerine `bin.install -prefix=...` vs olsa daha iyi olur
         ("çalıştırmadan önce değişkeni set et" mantığı tehlikeli, `_` readonly olmalı)
 - [ ] omu/debian
-  + runtime/chrome
+  + [ ] runtime/chrome
   + [X] development/crystal
   + [ ] fixme'ler
 - [X] API overhaul ve ekleme/düzeltmeler
@@ -333,6 +333,8 @@ TODO
 - [X] blob unpack
 - [X] bin unpack desteği
 - [ ] README asgari dokümantasyonu
+- [ ] Fonksyonların kısa açıklamaları
+- [ ] BENİOKU
 - [ ] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
 - [ ] scripts aracının yeni sürümü
 - [ ] etc'nin durumu
