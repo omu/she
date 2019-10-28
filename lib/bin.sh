@@ -70,7 +70,7 @@ bin.install_() {
 	# shellcheck disable=1007
 	local bin= temp_bin_file= temp_bin_dir=
 
-	if url.getable url; then
+	if url.is "$url" web; then
 		file.download "$url" temp_bin_file
 		bin=$temp_bin_file
 	else

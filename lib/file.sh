@@ -146,7 +146,7 @@ file.install_() {
 	local src=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	if url.getable src; then
+	if url.is "$src" web; then
 		file.download "$src" src
 		file.do_ copy "$src" "$dst"
 		temp.clean src

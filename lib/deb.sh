@@ -47,7 +47,7 @@ deb.install() {
 	for arg; do
 		local url=$arg
 
-		if url.getable url; then
+		if url.is "$url" web; then
 			urls+=("$url")
 		else
 			non_urls+=("$url")

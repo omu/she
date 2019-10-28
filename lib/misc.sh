@@ -2,7 +2,22 @@
 
 # Try to run any file or url
 misc.run() {
-	bin.run "$@" # TODO
+	local -A _=(
+		[.help]='FILE|URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	local url=$1
+
+	if url.is "$url" web; then
+		bin.run "$url"
+	elif url.is "$url" src; then
+		src.run "$url"
+	else
+		.die "Unsupported URL type: $url"
+	fi
 }
 
 # Check the expirations of given files

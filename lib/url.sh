@@ -1,36 +1,64 @@
 # url.sh - URL processing
 
-# Assert URL feature
+# Assert URL type
 url.is() {
 	local -A _=(
-		[.help]='URL (proto|host|port|path|userinfo|frag) VALUE)'
-		[.argc]=3
+		[.help]='TYPE'
+		[.argc]=1-
 	)
 
 	flag.parse
 
-	local url=$1 feature=$2 value=$3
+	local type=$1
+	shift
 
-	url.parse_ "$url"
-	url.is_ "$feature" "$value"
-}
+	local func=url.is._"${type}"
 
-# Transform URL to a getable (via supported providers) form
-url.getable() {
-	local -n url_getable_=${1?${FUNCNAME[0]}: missing argument}; shift
+	.must "Unable to detect: $type" .callable "$func"
 
-	if [[ $url_getable_ =~ ^[^:]+:// ]]; then
-		return 0
-	elif [[ $url_getable_ =~ ^(github.com|gitlab.com|bitbucket.com) ]]; then
-		url_getable_="https://$url_getable_"
-
-		return 0
-	fi
-
-	return 1
+	"$func" "$@"
 }
 
 # url - Protected functions
+
+url.is._web() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local type=
+
+	url._what "$url" type || return
+
+	[[ ${type:-} = web ]]
+}
+
+url.is._src() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local type=
+
+	url._what "$url" type || return
+
+	[[ ${type:-} = src ]]
+}
+
+url._what() {
+	local    url_what_=${1?${FUNCNAME[0]}: missing argument};      shift
+	local -n url_what_type_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	url_what_type_=
+
+	if [[ $url_what_ =~ ^(/|./) ]]; then
+		return 1
+	fi
+
+	url_what_type_=web
+	if [[ $url_what_  =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
+		# shellcheck disable=2034
+		url_what_type_=src
+	fi
+
+	return 0
+}
 
 # Parse URL
 # shellcheck disable=2034
@@ -111,11 +139,4 @@ url.parse_() {
 	url_parse_[.port]=$port
 	url_parse_[.proto]=$proto
 	url_parse_[.userinfo]=$userinfo
-}
-
-url.is_() {
-	local feature=${1?${FUNCNAME[0]}: missing argument};  shift
-	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ ${_[.${feature}]:-} = "$expected" ]]
 }

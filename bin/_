@@ -1120,37 +1120,65 @@ os.is._physical() {
 
 # url.sh - URL processing
 
-# Assert URL feature
+# Assert URL type
 url.is() {
 	local -A _=(
-		[.help]='URL (proto|host|port|path|userinfo|frag) VALUE)'
-		[.argc]=3
+		[.help]='TYPE'
+		[.argc]=1-
 	)
 
 	flag.parse
 
-	local url=$1 feature=$2 value=$3
+	local type=$1
+	shift
 
-	url.parse_ "$url"
-	url.is_ "$feature" "$value"
-}
+	local func=url.is._"${type}"
 
-# Transform URL to a getable (via supported providers) form
-url.getable() {
-	local -n url_getable_=${1?${FUNCNAME[0]}: missing argument}; shift
+	.must "Unable to detect: $type" .callable "$func"
 
-	if [[ $url_getable_ =~ ^[^:]+:// ]]; then
-		return 0
-	elif [[ $url_getable_ =~ ^(github.com|gitlab.com|bitbucket.com) ]]; then
-		url_getable_="https://$url_getable_"
-
-		return 0
-	fi
-
-	return 1
+	"$func" "$@"
 }
 
 # url - Protected functions
+
+url.is._web() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local type=
+
+	url._what "$url" type || return
+
+	[[ ${type:-} = web ]]
+}
+
+url.is._src() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local type=
+
+	url._what "$url" type || return
+
+	[[ ${type:-} = src ]]
+}
+
+url._what() {
+	local    url_what_=${1?${FUNCNAME[0]}: missing argument};      shift
+	local -n url_what_type_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	url_what_type_=
+
+	if [[ $url_what_ =~ ^(/|./) ]]; then
+		return 1
+	fi
+
+	url_what_type_=web
+	if [[ $url_what_  =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
+		# shellcheck disable=2034
+		url_what_type_=src
+	fi
+
+	return 0
+}
 
 # Parse URL
 # shellcheck disable=2034
@@ -1231,13 +1259,6 @@ url.parse_() {
 	url_parse_[.port]=$port
 	url_parse_[.proto]=$proto
 	url_parse_[.userinfo]=$userinfo
-}
-
-url.is_() {
-	local feature=${1?${FUNCNAME[0]}: missing argument};  shift
-	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ ${_[.${feature}]:-} = "$expected" ]]
 }
 
 # https.sh - HTTP functions
@@ -1427,7 +1448,7 @@ file.install_() {
 	local src=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	if url.getable src; then
+	if url.is "$src" web; then
 		file.download "$src" src
 		file.do_ copy "$src" "$dst"
 		temp.clean src
@@ -1539,7 +1560,7 @@ bin.install_() {
 	# shellcheck disable=1007
 	local bin= temp_bin_file= temp_bin_dir=
 
-	if url.getable url; then
+	if url.is "$url" web; then
 		file.download "$url" temp_bin_file
 		bin=$temp_bin_file
 	else
@@ -2012,7 +2033,7 @@ deb.install() {
 	for arg; do
 		local url=$arg
 
-		if url.getable url; then
+		if url.is "$url" web; then
 			urls+=("$url")
 		else
 			non_urls+=("$url")
@@ -2579,7 +2600,22 @@ zip._prep_untar_() {
 
 # Try to run any file or url
 misc.run() {
-	bin.run "$@" # TODO
+	local -A _=(
+		[.help]='FILE|URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	local url=$1
+
+	if url.is "$url" web; then
+		bin.run "$url"
+	elif url.is "$url" src; then
+		src.run "$url"
+	else
+		.die "Unsupported URL type: $url"
+	fi
 }
 
 # Check the expirations of given files
@@ -2651,8 +2687,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['os.dist']='Distribution name'
 		['os.codename']='Distribution codename'
 		['os.is']='Detect OS feature'
-		['url.is']='Assert URL feature'
-		['url.getable']='Transform URL to a getable (via supported providers) form'
+		['url.is']='Assert URL type'
 		['http.get']='Get URL'
 		['http.is']='Assert URL response'
 		['file.install']='Install file from URL'
