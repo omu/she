@@ -12,7 +12,7 @@ git.update() {
 
 	if .expired "${_[-expiry]}" .git/FETCH_HEAD; then
 		git.must.clean
-		.net 'Updating repository' git pull --quiet origin
+		.getting 'Updating repository' git pull --quiet origin
 	fi
 }
 
@@ -107,7 +107,7 @@ git.clone_() {
 	[[ -z ${_[.branch]:-}   ]] || opt+=(--branch "${_[.branch]}")
 
 	_func_() {
-		.net 'Cloning repository' git clone "${opt[@]}" "$url" clone
+		.getting 'Cloning repository' git clone "${opt[@]}" "$url" clone
 		file.do_ copy clone "$dst"
 	}
 
@@ -126,7 +126,7 @@ git.update_() {
 	local -i expiry=${_[-expiry]:-3}
 	if .expired "$expiry" "$(git.topdir)"/.git/FETCH_HEAD; then
 		git.must.clean
-		.net 'Updating repository' git pull --quiet origin
+		.getting 'Updating repository' git pull --quiet origin
 	fi
 
 	.must -- popd >/dev/null

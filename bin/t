@@ -20,14 +20,6 @@
 	echo -e "${@-""}"
 }
 
-.cry() {
-	if [[ $# -gt 0 ]]; then
-		echo -e >&2 "W: $*"
-	else
-		echo >&2 ""
-	fi
-}
-
 .die() {
 	if [[ $# -gt 0 ]]; then
 		echo -e >&2 "E: $*"
@@ -56,6 +48,14 @@
 	fi
 
 	exit 0
+}
+
+.cry() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "W: $*"
+	else
+		echo >&2 ""
+	fi
 }
 
 .must() {
@@ -152,15 +152,40 @@
 	.out "$@" >&2
 }
 
-.hey() {
-	.say "$@"
+.ask() {
+	.bug 'Not implemented'
 }
 
-.net() {
+.calling() {
 	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
 
-	.say "$message..."
+	.say "--> $message"
+
 	"$@"
+}
+
+.getting() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "... $message"
+
+	"$@"
+}
+
+.running() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "... $message"
+
+	"$@"
+}
+
+.ok() {
+	.say "OK    $*"
+}
+
+.notok() {
+	.say "NOTOK $*"
 }
 
 .dbg() {
@@ -525,51 +550,50 @@ color._init
 
 # ui.sh - UI functions
 
-# Report bug and exit failure
-ui.bug() {
-	ui.panic "$@" >&2; exit 127
+# shellcheck disable=2034,2154
+ui.init() {
+	declare -Ag _sign _sign_color _text_color
+
+	# Style
+
+	_sign[ask]='?';     _sign_color[ask]=+yellow;    _text_color[ask]=high
+	_sign[bug]='✖';     _sign_color[bug]=red;        _text_color[bug]=high
+	_sign[cry]='!';     _sign_color[cry]=+yellow;    _text_color[cry]=medium
+	_sign[die]='✗';     _sign_color[die]=+red;       _text_color[die]=high
+	_sign[hmm]='ℹ';     _sign_color[hmm]=-yellow;    _text_color[hmm]=low
+	_sign[say]='' ;     _sign_color[say]=+white;     _text_color[say]=medium
+
+	_sign[notok]='✗';   _sign_color[notok]=+red;     _text_color[notok]=high
+	_sign[ok]='✓';      _sign_color[ok]=+green;      _text_color[ok]=high
+
+	_sign[calling]='>'; _sign_color[calling]=+cyan;  _text_color[calling]=high
+	_sign[getting]='↓'; _sign_color[getting]=+cyan;  _text_color[getting]=low
+	_sign[running]='∙'; _sign_color[running]=+cyan;  _text_color[running]=low
+	_sign[default]='∙'; _sign_color[default]=+white; _text_color[default]=medium
+
+	color.expand _sign_color _text_color
 }
 
-# Print messages on standard error
-ui.say() {
-	ui.plain "$@" >&2
-}
+ui.init
 
-# Print messages on standard error and exit success
-ui.bye() {
-	ui.plain "$@" >&2; exit 0
-}
+.ask()     { ui.do "$@";          }
+.bug()     { ui.do "$@" exit 127; }
+.bye()     { ui.do "$@" exit 0;   }
+.cry()     { ui.do "$@";          }
+.die()     { ui.do "$@" exit 1;   }
+.hmm()     { ui.do "$@";          }
+.say()     { ui.do "$@";          }
 
-# Print warning messages on standard error
-ui.cry() {
-	ui.warning "$@" >&2
-}
+.ok()      { ui.do "$@";          }
+.notok()   { ui.do "$@";          }
 
-# Print error messages without exiting
-ui.die-() {
-	ui.failure "$@" >&2
-}
-
-# Print error messages and exit failure
-ui.die() {
-	ui.die- "$@"; exit 1
-}
-
-# Print messages taking attention
-ui.hey() {
-	ui.headline "$@" >&2
-}
-
-ui.net() {
-	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	ui.network "$message"
-	"$@"
-}
+.calling() { ui.do "$@";          }
+.getting() { ui.do "$@";          }
+.running() { ui.do "$@";          }
 
 ui.out() {
-	local name=$1
-	shift
+	local name=${1:-default}
+	shift || true
 
 	local sign=${_sign[$name]}
 
@@ -577,62 +601,24 @@ ui.out() {
 	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
 
 	echo -en "${sign_color}${sign}${reset} "
-	.out
+	.out "$@"
 	echo -en "$reset "
 }
 
-# Private functions
-
 # shellcheck disable=2034,2154
-ui._init() {
-	declare -Ag _sign _sign_color _text_color
+ui.do() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
 
-	# Style
-
-	_sign[caution]='★';    _sign_color[caution]=+cyan;      _text_color[caution]=high
-	_sign[failure]='✗';    _sign_color[failure]=+red;       _text_color[failure]=high
-	_sign[headline]='>';   _sign_color[headline]=+cyan;     _text_color[headline]=high
-	_sign[info]='ℹ';       _sign_color[info]=-yellow;       _text_color[info]=low
-	_sign[network]='↓';    _sign_color[network]=+cyan;      _text_color[network]=low
-	_sign[panic]='✖';      _sign_color[panic]=red;          _text_color[panic]=high
-	_sign[plain]='∙';      _sign_color[plain]=+white;       _text_color[plain]=medium
-	_sign[question]='?';   _sign_color[question]=+yellow;   _text_color[question]=high
-	_sign[success]='✓';    _sign_color[success]=+green;     _text_color[success]=high
-	_sign[warning]='!';    _sign_color[warning]=+yellow;    _text_color[warning]=medium
-
-	color.expand _sign_color _text_color
-
-	ui.caution()  { ui._echo "$@"; }
-	ui.failure()  { ui._echo "$@"; }
-	ui.headline() { ui._echo "$@"; }
-	ui.info()     { ui._echo "$@"; }
-	ui.network()  { ui._echo "$@"; }
-	ui.panic()    { ui._echo "$@"; }
-	ui.plain()    { ui._echo "$@"; }
-	ui.question() { ui._echo "$@"; }
-	ui.success()  { ui._echo "$@"; }
-	ui.warning()  { ui._echo "$@"; }
-
-	.bug() { ui.bug  "$@"; }
-	.bye() { ui.bye  "$@"; }
-	.cry() { ui.cry  "$@"; }
-	.hey() { ui.hey  "$@"; }
-	.net() { ui.net  "$@"; }
-	.die() { ui.die  "$@"; }
-}
-
-# shellcheck disable=2034,2154
-ui._echo() {
 	local name=${FUNCNAME[1]#*.}
 
 	local sign=${_sign[$name]}
 
 	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
 
-	echo -e "${sign_color}${sign}${reset} ${text_color}$*${reset}"
-}
+	echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}" >&2
 
-ui._init
+	"$@"
+}
 
 readonly _TAP_VERSION_=13
 
@@ -708,7 +694,7 @@ tap.success() {
 	flag.parse
 
 	echo -n 'ok     '
-	ui.out success
+	ui.out ok
 
 	if [[ -n ${_[number]:-} ]]; then
 		echo "${_[number]} - ${_[test]}"
@@ -731,7 +717,7 @@ tap.failure() {
 	flag.parse
 
 	echo -n 'not ok '
-	ui.out failure
+	ui.out notok
 
 	if [[ -n ${_[number]:-} ]]; then
 		echo "${_[number]} - ${_[test]}"
@@ -758,7 +744,7 @@ tap.skip() {
 	flag.parse
 
 	echo -n 'ok     '
-	ui.out plain
+	ui.out
 
 	{
 		if [[ -n ${_[number]:-} ]]; then
@@ -783,7 +769,7 @@ tap.todo() {
 	flag.parse
 
 	echo -n 'not ok '
-	ui.out failure
+	ui.out notok
 
 	{
 		if [[ -n ${_[number]:-} ]]; then
@@ -877,13 +863,8 @@ self.install() {
 
 if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
-		['ui.bug']='Report bug and exit failure'
-		['ui.say']='Print messages on standard error'
-		['ui.bye']='Print messages on standard error and exit success'
-		['ui.cry']='Print warning messages on standard error'
-		['ui.die-']='Print error messages without exiting'
-		['ui.die']='Print error messages and exit failure'
-		['ui.hey']='Print messages taking attention'
+		['ui.init']='shellcheck disable=2034,2154'
+		['ui.do']='shellcheck disable=2034,2154'
 		['tap.success']='Success'
 		['tap.failure']='Failure'
 		['tap.skip']='Skip'
@@ -1017,14 +998,6 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			echo -e "${@-""}"
 		}
 
-		.cry() {
-			if [[ $# -gt 0 ]]; then
-				echo -e >&2 "W: $*"
-			else
-				echo >&2 ""
-			fi
-		}
-
 		.die() {
 			if [[ $# -gt 0 ]]; then
 				echo -e >&2 "E: $*"
@@ -1053,6 +1026,14 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			fi
 
 			exit 0
+		}
+
+		.cry() {
+			if [[ $# -gt 0 ]]; then
+				echo -e >&2 "W: $*"
+			else
+				echo >&2 ""
+			fi
 		}
 
 		.must() {

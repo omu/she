@@ -345,10 +345,11 @@ TODO
 .die
 .bug
 .bye
+.cry
 
 .running
 .getting
-.warning
 .calling
-.telling
-.noticing
+
+.ok
+.notok

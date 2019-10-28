@@ -10,16 +10,31 @@ deb.install() {
 
 	# shellcheck disable=2192
 	local -A _=(
+		[repository]=
+		[key]=
+		[deb]=
+		[src]=
+
 		[-missings]=false
 		[-shiny]=false
 
-		[.help]='PACKAGE...'
+		[.help]='[-missings=BOOL] [-shiny=BOOL] [repository=NAME deb=LINE [src=LINE] [key=URL]] PACKAGE...'
 		[.argc]=1-
 	)
 
 	flag.parse
 
 	[[ $# -gt 0 ]] || return 0
+
+	if [[ -n ${_[repository]:-} ]]; then
+		deb.add repository="${_[repository]}" key="${_[key]:-}" deb="${_[deb]:-}" src="${_[src]:-}"
+	else
+		local arg
+
+		for arg in key deb src; do
+			[[ -z ${_[$arg]:-} ]] || .die "Repository required."
+		done
+	fi
 
 	local -a opts=(
 		--yes
@@ -55,7 +70,7 @@ deb.install() {
 		fi
 
 		if [[ -n ${target:-} ]]; then
-			ui.info "Using $target"
+			.hmm "Using $target"
 			deb.using "$target"
 
 			opts+=(
@@ -67,8 +82,8 @@ deb.install() {
 
 	deb.update
 
-	[[ "${#packages[@]}" -eq 0 ]] || .net 'Installing packages' apt-get install "${opts[@]}" "${packages[@]}"
-	[[ "${#urls[@]}" -eq 0     ]] || deb._install_from_urls "${urls[@]}"
+	[[ "${#packages[@]}" -eq 0 ]] || .getting 'Installing packages' apt-get install "${opts[@]}" "${packages[@]}"
+	[[ "${#urls[@]}" -eq 0     ]] || .running 'Installing packages' deb._install_from_urls "${urls[@]}"
 }
 
 # Uninstall Debian packages
@@ -92,6 +107,12 @@ deb.uninstall() {
 
 	.should -- apt-get autoremove -y
 	.should -- apt-get autoclean -y
+}
+
+deb.installed() {
+	local package="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	[[ -n "$(dpkg-query -W -f='${Installed-Size}' "$package" 2>/dev/null ||:)" ]]
 }
 
 # Print missing packages among given packages
@@ -125,31 +146,37 @@ deb.update() {
 	if .expired 60 /var/cache/apt/pkgcache.bin; then
 		.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
 
-		.net 'Updating package index' apt-get update -y
+		.getting 'Updating package index' apt-get update -y
 	fi
 }
 
 # Add Debian repository
-deb.repository() {
+deb.add() {
 	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
-	.must 'No data found at stdin' .piped
 
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='NAME [URL]'
-		[.argc]=1-
+		[repository]=$NIL
+		[key]=
+		[deb]=$NIL
+		[src]=
+
+		[.help]='repository=NAME deb=LINE [src=LINE] [key=URL]'
+		[.argc]=0
 	)
 
 	flag.parse
 
-	local name=$1 url=${2:-}
+	local repository=${_[repository]:-}
 
-	if [[ -n ${url:-} ]]; then
-		deb._apt_key_add "$url" || return 0
-	fi
+	[[ -n $repository ]] || .bug "Undefined repository."
 
-	cat >/etc/apt/sources.list.d/"$name".list
-	.net 'Updating package index' apt-get update -y
+	[[ -z ${_[key]:-} ]] || deb._key_add "${_[key]}" || return 0
+
+	echo "deb ${_[deb]}"  >/etc/apt/sources.list.d/"$repository".list
+	[[ -z ${_[src]:-} ]] || echo "deb-src ${_[src]}" >>/etc/apt/sources.list.d/"$repository".list
+
+	.getting 'Updating package index' apt-get update -y
 }
 
 # Use given official Debian distributions
@@ -174,9 +201,7 @@ deb.using() {
 			;;
 		esac
 
-		deb._dist_added "$dist" || deb.repository "$dist" <<-EOF
-			deb http://ftp.debian.org/debian $dist main contrib non-free
-		EOF
+		deb._dist_added "$dist" || deb.add repository="$dist" deb="http://ftp.debian.org/debian $dist main contrib non-free"
 	done
 }
 
@@ -194,7 +219,28 @@ deb._dist_added() {
 	grep -qE "^deb.*\bdebian.org\b.*\b$dist\b" /etc/apt/*.list /etc/apt/sources.list.d/*.list
 }
 
-deb._apt_key_add() {
+deb._key_add() {
+	.involving_gnupg deb._key_add_ "$@"
+}
+
+.involving_gnupg() {
+	local artifact=
+
+	if [[ ! -d $HOME/.gnupg ]]; then
+		artifact=$HOME/.gnupg
+
+		mkdir "$artifact" && chmod 700 "$artifact"
+	fi
+
+	local err
+	"$@"  || err=$? && err=$?
+
+	[[ -z ${artifact:-} ]] || rm -rf "$artifact"
+
+	return "$err"
+}
+
+deb._key_add_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local temp_file
@@ -215,12 +261,18 @@ deb._apt_key_add() {
 		awk -F: '$1 == "fpr" { print $10 }' 2>/dev/null
 	)
 
-	local fingerprint
+	local fingerprint unfound
 	for fingerprint in "${questioned_fingerprints[@]}"; do
-		.contains "$fingerprint" "${installed_fingerprints[@]}" || return 1
+		if ! .contains "$fingerprint" "${installed_fingerprints[@]}"; then
+			unfound=$fingerprint
+			break
+		fi
 	done
 
-	apt-key add "$temp_file"
+	if [[ -n ${unfound:-} ]]; then
+		.running 'Adding APT key'
+		apt-key add "$temp_file"
+	fi
 
 	temp.clean temp_file
 }
@@ -231,9 +283,7 @@ deb._missings() {
 	local package
 	for package; do
 		# shellcheck disable=2016
-		if [ -z "$(dpkg-query -W -f='${Installed-Size}' "$package" 2>/dev/null ||:)" ]; then
-			deb_missings_+=("$package")
-		fi
+		deb.installed "$package" || deb_missings_+=("$package")
 	done
 }
 

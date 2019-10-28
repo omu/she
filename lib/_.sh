@@ -16,15 +16,40 @@
 	.out "$@" >&2
 }
 
-.hey() {
-	.say "$@"
+.ask() {
+	.bug 'Not implemented'
 }
 
-.net() {
+.calling() {
 	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
 
-	.say "$message..."
+	.say "--> $message"
+
 	"$@"
+}
+
+.getting() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "... $message"
+
+	"$@"
+}
+
+.running() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "... $message"
+
+	"$@"
+}
+
+.ok() {
+	.say "OK    $*"
+}
+
+.notok() {
+	.say "NOTOK $*"
 }
 
 .dbg() {

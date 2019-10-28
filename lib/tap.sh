@@ -72,7 +72,7 @@ tap.success() {
 	flag.parse
 
 	echo -n 'ok     '
-	ui.out success
+	ui.out ok
 
 	if [[ -n ${_[number]:-} ]]; then
 		echo "${_[number]} - ${_[test]}"
@@ -95,7 +95,7 @@ tap.failure() {
 	flag.parse
 
 	echo -n 'not ok '
-	ui.out failure
+	ui.out notok
 
 	if [[ -n ${_[number]:-} ]]; then
 		echo "${_[number]} - ${_[test]}"
@@ -122,7 +122,7 @@ tap.skip() {
 	flag.parse
 
 	echo -n 'ok     '
-	ui.out plain
+	ui.out
 
 	{
 		if [[ -n ${_[number]:-} ]]; then
@@ -147,7 +147,7 @@ tap.todo() {
 	flag.parse
 
 	echo -n 'not ok '
-	ui.out failure
+	ui.out notok
 
 	{
 		if [[ -n ${_[number]:-} ]]; then

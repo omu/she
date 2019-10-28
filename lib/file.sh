@@ -85,7 +85,7 @@ file.download() {
 	local download
 
 	temp.file download
-	.net "Downloading $url"
+	.getting "Downloading $url"
 	.must -- http.get "$url" >"$download"
 	.must -- chmod 644 "$download"
 
@@ -129,7 +129,7 @@ file.do_() {
 		;;
 	esac
 
-	flag.true -quiet || ui.success "$installed"
+	flag.true -quiet || .ok "$installed"
 
 	file._chogm_ "$installed"
 

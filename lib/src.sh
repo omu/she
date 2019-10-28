@@ -134,8 +134,7 @@ src.run_() {
 
 	path.base file
 
-	.hey "$file"
-	src.exe_ "$file"
+	.calling "$file" src.exe_ "$file"
 }
 
 src.test_() {

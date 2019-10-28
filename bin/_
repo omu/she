@@ -20,14 +20,6 @@
 	echo -e "${@-""}"
 }
 
-.cry() {
-	if [[ $# -gt 0 ]]; then
-		echo -e >&2 "W: $*"
-	else
-		echo >&2 ""
-	fi
-}
-
 .die() {
 	if [[ $# -gt 0 ]]; then
 		echo -e >&2 "E: $*"
@@ -56,6 +48,14 @@
 	fi
 
 	exit 0
+}
+
+.cry() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "W: $*"
+	else
+		echo >&2 ""
+	fi
 }
 
 .must() {
@@ -152,15 +152,40 @@
 	.out "$@" >&2
 }
 
-.hey() {
-	.say "$@"
+.ask() {
+	.bug 'Not implemented'
 }
 
-.net() {
+.calling() {
 	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
 
-	.say "$message..."
+	.say "--> $message"
+
 	"$@"
+}
+
+.getting() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "... $message"
+
+	"$@"
+}
+
+.running() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "... $message"
+
+	"$@"
+}
+
+.ok() {
+	.say "OK    $*"
+}
+
+.notok() {
+	.say "NOTOK $*"
 }
 
 .dbg() {
@@ -525,51 +550,50 @@ color._init
 
 # ui.sh - UI functions
 
-# Report bug and exit failure
-ui.bug() {
-	ui.panic "$@" >&2; exit 127
+# shellcheck disable=2034,2154
+ui.init() {
+	declare -Ag _sign _sign_color _text_color
+
+	# Style
+
+	_sign[ask]='?';     _sign_color[ask]=+yellow;    _text_color[ask]=high
+	_sign[bug]='✖';     _sign_color[bug]=red;        _text_color[bug]=high
+	_sign[cry]='!';     _sign_color[cry]=+yellow;    _text_color[cry]=medium
+	_sign[die]='✗';     _sign_color[die]=+red;       _text_color[die]=high
+	_sign[hmm]='ℹ';     _sign_color[hmm]=-yellow;    _text_color[hmm]=low
+	_sign[say]='' ;     _sign_color[say]=+white;     _text_color[say]=medium
+
+	_sign[notok]='✗';   _sign_color[notok]=+red;     _text_color[notok]=high
+	_sign[ok]='✓';      _sign_color[ok]=+green;      _text_color[ok]=high
+
+	_sign[calling]='>'; _sign_color[calling]=+cyan;  _text_color[calling]=high
+	_sign[getting]='↓'; _sign_color[getting]=+cyan;  _text_color[getting]=low
+	_sign[running]='∙'; _sign_color[running]=+cyan;  _text_color[running]=low
+	_sign[default]='∙'; _sign_color[default]=+white; _text_color[default]=medium
+
+	color.expand _sign_color _text_color
 }
 
-# Print messages on standard error
-ui.say() {
-	ui.plain "$@" >&2
-}
+ui.init
 
-# Print messages on standard error and exit success
-ui.bye() {
-	ui.plain "$@" >&2; exit 0
-}
+.ask()     { ui.do "$@";          }
+.bug()     { ui.do "$@" exit 127; }
+.bye()     { ui.do "$@" exit 0;   }
+.cry()     { ui.do "$@";          }
+.die()     { ui.do "$@" exit 1;   }
+.hmm()     { ui.do "$@";          }
+.say()     { ui.do "$@";          }
 
-# Print warning messages on standard error
-ui.cry() {
-	ui.warning "$@" >&2
-}
+.ok()      { ui.do "$@";          }
+.notok()   { ui.do "$@";          }
 
-# Print error messages without exiting
-ui.die-() {
-	ui.failure "$@" >&2
-}
-
-# Print error messages and exit failure
-ui.die() {
-	ui.die- "$@"; exit 1
-}
-
-# Print messages taking attention
-ui.hey() {
-	ui.headline "$@" >&2
-}
-
-ui.net() {
-	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	ui.network "$message"
-	"$@"
-}
+.calling() { ui.do "$@";          }
+.getting() { ui.do "$@";          }
+.running() { ui.do "$@";          }
 
 ui.out() {
-	local name=$1
-	shift
+	local name=${1:-default}
+	shift || true
 
 	local sign=${_sign[$name]}
 
@@ -577,62 +601,24 @@ ui.out() {
 	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
 
 	echo -en "${sign_color}${sign}${reset} "
-	.out
+	.out "$@"
 	echo -en "$reset "
 }
 
-# Private functions
-
 # shellcheck disable=2034,2154
-ui._init() {
-	declare -Ag _sign _sign_color _text_color
+ui.do() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
 
-	# Style
-
-	_sign[caution]='★';    _sign_color[caution]=+cyan;      _text_color[caution]=high
-	_sign[failure]='✗';    _sign_color[failure]=+red;       _text_color[failure]=high
-	_sign[headline]='>';   _sign_color[headline]=+cyan;     _text_color[headline]=high
-	_sign[info]='ℹ';       _sign_color[info]=-yellow;       _text_color[info]=low
-	_sign[network]='↓';    _sign_color[network]=+cyan;      _text_color[network]=low
-	_sign[panic]='✖';      _sign_color[panic]=red;          _text_color[panic]=high
-	_sign[plain]='∙';      _sign_color[plain]=+white;       _text_color[plain]=medium
-	_sign[question]='?';   _sign_color[question]=+yellow;   _text_color[question]=high
-	_sign[success]='✓';    _sign_color[success]=+green;     _text_color[success]=high
-	_sign[warning]='!';    _sign_color[warning]=+yellow;    _text_color[warning]=medium
-
-	color.expand _sign_color _text_color
-
-	ui.caution()  { ui._echo "$@"; }
-	ui.failure()  { ui._echo "$@"; }
-	ui.headline() { ui._echo "$@"; }
-	ui.info()     { ui._echo "$@"; }
-	ui.network()  { ui._echo "$@"; }
-	ui.panic()    { ui._echo "$@"; }
-	ui.plain()    { ui._echo "$@"; }
-	ui.question() { ui._echo "$@"; }
-	ui.success()  { ui._echo "$@"; }
-	ui.warning()  { ui._echo "$@"; }
-
-	.bug() { ui.bug  "$@"; }
-	.bye() { ui.bye  "$@"; }
-	.cry() { ui.cry  "$@"; }
-	.hey() { ui.hey  "$@"; }
-	.net() { ui.net  "$@"; }
-	.die() { ui.die  "$@"; }
-}
-
-# shellcheck disable=2034,2154
-ui._echo() {
 	local name=${FUNCNAME[1]#*.}
 
 	local sign=${_sign[$name]}
 
 	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
 
-	echo -e "${sign_color}${sign}${reset} ${text_color}$*${reset}"
-}
+	echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}" >&2
 
-ui._init
+	"$@"
+}
 
 # self.sh - Functions related to program itself
 
@@ -1383,7 +1369,7 @@ file.download() {
 	local download
 
 	temp.file download
-	.net "Downloading $url"
+	.getting "Downloading $url"
 	.must -- http.get "$url" >"$download"
 	.must -- chmod 644 "$download"
 
@@ -1427,7 +1413,7 @@ file.do_() {
 		;;
 	esac
 
-	flag.true -quiet || ui.success "$installed"
+	flag.true -quiet || .ok "$installed"
 
 	file._chogm_ "$installed"
 
@@ -1538,7 +1524,7 @@ bin.run() {
 	local file=${_[.]:-}
 	[[ -n $file ]] || .bug 'No file installed'
 
-	ui.plain 'Running downloaded file'
+	.running 'Running downloaded file'
 
 	local err
 	src.exe_ "$file" || err=$? && err=$?
@@ -1624,7 +1610,7 @@ git.update() {
 
 	if .expired "${_[-expiry]}" .git/FETCH_HEAD; then
 		git.must.clean
-		.net 'Updating repository' git pull --quiet origin
+		.getting 'Updating repository' git pull --quiet origin
 	fi
 }
 
@@ -1719,7 +1705,7 @@ git.clone_() {
 	[[ -z ${_[.branch]:-}   ]] || opt+=(--branch "${_[.branch]}")
 
 	_func_() {
-		.net 'Cloning repository' git clone "${opt[@]}" "$url" clone
+		.getting 'Cloning repository' git clone "${opt[@]}" "$url" clone
 		file.do_ copy clone "$dst"
 	}
 
@@ -1738,7 +1724,7 @@ git.update_() {
 	local -i expiry=${_[-expiry]:-3}
 	if .expired "$expiry" "$(git.topdir)"/.git/FETCH_HEAD; then
 		git.must.clean
-		.net 'Updating repository' git pull --quiet origin
+		.getting 'Updating repository' git pull --quiet origin
 	fi
 
 	.must -- popd >/dev/null
@@ -1880,8 +1866,7 @@ src.run_() {
 
 	path.base file
 
-	.hey "$file"
-	src.exe_ "$file"
+	.calling "$file" src.exe_ "$file"
 }
 
 src.test_() {
@@ -1993,16 +1978,31 @@ deb.install() {
 
 	# shellcheck disable=2192
 	local -A _=(
+		[repository]=
+		[key]=
+		[deb]=
+		[src]=
+
 		[-missings]=false
 		[-shiny]=false
 
-		[.help]='PACKAGE...'
+		[.help]='[-missings=BOOL] [-shiny=BOOL] [repository=NAME deb=LINE [src=LINE] [key=URL]] PACKAGE...'
 		[.argc]=1-
 	)
 
 	flag.parse
 
 	[[ $# -gt 0 ]] || return 0
+
+	if [[ -n ${_[repository]:-} ]]; then
+		deb.add repository="${_[repository]}" key="${_[key]:-}" deb="${_[deb]:-}" src="${_[src]:-}"
+	else
+		local arg
+
+		for arg in key deb src; do
+			[[ -z ${_[$arg]:-} ]] || .die "Repository required."
+		done
+	fi
 
 	local -a opts=(
 		--yes
@@ -2038,7 +2038,7 @@ deb.install() {
 		fi
 
 		if [[ -n ${target:-} ]]; then
-			ui.info "Using $target"
+			.hmm "Using $target"
 			deb.using "$target"
 
 			opts+=(
@@ -2050,8 +2050,8 @@ deb.install() {
 
 	deb.update
 
-	[[ "${#packages[@]}" -eq 0 ]] || .net 'Installing packages' apt-get install "${opts[@]}" "${packages[@]}"
-	[[ "${#urls[@]}" -eq 0     ]] || deb._install_from_urls "${urls[@]}"
+	[[ "${#packages[@]}" -eq 0 ]] || .getting 'Installing packages' apt-get install "${opts[@]}" "${packages[@]}"
+	[[ "${#urls[@]}" -eq 0     ]] || .running 'Installing packages' deb._install_from_urls "${urls[@]}"
 }
 
 # Uninstall Debian packages
@@ -2075,6 +2075,12 @@ deb.uninstall() {
 
 	.should -- apt-get autoremove -y
 	.should -- apt-get autoclean -y
+}
+
+deb.installed() {
+	local package="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	[[ -n "$(dpkg-query -W -f='${Installed-Size}' "$package" 2>/dev/null ||:)" ]]
 }
 
 # Print missing packages among given packages
@@ -2108,31 +2114,37 @@ deb.update() {
 	if .expired 60 /var/cache/apt/pkgcache.bin; then
 		.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
 
-		.net 'Updating package index' apt-get update -y
+		.getting 'Updating package index' apt-get update -y
 	fi
 }
 
 # Add Debian repository
-deb.repository() {
+deb.add() {
 	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
-	.must 'No data found at stdin' .piped
 
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='NAME [URL]'
-		[.argc]=1-
+		[repository]=$NIL
+		[key]=
+		[deb]=$NIL
+		[src]=
+
+		[.help]='repository=NAME deb=LINE [src=LINE] [key=URL]'
+		[.argc]=0
 	)
 
 	flag.parse
 
-	local name=$1 url=${2:-}
+	local repository=${_[repository]:-}
 
-	if [[ -n ${url:-} ]]; then
-		deb._apt_key_add "$url" || return 0
-	fi
+	[[ -n $repository ]] || .bug "Undefined repository."
 
-	cat >/etc/apt/sources.list.d/"$name".list
-	.net 'Updating package index' apt-get update -y
+	[[ -z ${_[key]:-} ]] || deb._key_add "${_[key]}" || return 0
+
+	echo "deb ${_[deb]}"  >/etc/apt/sources.list.d/"$repository".list
+	[[ -z ${_[src]:-} ]] || echo "deb-src ${_[src]}" >>/etc/apt/sources.list.d/"$repository".list
+
+	.getting 'Updating package index' apt-get update -y
 }
 
 # Use given official Debian distributions
@@ -2157,9 +2169,7 @@ deb.using() {
 			;;
 		esac
 
-		deb._dist_added "$dist" || deb.repository "$dist" <<-EOF
-			deb http://ftp.debian.org/debian $dist main contrib non-free
-		EOF
+		deb._dist_added "$dist" || deb.add repository="$dist" deb="http://ftp.debian.org/debian $dist main contrib non-free"
 	done
 }
 
@@ -2177,7 +2187,28 @@ deb._dist_added() {
 	grep -qE "^deb.*\bdebian.org\b.*\b$dist\b" /etc/apt/*.list /etc/apt/sources.list.d/*.list
 }
 
-deb._apt_key_add() {
+deb._key_add() {
+	.involving_gnupg deb._key_add_ "$@"
+}
+
+.involving_gnupg() {
+	local artifact=
+
+	if [[ ! -d $HOME/.gnupg ]]; then
+		artifact=$HOME/.gnupg
+
+		mkdir "$artifact" && chmod 700 "$artifact"
+	fi
+
+	local err
+	"$@"  || err=$? && err=$?
+
+	[[ -z ${artifact:-} ]] || rm -rf "$artifact"
+
+	return "$err"
+}
+
+deb._key_add_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local temp_file
@@ -2198,12 +2229,18 @@ deb._apt_key_add() {
 		awk -F: '$1 == "fpr" { print $10 }' 2>/dev/null
 	)
 
-	local fingerprint
+	local fingerprint unfound
 	for fingerprint in "${questioned_fingerprints[@]}"; do
-		.contains "$fingerprint" "${installed_fingerprints[@]}" || return 1
+		if ! .contains "$fingerprint" "${installed_fingerprints[@]}"; then
+			unfound=$fingerprint
+			break
+		fi
 	done
 
-	apt-key add "$temp_file"
+	if [[ -n ${unfound:-} ]]; then
+		.running 'Adding APT key'
+		apt-key add "$temp_file"
+	fi
 
 	temp.clean temp_file
 }
@@ -2214,9 +2251,7 @@ deb._missings() {
 	local package
 	for package; do
 		# shellcheck disable=2016
-		if [ -z "$(dpkg-query -W -f='${Installed-Size}' "$package" 2>/dev/null ||:)" ]; then
-			deb_missings_+=("$package")
-		fi
+		deb.installed "$package" || deb_missings_+=("$package")
 	done
 }
 
@@ -2601,13 +2636,8 @@ misc.expired() {
 
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
-		['ui.bug']='Report bug and exit failure'
-		['ui.say']='Print messages on standard error'
-		['ui.bye']='Print messages on standard error and exit success'
-		['ui.cry']='Print warning messages on standard error'
-		['ui.die-']='Print error messages without exiting'
-		['ui.die']='Print error messages and exit failure'
-		['ui.hey']='Print messages taking attention'
+		['ui.init']='shellcheck disable=2034,2154'
+		['ui.do']='shellcheck disable=2034,2154'
 		['self']='Print self'
 		['self.version']='Print self version'
 		['self.name']='Print self name'
@@ -2642,7 +2672,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['deb.uninstall']='Uninstall Debian packages'
 		['deb.missings']='Print missing packages among given packages'
 		['deb.update']='Update Debian package index'
-		['deb.repository']='Add Debian repository'
+		['deb.add']='Add Debian repository'
 		['deb.using']='Use given official Debian distributions'
 		['text.fix']='Append stdin content to the target file'
 		['text.unfix']='Remove appended content'
@@ -2655,35 +2685,36 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	)
 
 	declare -Ag _command=(
+		['ask']='.ask'
 		['available']='.available'
 		['bin install']='bin.install'
 		['bin run']='bin.run'
 		['bin use']='bin.use'
-		['bug']='ui.bug'
-		['cry']='ui.cry'
+		['bug']='.bug'
+		['cry']='.cry'
+		['deb add']='deb.add'
 		['deb install']='deb.install'
+		['deb installed']='deb.installed'
 		['deb missings']='deb.missings'
-		['deb repository']='deb.repository'
 		['deb uninstall']='deb.uninstall'
 		['deb update']='deb.update'
 		['deb using']='deb.using'
-		['die']='ui.die'
+		['die']='.die'
 		['enter']='src.enter'
 		['expired']='misc.expired'
 		['file install']='file.install'
 		['filetype is']='filetype.is'
 		['filetype mime']='filetype.mime'
-		['hey']='ui.hey'
+		['hmm']='.hmm'
 		['http get']='http.get'
 		['http is']='http.is'
 		['must']='.must'
-		['net']='ui.net'
 		['os codename']='os.codename'
 		['os dist']='os.dist'
 		['os is']='os.is'
 		['os virtual']='os.virtual'
 		['run']='misc.run'
-		['say']='ui.say'
+		['say']='.say'
 		['self install']='self.install'
 		['self name']='self.name'
 		['self path']='self.path'
@@ -2695,6 +2726,11 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['temp inside']='temp.inside'
 		['text fix']='text.fix'
 		['text unfix']='text.unfix'
+		['ui calling']='.calling'
+		['ui getting']='.getting'
+		['ui notok']='.notok'
+		['ui ok']='.ok'
+		['ui running']='.running'
 		['unzip']='zip.unpack'
 		['url is']='url.is'
 	)

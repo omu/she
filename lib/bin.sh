@@ -52,7 +52,7 @@ bin.run() {
 	local file=${_[.]:-}
 	[[ -n $file ]] || .bug 'No file installed'
 
-	ui.plain 'Running downloaded file'
+	.running 'Running downloaded file'
 
 	local err
 	src.exe_ "$file" || err=$? && err=$?
