@@ -68,7 +68,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['file install']='file.install'
 		['filetype is']='filetype.is'
 		['filetype mime']='filetype.mime'
-		['hmm']='ui.hmm'
+		['ui info']='ui.hmm'
 		['http get']='http.get'
 		['http is']='http.is'
 		['must']='_.must'
