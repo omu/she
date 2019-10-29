@@ -316,6 +316,13 @@ Komut başarısız ve stderr/stdout çıktılarında:
 TODO
 ----
 
+- [ ] API overhaul
+  + [ ] isim uzayının değerlendirilmesi
+  + [ ] public/protected/private ve cli fonksiyonlarının semantiği
+  + [ ] Fonksiyonların kısa açıklamaları
+  + [ ] Fonksiyonların dosya içinde sıralanması
+  + [ ] Stil/tutarlılık bakımı
+- [ ] flag `--` yönetimi
 - [ ] manuel test
   + [X] ui.info için kısayol
   + [X] bin.run ve src.run'ı seçerek çalıştıran bir run
@@ -323,17 +330,13 @@ TODO
   + [X] ui.plain ile uzun çalışanları yönetiyoruz, kısayol?
   + [X] `_[.target]` vb durumlar için genel tasarımı denetle
   + [X] `bin.install_` yerine `bin.install -prefix=...` vs olsa daha iyi olur
-        ("çalıştırmadan önce değişkeni set et" mantığı tehlikeli, `_` readonly olmalı)
 - [ ] omu/debian
   + [ ] runtime/chrome
   + [X] development/crystal
   + [ ] fixme'ler
-- [X] API overhaul ve ekleme/düzeltmeler
-- [ ] Stil/tutarlılık bakımı
 - [X] blob unpack
 - [X] bin unpack desteği
 - [ ] README asgari dokümantasyonu
-- [ ] Fonksyonların kısa açıklamaları
 - [ ] BENİOKU
 - [ ] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
 - [ ] scripts aracının yeni sürümü
