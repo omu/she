@@ -22,6 +22,8 @@
 
 #:lib/os.sh
 
+#:lib/virtual.sh
+
 #:lib/url.sh
 
 #:lib/http.sh
@@ -73,7 +75,6 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['os codename']='os.codename'
 		['os dist']='os.dist'
 		['os is']='os.is'
-		['os virtual']='os.virtual'
 		['run']='_.run'
 		['say']='ui.say'
 		['self install']='self.install'
@@ -95,6 +96,9 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['unzip']='zip.unpack'
 		['url any']='url.any'
 		['url is']='url.is'
+		['virtual any']='virtual.any'
+		['virtual is']='virtual.is'
+		['virtual']='virtual.what'
 	)
 
 	#:lib/app.sh

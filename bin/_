@@ -1241,18 +1241,6 @@ temp.clean() {
 
 # os.sh - OS related functions
 
-# Virtualization type
-# shellcheck disable=2120
-os.virtual() {
-	local -A _=(
-		[.argc]=0-
-	)
-
-	flag.parse
-
-	systemd-detect-virt || true
-}
-
 # Distribution name
 # shellcheck disable=2120
 os.dist() {
@@ -1291,18 +1279,6 @@ os.is() {
 
 # os - Private functions
 
-# shellcheck disable=2120
-os.is._virtual() {
-	if [[ $# -gt 0 ]]; then
-		[[ $(os.virtual) = "$1" ]]
-	else
-		[[ -z ${CI:-} ]] || return 0
-		[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
-
-		systemd-detect-virt -q
-	fi
-}
-
 os.is._debian() {
 	if [[ $# -gt 0 ]]; then
 		case $1 in
@@ -1333,13 +1309,81 @@ os.is._proxmox() {
 	.available pveversion && uname -a | grep -q -i pve
 }
 
-os.is._vagrant() {
+# virtual.sh - Virtualization functions
+
+# Detect virtualization type
+virtual.what() {
+	local -A _=(
+		[.argc]=0
+	)
+
+	flag.parse
+
+	systemd-detect-virt || true
+}
+
+# Assert virtualization type
+virtual.is() {
+	local -A _=(
+		[.help]='[VIRTUALIZATION]'
+		[.argc]=0-
+	)
+
+	flag.parse
+
+	if [[ $# -gt 0 ]]; then
+		local virtual=$1
+
+		local func=virtual.is._"${virtual}"
+
+		if .callable "$func"; then
+			"$func"
+		else
+			[[ $(virtual.what) = "$virtual" ]]
+		fi
+	else
+		[[ -z ${CI:-} ]] || return 0
+		[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
+
+		systemd-detect-virt -q
+	fi
+}
+
+# Assert any of the virtualization type
+virtual.any() {
+	local -A _=(
+		[.help]='VIRTUALIZATION...'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	local virtual
+
+	for virtual; do
+		local func=virtual.is._"${virtual}"
+
+		if .callable "$func"; then
+			"$func"
+		else
+			[[ $(virtual.what) = "$virtual" ]]
+		fi || continue
+
+		return 0
+	done
+
+	return 1
+}
+
+# os - Private functions
+
+virtual.is._vagrant() {
 	os.is._virtual || return 1
 
 	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
 }
 
-os.is._physical() {
+virtual.is._physical() {
 	! systemd-detect-virt -q
 }
 
@@ -2902,10 +2946,12 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['array.dup']='Duplicate array'
 		['array.contains']='Array contains the given element'
 		['temp.inside']='Execute command in temp dir'
-		['os.virtual']='Virtualization type'
 		['os.dist']='Distribution name'
 		['os.codename']='Distribution codename'
 		['os.is']='Detect OS feature'
+		['virtual.what']='Detect virtualization type'
+		['virtual.is']='Assert virtualization type'
+		['virtual.any']='Assert any of the virtualization type'
 		['url.is']='Assert URL type'
 		['url.any']='Assert URL type'
 		['http.get']='Get URL'
@@ -2965,7 +3011,6 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['os codename']='os.codename'
 		['os dist']='os.dist'
 		['os is']='os.is'
-		['os virtual']='os.virtual'
 		['run']='_.run'
 		['say']='ui.say'
 		['self install']='self.install'
@@ -2987,6 +3032,9 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['unzip']='zip.unpack'
 		['url any']='url.any'
 		['url is']='url.is'
+		['virtual any']='virtual.any'
+		['virtual is']='virtual.is'
+		['virtual']='virtual.what'
 	)
 
 	# app.sh - Application handling

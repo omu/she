@@ -1,17 +1,5 @@
 # os.sh - OS related functions
 
-# Virtualization type
-# shellcheck disable=2120
-os.virtual() {
-	local -A _=(
-		[.argc]=0-
-	)
-
-	flag.parse
-
-	systemd-detect-virt || true
-}
-
 # Distribution name
 # shellcheck disable=2120
 os.dist() {
@@ -50,18 +38,6 @@ os.is() {
 
 # os - Private functions
 
-# shellcheck disable=2120
-os.is._virtual() {
-	if [[ $# -gt 0 ]]; then
-		[[ $(os.virtual) = "$1" ]]
-	else
-		[[ -z ${CI:-} ]] || return 0
-		[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
-
-		systemd-detect-virt -q
-	fi
-}
-
 os.is._debian() {
 	if [[ $# -gt 0 ]]; then
 		case $1 in
@@ -90,14 +66,4 @@ os.is._ubuntu() {
 
 os.is._proxmox() {
 	.available pveversion && uname -a | grep -q -i pve
-}
-
-os.is._vagrant() {
-	os.is._virtual || return 1
-
-	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
-}
-
-os.is._physical() {
-	! systemd-detect-virt -q
 }
