@@ -1,5 +1,74 @@
 # _.sh - Required functions
 
+_.available() {
+	local -A _=(
+		[.help]='PROGRAM'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.available "$@"
+}
+
+_.must() {
+	local -A _=(
+		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	.must "$@" # FIXME
+}
+
+_.should() {
+	local -A _=(
+		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	.should "$@"
+}
+
+# Try to run any file or url
+_.run() {
+	local -A _=(
+		[.help]='FILE|URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	local url=$1
+
+	if url.is "$url" web; then
+		bin.run "$url"
+	elif url.is "$url" src; then
+		src.run "$url"
+	else
+		.die "Unsupported URL type: $url"
+	fi
+}
+
+# Check the expirations of given files
+_.expired() {
+	local -A _=(
+		[-expiry]=3
+
+		[.help]='[-expiry=MINUTES] FILE...'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.expired "${_[-expiry]}" "$@"
+}
+
+# _ - Protected functions
+
 .out() {
 	local arg
 
@@ -107,6 +176,40 @@
 	done
 
 	return 0
+}
+
+# Capture outputs to arrays and return exit code
+# shellcheck disable=2034,2178
+.capture() {
+	local out err ret
+
+	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
+		local -n capture_out_=$1
+
+		out=$(mktemp)
+	fi
+	shift
+
+	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
+		local -n capture_err_=$1
+
+		err=$(mktemp)
+	fi
+	shift
+
+	"$@" >"${out:-/dev/stdout}" 2>"${err:-/dev/stderr}" && ret=$? || ret=$?
+
+	if [[ -n ${out:-} ]]; then
+		mapfile -t capture_out_ <"$out" || true
+		rm -f -- "$out"
+	fi
+
+	if [[ -n ${err:-} ]]; then
+		mapfile -t capture_err_ <"$err" || true
+		rm -f -- "$err"
+	fi
+
+	return $ret
 }
 
 # Initialize underscore system

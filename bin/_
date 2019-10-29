@@ -136,6 +136,75 @@
 
 # _.sh - Required functions
 
+_.available() {
+	local -A _=(
+		[.help]='PROGRAM'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.available "$@"
+}
+
+_.must() {
+	local -A _=(
+		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	.must "$@" # FIXME
+}
+
+_.should() {
+	local -A _=(
+		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	.should "$@"
+}
+
+# Try to run any file or url
+_.run() {
+	local -A _=(
+		[.help]='FILE|URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	local url=$1
+
+	if url.is "$url" web; then
+		bin.run "$url"
+	elif url.is "$url" src; then
+		src.run "$url"
+	else
+		.die "Unsupported URL type: $url"
+	fi
+}
+
+# Check the expirations of given files
+_.expired() {
+	local -A _=(
+		[-expiry]=3
+
+		[.help]='[-expiry=MINUTES] FILE...'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.expired "${_[-expiry]}" "$@"
+}
+
+# _ - Protected functions
+
 .out() {
 	local arg
 
@@ -243,6 +312,40 @@
 	done
 
 	return 0
+}
+
+# Capture outputs to arrays and return exit code
+# shellcheck disable=2034,2178
+.capture() {
+	local out err ret
+
+	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
+		local -n capture_out_=$1
+
+		out=$(mktemp)
+	fi
+	shift
+
+	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
+		local -n capture_err_=$1
+
+		err=$(mktemp)
+	fi
+	shift
+
+	"$@" >"${out:-/dev/stdout}" 2>"${err:-/dev/stderr}" && ret=$? || ret=$?
+
+	if [[ -n ${out:-} ]]; then
+		mapfile -t capture_out_ <"$out" || true
+		rm -f -- "$out"
+	fi
+
+	if [[ -n ${err:-} ]]; then
+		mapfile -t capture_err_ <"$err" || true
+		rm -f -- "$err"
+	fi
+
+	return $ret
 }
 
 # Initialize underscore system
@@ -576,6 +679,122 @@ ui.init() {
 }
 
 ui.init
+
+ui.ask() {
+	.bug 'Not implemented'
+}
+
+ui.die() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.die "$@"
+}
+
+ui.cry() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.cry "$@"
+}
+
+ui.bye() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.bye "$@"
+}
+
+ui.hmm() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.hmm "$@"
+}
+
+ui.say() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.say "$@"
+}
+
+ui.ok() {
+	local -A _=(
+		[.help]='STRING'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.ok "$@"
+}
+
+ui.notok() {
+	local -A _=(
+		[.help]='STRING'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.notok "$@"
+}
+
+ui.calling() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+ui.getting() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+ui.running() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+# ui - Protected functions
 
 .ask()     { ui.echo "$@" >&2;           }
 .bug()     { ui.echo "$@" >&2; exit 127; }
@@ -2638,79 +2857,6 @@ zip._prep_untar_() {
 	fi
 }
 
-# misc.sh - Utilities
-
-# Try to run any file or url
-misc.run() {
-	local -A _=(
-		[.help]='FILE|URL'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	local url=$1
-
-	if url.is "$url" web; then
-		bin.run "$url"
-	elif url.is "$url" src; then
-		src.run "$url"
-	else
-		.die "Unsupported URL type: $url"
-	fi
-}
-
-# Check the expirations of given files
-misc.expired() {
-	local -A _=(
-		[-expiry]=3
-
-		[.help]='[-expiry=MINUTES] FILE...'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.expired "${_[-expiry]}" "$@"
-}
-
-# misc - Private functions
-
-# Capture outputs to arrays and return exit code
-# shellcheck disable=2034,2178
-.capture() {
-	local out err ret
-
-	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
-		local -n capture_out_=$1
-
-		out=$(mktemp)
-	fi
-	shift
-
-	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
-		local -n capture_err_=$1
-
-		err=$(mktemp)
-	fi
-	shift
-
-	"$@" >"${out:-/dev/stdout}" 2>"${err:-/dev/stderr}" && ret=$? || ret=$?
-
-	if [[ -n ${out:-} ]]; then
-		mapfile -t capture_out_ <"$out" || true
-		rm -f -- "$out"
-	fi
-
-	if [[ -n ${err:-} ]]; then
-		mapfile -t capture_err_ <"$err" || true
-		rm -f -- "$err"
-	fi
-
-	return $ret
-}
-
-
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		['color.init']='shellcheck disable=2034'
@@ -2756,19 +2902,17 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['filetype.mime']='What mime type'
 		['filetype.is']='Detect file type'
 		['zip.unpack']='Unpack compressed file'
-		['misc.run']='Try to run any file or url'
-		['misc.expired']='Check the expirations of given files'
 		['app.dispatch']='shellcheck disable=2154'
 	)
 
 	declare -Ag _command=(
-		['ask']='.ask'
-		['available']='.available'
+		['ask']='ui.ask'
+		['available']='_.available'
 		['bin install']='bin.install'
 		['bin run']='bin.run'
 		['bin use']='bin.use'
-		['bug']='.bug'
-		['cry']='.cry'
+		['bug']='ui.bug'
+		['cry']='ui.cry'
 		['deb add']='deb.add'
 		['deb install']='deb.install'
 		['deb installed']='deb.installed'
@@ -2776,38 +2920,38 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['deb uninstall']='deb.uninstall'
 		['deb update']='deb.update'
 		['deb using']='deb.using'
-		['die']='.die'
+		['die']='ui.die'
 		['enter']='src.enter'
-		['expired']='misc.expired'
+		['expired']='_.expired'
 		['file install']='file.install'
 		['filetype is']='filetype.is'
 		['filetype mime']='filetype.mime'
-		['hmm']='.hmm'
+		['hmm']='ui.hmm'
 		['http get']='http.get'
 		['http is']='http.is'
-		['must']='.must'
+		['must']='_.must'
 		['os codename']='os.codename'
 		['os dist']='os.dist'
 		['os is']='os.is'
 		['os virtual']='os.virtual'
-		['run']='misc.run'
-		['say']='.say'
+		['run']='_.run'
+		['say']='ui.say'
 		['self install']='self.install'
 		['self name']='self.name'
 		['self path']='self.path'
 		['self']='self'
 		['self version']='self.version'
-		['should']='.should'
+		['should']='_.should'
 		['src install']='src.install'
 		['src use']='src.use'
 		['temp inside']='temp.inside'
 		['text fix']='text.fix'
 		['text unfix']='text.unfix'
-		['ui calling']='.calling'
-		['ui getting']='.getting'
-		['ui notok']='.notok'
-		['ui ok']='.ok'
-		['ui running']='.running'
+		['ui calling']='ui.calling'
+		['ui getting']='ui.getting'
+		['ui notok']='ui.notok'
+		['ui ok']='ui.ok'
+		['ui running']='ui.running'
 		['unzip']='zip.unpack'
 		['url is']='url.is'
 	)

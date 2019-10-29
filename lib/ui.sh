@@ -26,6 +26,122 @@ ui.init() {
 
 ui.init
 
+ui.ask() {
+	.bug 'Not implemented'
+}
+
+ui.die() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.die "$@"
+}
+
+ui.cry() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.cry "$@"
+}
+
+ui.bye() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.bye "$@"
+}
+
+ui.hmm() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.hmm "$@"
+}
+
+ui.say() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.say "$@"
+}
+
+ui.ok() {
+	local -A _=(
+		[.help]='STRING'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.ok "$@"
+}
+
+ui.notok() {
+	local -A _=(
+		[.help]='STRING'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.notok "$@"
+}
+
+ui.calling() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+ui.getting() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+ui.running() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+# ui - Protected functions
+
 .ask()     { ui.echo "$@" >&2;           }
 .bug()     { ui.echo "$@" >&2; exit 127; }
 .bye()     { ui.echo "$@" >&2; exit 0;   }
