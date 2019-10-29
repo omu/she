@@ -316,23 +316,23 @@ Komut başarısız ve stderr/stdout çıktılarında:
 TODO
 ----
 
-- [ ] API overhaul
+- [.] API overhaul
   + [ ] isim uzayını değerlendir
   + [ ] public/protected/private ve cli fonksiyonlarının semantiği
   + [ ] Fonksiyonların kısa açıklamaları
   + [ ] Fonksiyonların dosya içinde sıralanması
   + [ ] Stil/tutarlılık bakımı
-  + [ ] virtual uzayını os'tan ayır
-  + [ ] her is için any ve duruma göre all ekle
+  + [X] virtual uzayını os'tan ayır
+  + [.] her is için any ve duruma göre all ekle
 - [X] flag `--` yönetimi
-- [ ] manuel test
+- [.] manuel test
   + [X] ui.info için kısayol
   + [X] bin.run ve src.run'ı seçerek çalıştıran bir run
   + [X] expired lojiğini ters yap
   + [X] ui.plain ile uzun çalışanları yönetiyoruz, kısayol?
   + [X] `_[.target]` vb durumlar için genel tasarımı denetle
   + [X] `bin.install_` yerine `bin.install -prefix=...` vs olsa daha iyi olur
-- [ ] omu/debian
+- [.] omu/debian
   + [ ] runtime/chrome
   + [X] development/crystal
   + [ ] fixme'ler
@@ -341,7 +341,7 @@ TODO
 - [ ] README asgari dokümantasyonu
 - [ ] BENİOKU
 - [ ] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
-- [ ] scripts aracının yeni sürümü
+- [.] scripts aracının yeni sürümü
 - [ ] etc'nin durumu
 - [X] ui ve color desteği
 - [X] test alt yapısı
