@@ -1087,6 +1087,7 @@ self.install() {
 	bin.install_
 }
 
+
 if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		['color.init']='shellcheck disable=2034'
@@ -1114,6 +1115,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['t.go']='shellcheck disable=2034'
 		['t']='shellcheck disable=2034'
 	)
+
 
 	declare -Ag _command=(
 		['isnt']='test.isnt'
@@ -1680,6 +1682,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		}
 
 		[[ $# -eq 0 ]] || .load "$@"
+
 EOF
 	}
 

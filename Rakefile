@@ -253,7 +253,7 @@ class Compiler
   def process(line, directive)
     return [line] unless (m = line.match(DIRECTIVE[directive]))
 
-    send("do_#{directive}", m).fmt! prefix: m[:lead]
+    [*send("do_#{directive}", m).fmt(prefix: m[:lead]), '']
   end
 
   def do_include(match) # rubocop:disable Metrics/AbcSize

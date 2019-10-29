@@ -1,15 +1,9 @@
 #:lib/!.sh
-
 #:lib/flag.sh
-
 #:lib/_.sh
-
 #:lib/color.sh
-
 #:lib/ui.sh
-
 #:lib/tap.sh
-
 #:lib/self.sh
 
 if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
@@ -30,19 +24,14 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	)
 
 	#:src/common.sh
-
 	.source() {
 		echo "_SELF=$(self.path)"
 		echo
 		sed 's/^\t\t//' <<'EOF'
 		#:lib/!.sh
-
 		#:lib/defer.sh
-
 		#:lib/temp.sh: temp.dir temp.clean
-
 		#:lib/assert.sh
-
 		#:src/t.sh
 EOF
 	}

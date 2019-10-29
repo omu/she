@@ -2934,6 +2934,7 @@ zip._prep_untar_() {
 	fi
 }
 
+
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		['color.init']='shellcheck disable=2034'
@@ -2983,6 +2984,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['filetype.is']='Detect file type'
 		['zip.unpack']='Unpack compressed file'
 	)
+
 
 	declare -Ag _command=(
 		['ask']='ui.ask'
@@ -3178,6 +3180,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 		# shellcheck disable=1090
 		._ "$@"
+
 EOF
 	}
 
