@@ -20,7 +20,6 @@ filetype.mime() {
 	fi
 }
 
-
 # Detect file type
 filetype.is() {
 	local -A _=(
@@ -68,7 +67,7 @@ filetype.is._mime_() {
 	[[ $mime = "$expected" ]]
 }
 
-filetype.is._program_() {
+filetype.is._runnable_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local mime encoding
@@ -77,17 +76,33 @@ filetype.is._program_() {
 
 	if [[ $encoding =~ binary$ ]]; then
 		if [[ $mime  =~ -executable$ ]]; then
-			_[.file.program]=binary
+			_[.file.runnable]=binary
 			return 0
 		fi
 	else
 		if head -n 1 "$file" | grep -q '^#!'; then
-			_[.file.program]=script
+			_[.file.runnable]=script
 			return 0
 		fi
 	fi
 
 	return 1
+}
+
+filetype.is._interpretable_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	filetype.is._runnable_ "$file" || return 1
+
+	[[ ${_[.file.runnable]:-} = script ]]
+}
+
+filetype.is._executable_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	filetype.is._runnable_ "$file" || return 1
+
+	[[ ${_[.file.runnable]:-} = binary ]]
 }
 
 filetype.is._compressed_() {
@@ -109,4 +124,20 @@ filetype.is._compressed_() {
 	*)
 		return 1 ;;
 	esac
+}
+
+filetype.shebang_() {
+	local    file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n filetype_shebang_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	filetype.is._interpretable_ "$file" || return 1
+
+	local shebang
+
+	shebang=$(head -n 1 "$file")
+	shebang=${shebang#\#!}
+	shebang=${shebang# }
+
+	# shellcheck disable=2034,2206
+	filetype_shebang_=($shebang)
 }

@@ -54,6 +54,42 @@ file.chogm() {
 	file.chogm_ "$dst"
 }
 
+# Run program
+file.run() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='URL|FILE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	# shellcheck disable=1007
+	local file temp_file_run=
+
+	if url.is "$url" web; then
+		file.download "$url" temp_file_run
+		file=$temp_file_run
+
+		if filetype.is "$file" runnable; then
+			.must -- chmod +x "$file"
+		fi
+	elif url.is "$url" local; then
+		file=$url
+	else
+		.die "Unsupported URL: $url"
+	fi
+
+	.running 'Running file'
+
+	local err
+	file.run_ "$file" || err=$? && err=$?
+
+	temp.clean temp_file_run
+
+	return "$err"
+}
+
 # file - Protected functions
 
 file.ln() {
@@ -153,6 +189,31 @@ file.install_() {
 	else
 		file.do_ copy "$src" "$dst"
 	fi
+}
+
+file.run_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	filetype.is "$file" runnable || .die "File is not runnable: $file"
+
+	local -a run_env_=()
+	flag.env_ run_env_
+
+	local -a run_cmd_=(env "${run_env_[@]}")
+
+	if [[ ! -x "$file" ]]; then
+		if filetype.is "$file" interpretable; then
+			local -a shebang
+			filetype.shebang_ "$file" shebang
+
+			# shellcheck disable=2206
+			run_cmd_+=("${shebang[@]}")
+		fi
+	fi
+
+	run_cmd_+=("$file")
+
+	"${run_cmd_[@]}"
 }
 
 # file - Private functions

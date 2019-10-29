@@ -1132,52 +1132,31 @@ url.is() {
 	local type=$1
 	shift
 
-	local func=url.is._"${type}"
+	local what=
+	url.what_ "$url" what
 
-	.must "Unable to detect: $type" .callable "$func"
-
-	"$func" "$@"
+	[[ $type = "$what" ]]
 }
 
 # url - Protected functions
 
-url.is._web() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local type=
-
-	url._what "$url" type || return
-
-	[[ ${type:-} = web ]]
-}
-
-url.is._src() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local type=
-
-	url._what "$url" type || return
-
-	[[ ${type:-} = src ]]
-}
-
-url._what() {
+url.what_() {
 	local    url_what_=${1?${FUNCNAME[0]}: missing argument};      shift
 	local -n url_what_type_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	url_what_type_=
 
 	if [[ $url_what_ =~ ^(/|./) ]]; then
-		return 1
+		url_what_type_=local
+		return
 	fi
 
 	url_what_type_=web
+
 	if [[ $url_what_  =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
 		# shellcheck disable=2034
 		url_what_type_=src
 	fi
-
-	return 0
 }
 
 # Parse URL
@@ -1356,6 +1335,42 @@ file.chogm() {
 	file.chogm_ "$dst"
 }
 
+# Run program
+file.run() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='URL|FILE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	# shellcheck disable=1007
+	local file temp_file_run=
+
+	if url.is "$url" web; then
+		file.download "$url" temp_file_run
+		file=$temp_file_run
+
+		if filetype.is "$file" runnable; then
+			.must -- chmod +x "$file"
+		fi
+	elif url.is "$url" local; then
+		file=$url
+	else
+		.die "Unsupported URL: $url"
+	fi
+
+	.running 'Running file'
+
+	local err
+	file.run_ "$file" || err=$? && err=$?
+
+	temp.clean temp_file_run
+
+	return "$err"
+}
+
 # file - Protected functions
 
 file.ln() {
@@ -1457,6 +1472,31 @@ file.install_() {
 	fi
 }
 
+file.run_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	filetype.is "$file" runnable || .die "File is not runnable: $file"
+
+	local -a run_env_=()
+	flag.env_ run_env_
+
+	local -a run_cmd_=(env "${run_env_[@]}")
+
+	if [[ ! -x "$file" ]]; then
+		if filetype.is "$file" interpretable; then
+			local -a shebang
+			filetype.shebang_ "$file" shebang
+
+			# shellcheck disable=2206
+			run_cmd_+=("${shebang[@]}")
+		fi
+	fi
+
+	run_cmd_+=("$file")
+
+	"${run_cmd_[@]}"
+}
+
 # file - Private functions
 
 file._do_args_() {
@@ -1522,36 +1562,6 @@ bin.use() {
 	bin.install_ "$@"
 }
 
-# Run program
-bin.run() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-name]=
-
-		[.help]='[-name=NAME] URL|FILE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	_[-prefix]="$_RUN/tmp"
-	_[-quiet]=true
-
-	bin.install_ "$@"
-
-	local file=${_[.]:-}
-	[[ -n $file ]] || .bug 'No file installed'
-
-	.running 'Running downloaded file'
-
-	local err
-	src.exe_ "$file" || err=$? && err=$?
-
-	rm -f "$file"
-
-	return "$err"
-}
-
 # bin - Protected functions
 
 bin.install_() {
@@ -1563,8 +1573,10 @@ bin.install_() {
 	if url.is "$url" web; then
 		file.download "$url" temp_bin_file
 		bin=$temp_bin_file
-	else
+	elif url.is "$url" local; then
 		bin=$url
+	else
+		.die "Unsupported URL: $url"
 	fi
 
 	if filetype.is "$bin" compressed; then
@@ -1606,10 +1618,10 @@ bin._inspect() {
 	if [[ -d $bin ]]; then
 		local file
 		for file in "$bin"/*; do
-			filetype.is "$file" program || continue
+			filetype.is "$file" runnable || continue
 			bin_inspect_+=("$file")
 		done
-	elif filetype.is "$bin" program; then
+	elif filetype.is "$bin" runnable; then
 		bin_inspect_+=("$bin")
 	fi
 }
@@ -1982,7 +1994,6 @@ src._plan_() {
 
 	_[2]=${_[.name]}
 }
-
 
 # deb.sh - Debian package management
 
@@ -2357,7 +2368,6 @@ filetype.mime() {
 	fi
 }
 
-
 # Detect file type
 filetype.is() {
 	local -A _=(
@@ -2405,7 +2415,7 @@ filetype.is._mime_() {
 	[[ $mime = "$expected" ]]
 }
 
-filetype.is._program_() {
+filetype.is._runnable_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local mime encoding
@@ -2414,17 +2424,33 @@ filetype.is._program_() {
 
 	if [[ $encoding =~ binary$ ]]; then
 		if [[ $mime  =~ -executable$ ]]; then
-			_[.file.program]=binary
+			_[.file.runnable]=binary
 			return 0
 		fi
 	else
 		if head -n 1 "$file" | grep -q '^#!'; then
-			_[.file.program]=script
+			_[.file.runnable]=script
 			return 0
 		fi
 	fi
 
 	return 1
+}
+
+filetype.is._interpretable_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	filetype.is._runnable_ "$file" || return 1
+
+	[[ ${_[.file.runnable]:-} = script ]]
+}
+
+filetype.is._executable_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	filetype.is._runnable_ "$file" || return 1
+
+	[[ ${_[.file.runnable]:-} = binary ]]
 }
 
 filetype.is._compressed_() {
@@ -2446,6 +2472,22 @@ filetype.is._compressed_() {
 	*)
 		return 1 ;;
 	esac
+}
+
+filetype.shebang_() {
+	local    file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n filetype_shebang_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	filetype.is._interpretable_ "$file" || return 1
+
+	local shebang
+
+	shebang=$(head -n 1 "$file")
+	shebang=${shebang#\#!}
+	shebang=${shebang# }
+
+	# shellcheck disable=2034,2206
+	filetype_shebang_=($shebang)
 }
 
 # zip.sh - Compression/decompression functions
@@ -2694,9 +2736,9 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['file.copy']='Copy file/directory to dstination creating all parents if necessary'
 		['file.move']='Move file/directory to destination creating all parents if necessary'
 		['file.link']='Link file/directory to dstination creating all parents if necessary'
+		['file.run']='Run program'
 		['bin.install']='Install program to path'
 		['bin.use']='Use program'
-		['bin.run']='Run program'
 		['git.must.sane']='shellcheck disable=2128'
 		['git.must.clean']='shellcheck disable=2128'
 		['src.install']='Install to a known location'

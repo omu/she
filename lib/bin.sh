@@ -32,36 +32,6 @@ bin.use() {
 	bin.install_ "$@"
 }
 
-# Run program
-bin.run() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-name]=
-
-		[.help]='[-name=NAME] URL|FILE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	_[-prefix]="$_RUN/tmp"
-	_[-quiet]=true
-
-	bin.install_ "$@"
-
-	local file=${_[.]:-}
-	[[ -n $file ]] || .bug 'No file installed'
-
-	.running 'Running downloaded file'
-
-	local err
-	src.exe_ "$file" || err=$? && err=$?
-
-	rm -f "$file"
-
-	return "$err"
-}
-
 # bin - Protected functions
 
 bin.install_() {
@@ -73,8 +43,10 @@ bin.install_() {
 	if url.is "$url" web; then
 		file.download "$url" temp_bin_file
 		bin=$temp_bin_file
-	else
+	elif url.is "$url" local; then
 		bin=$url
+	else
+		.die "Unsupported URL: $url"
 	fi
 
 	if filetype.is "$bin" compressed; then
@@ -116,10 +88,10 @@ bin._inspect() {
 	if [[ -d $bin ]]; then
 		local file
 		for file in "$bin"/*; do
-			filetype.is "$file" program || continue
+			filetype.is "$file" runnable || continue
 			bin_inspect_+=("$file")
 		done
-	elif filetype.is "$bin" program; then
+	elif filetype.is "$bin" runnable; then
 		bin_inspect_+=("$bin")
 	fi
 }

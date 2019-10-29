@@ -12,52 +12,31 @@ url.is() {
 	local type=$1
 	shift
 
-	local func=url.is._"${type}"
+	local what=
+	url.what_ "$url" what
 
-	.must "Unable to detect: $type" .callable "$func"
-
-	"$func" "$@"
+	[[ $type = "$what" ]]
 }
 
 # url - Protected functions
 
-url.is._web() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local type=
-
-	url._what "$url" type || return
-
-	[[ ${type:-} = web ]]
-}
-
-url.is._src() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local type=
-
-	url._what "$url" type || return
-
-	[[ ${type:-} = src ]]
-}
-
-url._what() {
+url.what_() {
 	local    url_what_=${1?${FUNCNAME[0]}: missing argument};      shift
 	local -n url_what_type_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	url_what_type_=
 
 	if [[ $url_what_ =~ ^(/|./) ]]; then
-		return 1
+		url_what_type_=local
+		return
 	fi
 
 	url_what_type_=web
+
 	if [[ $url_what_  =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
 		# shellcheck disable=2034
 		url_what_type_=src
 	fi
-
-	return 0
 }
 
 # Parse URL
