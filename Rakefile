@@ -355,7 +355,7 @@ end
 BIN = %w[_ t].freeze
 
 BIN.each do |bin|
-  file "bin/#{bin}" => ["src/#{bin}", "src/#{bin}.sh", *Dir['lib/*.sh'], __FILE__] do |task|
+  file "bin/#{bin}" => ["src/#{bin}", "src/#{bin}.sh", 'src/common.sh', *Dir['lib/*.sh'], __FILE__] do |task|
     src, dst = task.prerequisites.first, task.name
 
     mkdir_p File.dirname(dst)

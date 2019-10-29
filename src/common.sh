@@ -1,15 +1,15 @@
 .usage() {
-	local cmd
-
 	# shellcheck disable=2128
 	.say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
 	.say "Commands:"
+
+	local cmd
 
 	# shellcheck disable=2154
 	for cmd in "${!_command[@]}"; do
 		local fun=${_command[$cmd]}
 
-		printf "\\t%-24s  %s\n" "$cmd" "${_help[$fun]}"
+		printf "\\t%-24s  %s\n" "$cmd" "${_help[$fun]:-}"
 	done | sort >&2
 }
 
@@ -57,7 +57,7 @@
 	readonly PROGNAME+=("$cmd")
 
 	if [[ -n ${help:-} ]]; then
-		.say "${_help[$fun]}" ""
+		.say "${_help[$fun]:-}" ""
 
 		"$fun" -help
 	else

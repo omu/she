@@ -118,7 +118,6 @@ EOF
 			.source
 		else
 			.init
-
 			.dispatch "$@"
 		fi
 	}

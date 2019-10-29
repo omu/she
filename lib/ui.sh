@@ -173,7 +173,9 @@ ui.out() {
 
 # shellcheck disable=2034,2154
 ui.echo() {
-	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+	[[ $# -gt 0 ]] || return 0
+
+	local message=$1
 
 	local name=${FUNCNAME[1]#*.}
 
