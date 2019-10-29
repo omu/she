@@ -4,13 +4,12 @@
 url.is() {
 	local -A _=(
 		[.help]='TYPE'
-		[.argc]=1-
+		[.argc]=2
 	)
 
 	flag.parse
 
-	local type=$1
-	shift
+	local url=$1 type=$2
 
 	local what=
 	url.what_ "$url" what
@@ -26,16 +25,17 @@ url.what_() {
 
 	url_what_type_=
 
-	if [[ $url_what_ =~ ^(/|./) ]]; then
+	if [[ $url_what_ =~ ^(/|[.]/) ]]; then
 		url_what_type_=local
 		return
 	fi
 
-	url_what_type_=web
-
-	if [[ $url_what_  =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
+	if [[ $url_what_ =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
 		# shellcheck disable=2034
 		url_what_type_=src
+	else
+		# shellcheck disable=2034
+		url_what_type_=web
 	fi
 }
 

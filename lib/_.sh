@@ -49,7 +49,7 @@ _.run() {
 	local url=$1
 
 	if url.is "$url" web; then
-		bin.run "$url"
+		file.run "$url"
 	elif url.is "$url" src; then
 		src.run "$url"
 	else
