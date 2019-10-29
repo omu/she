@@ -14,7 +14,7 @@ _.available() {
 _.must() {
 	local -A _=(
 		[.help]='MESSAGE ARGS...|-- ARGS...'
-		[.argc]=2-
+		[.argc]=0-
 	)
 
 	flag.parse
@@ -25,7 +25,7 @@ _.must() {
 _.should() {
 	local -A _=(
 		[.help]='MESSAGE ARGS...|-- ARGS...'
-		[.argc]=2-
+		[.argc]=0-
 	)
 
 	flag.parse
