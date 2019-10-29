@@ -101,7 +101,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['virtual']='virtual.what'
 	)
 
-	#:lib/app.sh
+	#:src/common.sh
 
 	.source() {
 		echo "_SELF=$(self.path)"
@@ -119,7 +119,7 @@ EOF
 		else
 			.init
 
-			app.dispatch "$@"
+			.dispatch "$@"
 		fi
 	}
 

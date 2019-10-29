@@ -29,7 +29,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['tap version']='tap.version'
 	)
 
-	#:lib/app.sh
+	#:src/common.sh
 
 	.source() {
 		echo "_SELF=$(self.path)"
@@ -51,7 +51,7 @@ EOF
 		if ! .interactive && [[ $# -eq 0 ]]; then
 			.source
 		else
-			app.dispatch "$@"
+			.dispatch "$@"
 		fi
 	}
 

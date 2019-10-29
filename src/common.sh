@@ -1,6 +1,4 @@
-# app.sh - Application handling
-
-app.usage() {
+.usage() {
 	local cmd
 
 	# shellcheck disable=2128
@@ -16,11 +14,11 @@ app.usage() {
 }
 
 # shellcheck disable=2154
-app.dispatch() {
+.dispatch() {
 	local orig="${*}"
 
 	if [[ $# -eq 0 ]]; then
-		app.usage
+		.usage
 
 		.die 'Command required'
 	fi
@@ -33,7 +31,7 @@ app.dispatch() {
 		shift
 
 		if [[ $# -eq 0 ]]; then
-			app.usage
+			.usage
 
 			.die 'Help topic required'
 		fi

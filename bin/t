@@ -1098,7 +1098,6 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self.name']='Print self name'
 		['self.path']='Print self path'
 		['self.install']='Install self'
-		['app.dispatch']='shellcheck disable=2154'
 		['temp.inside']='Execute command in temp dir'
 		['assert.ok']='Assert command succeed'
 		['assert.notok']='Assert command failed'
@@ -1128,9 +1127,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['tap version']='tap.version'
 	)
 
-	# app.sh - Application handling
-
-	app.usage() {
+	.usage() {
 		local cmd
 
 		# shellcheck disable=2128
@@ -1146,11 +1143,11 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	}
 
 	# shellcheck disable=2154
-	app.dispatch() {
+	.dispatch() {
 		local orig="${*}"
 
 		if [[ $# -eq 0 ]]; then
-			app.usage
+			.usage
 
 			.die 'Command required'
 		fi
@@ -1163,7 +1160,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			shift
 
 			if [[ $# -eq 0 ]]; then
-				app.usage
+				.usage
 
 				.die 'Help topic required'
 			fi
@@ -1688,7 +1685,7 @@ EOF
 		if ! .interactive && [[ $# -eq 0 ]]; then
 			.source
 		else
-			app.dispatch "$@"
+			.dispatch "$@"
 		fi
 	}
 

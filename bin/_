@@ -2980,7 +2980,6 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['filetype.mime']='What mime type'
 		['filetype.is']='Detect file type'
 		['zip.unpack']='Unpack compressed file'
-		['app.dispatch']='shellcheck disable=2154'
 	)
 
 	declare -Ag _command=(
@@ -3037,9 +3036,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['virtual']='virtual.what'
 	)
 
-	# app.sh - Application handling
-
-	app.usage() {
+	.usage() {
 		local cmd
 
 		# shellcheck disable=2128
@@ -3055,11 +3052,11 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	}
 
 	# shellcheck disable=2154
-	app.dispatch() {
+	.dispatch() {
 		local orig="${*}"
 
 		if [[ $# -eq 0 ]]; then
-			app.usage
+			.usage
 
 			.die 'Command required'
 		fi
@@ -3072,7 +3069,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			shift
 
 			if [[ $# -eq 0 ]]; then
-				app.usage
+				.usage
 
 				.die 'Help topic required'
 			fi
@@ -3188,7 +3185,7 @@ EOF
 		else
 			.init
 
-			app.dispatch "$@"
+			.dispatch "$@"
 		fi
 	}
 
