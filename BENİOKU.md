@@ -322,7 +322,7 @@ TODO
   + [ ] Fonksiyonların kısa açıklamaları
   + [ ] Fonksiyonların dosya içinde sıralanması
   + [ ] Stil/tutarlılık bakımı
-- [ ] flag `--` yönetimi
+- [X] flag `--` yönetimi
 - [ ] manuel test
   + [X] ui.info için kısayol
   + [X] bin.run ve src.run'ı seçerek çalıştıran bir run
