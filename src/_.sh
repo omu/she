@@ -52,5 +52,4 @@ _() {
 	esac
 }
 
-# shellcheck disable=1090
 ._ "$@"

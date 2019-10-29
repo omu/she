@@ -3178,7 +3178,6 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			esac
 		}
 
-		# shellcheck disable=1090
 		._ "$@"
 
 EOF
