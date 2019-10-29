@@ -317,11 +317,11 @@ TODO
 ----
 
 - [.] API overhaul
-  + [ ] isim uzayını değerlendir
+  + [.] isim uzayını değerlendir
   + [ ] public/protected/private ve cli fonksiyonlarının semantiği
   + [ ] Fonksiyonların kısa açıklamaları
   + [ ] Fonksiyonların dosya içinde sıralanması
-  + [ ] Stil/tutarlılık bakımı
+  + [.] Stil/tutarlılık bakımı
   + [X] virtual uzayını os'tan ayır
   + [.] her is için any ve duruma göre all ekle
 - [X] flag `--` yönetimi
