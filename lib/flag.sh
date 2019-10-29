@@ -24,7 +24,8 @@ flag.usage_and_die_() {
 	.die "$@"
 }
 
-flag.usage_and_die_() {
+# shellcheck disable=2120
+flag.usage_and_bye_() {
 	flag.usage_
 
 	.bye "$@"
@@ -47,7 +48,7 @@ flag.parse_() {
 			if [[ $key =~ ^-.+$ ]] && [[ ! -v _[$key] ]]; then
 				.die "Unrecognized flag: $key"
 			fi
-		elif [[ $1 == '--' ]]; then
+		elif [[ $1 == '--' ]] && [[ -z ${_[.dash]:-} ]]; then
 			shift
 			break
 		else
@@ -163,7 +164,7 @@ flag._args_() {
 		return 0
 	fi
 
-	flag.usage_and_die "$message"
+	flag.usage_and_die_ "$message"
 }
 
 flag._validate_() {

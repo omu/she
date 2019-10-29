@@ -1,8 +1,8 @@
 #:lib/!.sh
 
-#:lib/_.sh
-
 #:lib/flag.sh
+
+#:lib/_.sh
 
 #:lib/color.sh
 

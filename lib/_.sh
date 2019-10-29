@@ -11,26 +11,30 @@ _.available() {
 	.available "$@"
 }
 
+# Check the expirations of given files
+_.expired() {
+	local -A _=(
+		[-expiry]=3
+
+		[.help]='[-expiry=MINUTES] FILE...'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.expired "${_[-expiry]}" "$@"
+}
+
 _.must() {
 	local -A _=(
 		[.help]='MESSAGE ARGS...|-- ARGS...'
-		[.argc]=0-
+		[.argc]=2-
+		[.dash]=true
 	)
 
 	flag.parse
 
-	.must "$@" # FIXME
-}
-
-_.should() {
-	local -A _=(
-		[.help]='MESSAGE ARGS...|-- ARGS...'
-		[.argc]=0-
-	)
-
-	flag.parse
-
-	.should "$@"
+	.must "$@"
 }
 
 # Try to run any file or url
@@ -53,96 +57,22 @@ _.run() {
 	fi
 }
 
-# Check the expirations of given files
-_.expired() {
+_.should() {
 	local -A _=(
-		[-expiry]=3
-
-		[.help]='[-expiry=MINUTES] FILE...'
-		[.argc]=1-
+		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.argc]=2-
+		[.dash]=true
 	)
 
 	flag.parse
 
-	.expired "${_[-expiry]}" "$@"
+	.should "$@"
 }
 
 # _ - Protected functions
 
-.out() {
-	local arg
-
-	for arg; do
-		echo -e "$arg"
-	done
-
-	if .piped; then
-		cat
-	fi
-}
-
-.err() {
-	.out "$@" >&2
-}
-
 .ask() {
 	.bug 'Not implemented'
-}
-
-.calling() {
-	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	.say "--> $message"
-
-	"$@"
-}
-
-.getting() {
-	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	.say "... $message"
-
-	"$@"
-}
-
-.running() {
-	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	.say "... $message"
-
-	"$@"
-}
-
-.ok() {
-	.say "OK    $*"
-}
-
-.notok() {
-	.say "NOTOK $*"
-}
-
-.dbg() {
-	[[ $# -gt 0 ]] || return 0
-
-	# shellcheck disable=2178,2155
-	local -n dbg_=$1
-
-	echo "${!dbg_}"
-
-	local key
-	for key in "${!dbg_[@]}"; do
-		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
-	done | sort
-
-	echo
-}
-
-.piped() {
-	[[ ! -t 0 ]]
-}
-
-.interactive() {
-	[[   -t 1 ]]
 }
 
 .bool() {
@@ -160,22 +90,6 @@ _.expired() {
 	*)
 		.bug "Invalid boolean: $value"
 	esac
-}
-
-# Check the expirations of given files
-.expired() {
-	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ $expiry -gt 0 ]] || return 1
-
-	local file
-	for file; do
-		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
-			return 1
-		fi
-	done
-
-	return 0
 }
 
 # Capture outputs to arrays and return exit code
@@ -210,6 +124,93 @@ _.expired() {
 	fi
 
 	return $ret
+}
+.calling() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "--> $message"
+
+	"$@"
+}
+
+.dbg() {
+	[[ $# -gt 0 ]] || return 0
+
+	# shellcheck disable=2178,2155
+	local -n dbg_=$1
+
+	echo "${!dbg_}"
+
+	local key
+	for key in "${!dbg_[@]}"; do
+		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
+	done | sort
+
+	echo
+}
+
+.err() {
+	.out "$@" >&2
+}
+
+# Check the expirations of given files
+.expired() {
+	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $expiry -gt 0 ]] || return 1
+
+	local file
+	for file; do
+		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
+			return 1
+		fi
+	done
+
+	return 0
+}
+
+.getting() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "... $message"
+
+	"$@"
+}
+
+.interactive() {
+	[[   -t 1 ]]
+}
+
+.notok() {
+	.say "NOTOK $*"
+}
+
+.ok() {
+	.say "OK    $*"
+}
+
+.out() {
+	local arg
+
+	for arg; do
+		echo -e "$arg"
+	done
+
+	if .piped; then
+		cat
+	fi
+}
+
+.piped() {
+	[[ ! -t 0 ]]
+}
+
+.running() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "... $message"
+
+	"$@"
 }
 
 # Initialize underscore system

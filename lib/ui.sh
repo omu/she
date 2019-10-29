@@ -181,5 +181,9 @@ ui.echo() {
 
 	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
 
-	echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
+	if [[ -n ${sign:-} ]]; then
+		echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
+	else
+		echo -e "${text_color}${message}${reset}"
+	fi
 }
