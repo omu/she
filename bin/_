@@ -358,7 +358,7 @@ _.run() {
 
 	local url=$1
 
-	if url.is "$url" web; then
+	if url.any "$url" web local; then
 		file.run "$url"
 	elif url.is "$url" src; then
 		src.run "$url"
@@ -1348,7 +1348,7 @@ os.is._physical() {
 # Assert URL type
 url.is() {
 	local -A _=(
-		[.help]='TYPE'
+		[.help]='URL TYPE'
 		[.argc]=2
 	)
 
@@ -1360,6 +1360,31 @@ url.is() {
 	url.what_ "$url" what
 
 	[[ $type = "$what" ]]
+}
+
+# Assert URL type
+url.any() {
+	local -A _=(
+		[.help]='URL TYPE...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	local url=$1; shift
+
+	local what=
+	url.what_ "$url" what
+
+	local type
+
+	for type; do
+		if [[ $type = "$what" ]]; then
+			return 0
+		fi
+	done
+
+	return 1
 }
 
 # url - Protected functions
@@ -2882,6 +2907,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['os.codename']='Distribution codename'
 		['os.is']='Detect OS feature'
 		['url.is']='Assert URL type'
+		['url.any']='Assert URL type'
 		['http.get']='Get URL'
 		['http.is']='Assert URL response'
 		['file.install']='Install file from URL'
@@ -2959,6 +2985,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['ui ok']='ui.ok'
 		['ui running']='ui.running'
 		['unzip']='zip.unpack'
+		['url any']='url.any'
 		['url is']='url.is'
 	)
 

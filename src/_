@@ -93,6 +93,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['ui ok']='ui.ok'
 		['ui running']='ui.running'
 		['unzip']='zip.unpack'
+		['url any']='url.any'
 		['url is']='url.is'
 	)
 

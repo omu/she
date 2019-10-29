@@ -358,7 +358,7 @@ _.run() {
 
 	local url=$1
 
-	if url.is "$url" web; then
+	if url.any "$url" web local; then
 		file.run "$url"
 	elif url.is "$url" src; then
 		src.run "$url"

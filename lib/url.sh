@@ -3,7 +3,7 @@
 # Assert URL type
 url.is() {
 	local -A _=(
-		[.help]='TYPE'
+		[.help]='URL TYPE'
 		[.argc]=2
 	)
 
@@ -15,6 +15,31 @@ url.is() {
 	url.what_ "$url" what
 
 	[[ $type = "$what" ]]
+}
+
+# Assert URL type
+url.any() {
+	local -A _=(
+		[.help]='URL TYPE...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	local url=$1; shift
+
+	local what=
+	url.what_ "$url" what
+
+	local type
+
+	for type; do
+		if [[ $type = "$what" ]]; then
+			return 0
+		fi
+	done
+
+	return 1
 }
 
 # url - Protected functions
