@@ -335,7 +335,7 @@ TODO
 - [.] omu/debian
   + [X] runtime/chrome
   + [X] development/crystal
-  + [ ] fixme'ler
+  + [X] fixme'ler
 - [X] blob unpack
 - [X] bin unpack desteği
 - [ ] README asgari dokümantasyonu
