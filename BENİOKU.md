@@ -340,7 +340,7 @@ TODO
 - [X] bin unpack desteği
 - [ ] README asgari dokümantasyonu
 - [ ] BENİOKU
-- [ ] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
+- [.] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
 - [.] scripts aracının yeni sürümü
 - [ ] etc'nin durumu
 - [X] ui ve color desteği
