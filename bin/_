@@ -1320,10 +1320,10 @@ os.is._proxmox() {
 	.available pveversion && uname -a | grep -q -i pve
 }
 
-# virtual.sh - Virtualization functions
+# virt.sh - Virtualization functions
 
 # Detect virtualization type
-virtual.what() {
+virt() {
 	local -A _=(
 		[.argc]=0
 	)
@@ -1334,34 +1334,27 @@ virtual.what() {
 }
 
 # Assert virtualization type
-virtual.is() {
+virt.is() {
 	local -A _=(
-		[.help]='[VIRTUALIZATION]'
-		[.argc]=0-
+		[.help]='VIRTUALIZATION'
+		[.argc]=1
 	)
 
 	flag.parse
 
-	if [[ $# -gt 0 ]]; then
-		local virtual=$1
+	local virt=$1
 
-		local func=virtual.is._"${virtual}"
+	local func=virt.is._"${virt}"
 
-		if .callable "$func"; then
-			"$func"
-		else
-			[[ $(virtual.what) = "$virtual" ]]
-		fi
+	if .callable "$func"; then
+		"$func"
 	else
-		[[ -z ${CI:-} ]] || return 0
-		[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
-
-		systemd-detect-virt -q
+		[[ $(virt) = "$virt" ]]
 	fi
 }
 
 # Assert any of the virtualization type
-virtual.any() {
+virt.any() {
 	local -A _=(
 		[.help]='VIRTUALIZATION...'
 		[.argc]=1-
@@ -1369,15 +1362,14 @@ virtual.any() {
 
 	flag.parse
 
-	local virtual
-
-	for virtual; do
-		local func=virtual.is._"${virtual}"
+	local virt
+	for virt; do
+		local func=virt.is._"${virt}"
 
 		if .callable "$func"; then
 			"$func"
 		else
-			[[ $(virtual.what) = "$virtual" ]]
+			[[ $(virt) = "$virt" ]]
 		fi || continue
 
 		return 0
@@ -1388,13 +1380,20 @@ virtual.any() {
 
 # os - Private functions
 
-virtual.is._vagrant() {
-	os.is._virtual || return 1
+virt.is._any() {
+	[[ -z ${CI:-} ]] || return 0
+	[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
+
+	systemd-detect-virt -q
+}
+
+virt.is._vagrant() {
+	virt.is._any || return 1
 
 	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
 }
 
-virtual.is._physical() {
+virt.is._physical() {
 	! systemd-detect-virt -q
 }
 
@@ -1409,12 +1408,12 @@ url.is() {
 
 	flag.parse
 
-	local url=$1 type=$2
+	local url=$1 expected=$2
 
-	local what=
-	url.what_ "$url" what
+	local got=
+	url.type_ "$url" got
 
-	[[ $type = "$what" ]]
+	[[ $expected = "$got" ]]
 }
 
 # Assert URL type
@@ -1428,13 +1427,12 @@ url.any() {
 
 	local url=$1; shift
 
-	local what=
-	url.what_ "$url" what
+	local got=
+	url.type_ "$url" got
 
 	local type
-
 	for type; do
-		if [[ $type = "$what" ]]; then
+		if [[ $type = "$got" ]]; then
 			return 0
 		fi
 	done
@@ -1444,38 +1442,38 @@ url.any() {
 
 # url - Protected functions
 
-url.what_() {
-	local    url_what_=${1?${FUNCNAME[0]}: missing argument};      shift
-	local -n url_what_type_=${1?${FUNCNAME[0]}: missing argument}; shift
+url.type_() {
+	local    url=${1?${FUNCNAME[0]}: missing argument};       shift
+	local -n url_type_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	url_what_type_=none
+	url_type_=none
 
-	if [[ $url_what_ =~ ^(/|[.]/) ]]; then
-		url_what_type_=local
+	if [[ $url =~ ^(/|[.]/) ]]; then
+		url_type_=local
 		return
 	fi
 
-	if [[ $url_what_ =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
+	if [[ $url =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
 		# shellcheck disable=2034
-		url_what_type_=src
+		url_type_=src
 		return
 	fi
 
-	if [[ ! $url_what_ =~ ^([^:]+://) ]]; then
+	if [[ ! $url =~ ^([^:]+://) ]]; then
 		# shellcheck disable=2034
-		url_what_type_=local
+		url_type_=local
 		return
 	fi
 
-	if [[ $url_what_ =~ ^(http|https):// ]]; then
+	if [[ $url =~ ^(http|https):// ]]; then
 		# shellcheck disable=2034
-		url_what_type_=web
+		url_type_=web
 		return
 	fi
 
-	if [[ $url_what_ =~ ^(git|git[+]ssh|ssh):// ]]; then
+	if [[ $url =~ ^(git|git[+]ssh|ssh):// ]]; then
 		# shellcheck disable=2034
-		url_what_type_=src
+		url_type_=src
 		return
 	fi
 }
@@ -2921,9 +2919,9 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['os.dist']='Distribution name'
 		['os.codename']='Distribution codename'
 		['os.is']='Detect OS feature'
-		['virtual.what']='Detect virtualization type'
-		['virtual.is']='Assert virtualization type'
-		['virtual.any']='Assert any of the virtualization type'
+		['virt']='Detect virtualization type'
+		['virt.is']='Assert virtualization type'
+		['virt.any']='Assert any of the virtualization type'
 		['url.is']='Assert URL type'
 		['url.any']='Assert URL type'
 		['http.get']='Get URL'
@@ -2976,7 +2974,6 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['file install']='file.install'
 		['filetype is']='filetype.is'
 		['filetype mime']='filetype.mime'
-		['ui info']='ui.hmm'
 		['http get']='http.get'
 		['http is']='http.is'
 		['must']='_.must'
@@ -2998,15 +2995,16 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['text unfix']='text.unfix'
 		['ui calling']='ui.calling'
 		['ui getting']='ui.getting'
+		['ui info']='ui.hmm'
 		['ui notok']='ui.notok'
 		['ui ok']='ui.ok'
 		['ui running']='ui.running'
 		['unzip']='zip.unpack'
 		['url any']='url.any'
 		['url is']='url.is'
-		['virtual any']='virtual.any'
-		['virtual is']='virtual.is'
-		['virtual']='virtual.what'
+		['virt any']='virt.any'
+		['virt is']='virt.is'
+		['virt']='virt'
 	)
 
 	.usage() {

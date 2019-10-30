@@ -10,7 +10,7 @@
 #:lib/defer.sh
 #:lib/temp.sh
 #:lib/os.sh
-#:lib/virtual.sh
+#:lib/virt.sh
 #:lib/url.sh
 #:lib/http.sh
 #:lib/file.sh
@@ -46,7 +46,6 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['file install']='file.install'
 		['filetype is']='filetype.is'
 		['filetype mime']='filetype.mime'
-		['ui info']='ui.hmm'
 		['http get']='http.get'
 		['http is']='http.is'
 		['must']='_.must'
@@ -68,15 +67,16 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['text unfix']='text.unfix'
 		['ui calling']='ui.calling'
 		['ui getting']='ui.getting'
+		['ui info']='ui.hmm'
 		['ui notok']='ui.notok'
 		['ui ok']='ui.ok'
 		['ui running']='ui.running'
 		['unzip']='zip.unpack'
 		['url any']='url.any'
 		['url is']='url.is'
-		['virtual any']='virtual.any'
-		['virtual is']='virtual.is'
-		['virtual']='virtual.what'
+		['virt any']='virt.any'
+		['virt is']='virt.is'
+		['virt']='virt'
 	)
 
 	#:src/common.sh

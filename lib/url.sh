@@ -9,12 +9,12 @@ url.is() {
 
 	flag.parse
 
-	local url=$1 type=$2
+	local url=$1 expected=$2
 
-	local what=
-	url.what_ "$url" what
+	local got=
+	url.type_ "$url" got
 
-	[[ $type = "$what" ]]
+	[[ $expected = "$got" ]]
 }
 
 # Assert URL type
@@ -28,13 +28,12 @@ url.any() {
 
 	local url=$1; shift
 
-	local what=
-	url.what_ "$url" what
+	local got=
+	url.type_ "$url" got
 
 	local type
-
 	for type; do
-		if [[ $type = "$what" ]]; then
+		if [[ $type = "$got" ]]; then
 			return 0
 		fi
 	done
@@ -44,38 +43,38 @@ url.any() {
 
 # url - Protected functions
 
-url.what_() {
-	local    url_what_=${1?${FUNCNAME[0]}: missing argument};      shift
-	local -n url_what_type_=${1?${FUNCNAME[0]}: missing argument}; shift
+url.type_() {
+	local    url=${1?${FUNCNAME[0]}: missing argument};       shift
+	local -n url_type_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	url_what_type_=none
+	url_type_=none
 
-	if [[ $url_what_ =~ ^(/|[.]/) ]]; then
-		url_what_type_=local
+	if [[ $url =~ ^(/|[.]/) ]]; then
+		url_type_=local
 		return
 	fi
 
-	if [[ $url_what_ =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
+	if [[ $url =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
 		# shellcheck disable=2034
-		url_what_type_=src
+		url_type_=src
 		return
 	fi
 
-	if [[ ! $url_what_ =~ ^([^:]+://) ]]; then
+	if [[ ! $url =~ ^([^:]+://) ]]; then
 		# shellcheck disable=2034
-		url_what_type_=local
+		url_type_=local
 		return
 	fi
 
-	if [[ $url_what_ =~ ^(http|https):// ]]; then
+	if [[ $url =~ ^(http|https):// ]]; then
 		# shellcheck disable=2034
-		url_what_type_=web
+		url_type_=web
 		return
 	fi
 
-	if [[ $url_what_ =~ ^(git|git[+]ssh|ssh):// ]]; then
+	if [[ $url =~ ^(git|git[+]ssh|ssh):// ]]; then
 		# shellcheck disable=2034
-		url_what_type_=src
+		url_type_=src
 		return
 	fi
 }

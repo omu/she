@@ -333,7 +333,7 @@ TODO
   + [X] `_[.target]` vb durumlar için genel tasarımı denetle
   + [X] `bin.install_` yerine `bin.install -prefix=...` vs olsa daha iyi olur
 - [.] omu/debian
-  + [ ] runtime/chrome
+  + [X] runtime/chrome
   + [X] development/crystal
   + [ ] fixme'ler
 - [X] blob unpack
