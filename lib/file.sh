@@ -196,10 +196,10 @@ file.run_() {
 
 	filetype.is "$file" runnable || .die "File is not runnable: $file"
 
-	local -a run_env_=()
-	flag.env_ run_env_
+	local -a env=()
+	flag.env_ env
 
-	local -a run_cmd_=(env "${run_env_[@]}")
+	local -a argv=(env "${env[@]}")
 
 	if [[ ! -x "$file" ]]; then
 		if filetype.is "$file" interpretable; then
@@ -207,13 +207,13 @@ file.run_() {
 			filetype.shebang_ "$file" shebang
 
 			# shellcheck disable=2206
-			run_cmd_+=("${shebang[@]}")
+			argv+=("${shebang[@]}")
 		fi
 	fi
 
-	run_cmd_+=("$file")
+	argv+=("$file")
 
-	"${run_cmd_[@]}"
+	"${argv[@]}"
 }
 
 # file - Private functions

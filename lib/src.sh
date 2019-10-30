@@ -61,9 +61,8 @@ src.run() {
 		[-prefix]="$_RUN"/src
 		[-pwd]=
 		[-shallow]=false
-		[-test]=false
 
-		[.help]='[-(expiry=MINUTES|prefix=DIR|pwd=DIR|shallow=BOOL|test=BOOL)] URL'
+		[.help]='[-expiry=MINUTES|-prefix=DIR|-pwd=DIR|-shallow=BOOL] URL'
 		[.argc]=1
 	)
 
@@ -72,38 +71,9 @@ src.run() {
 	src.install_ "$@"
 
 	src.run_ "${_[.dir]}"
-	flag.false -test || src.test_ "${_[.dir]}"
 }
 
 # src - Protected functions
-
-src.interprete() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local ext=$file
-	path.ext ext
-
-	if [[ -z $ext ]]; then
-		# shellcheck disable=2209
-		ext=sh
-		file=$file.$ext
-	fi
-
-	[[ -f $file ]] || .die "No file found to interprete: $file"
-
-	local interpreter
-	case $ext in
-	sh)  interpreter=bash   ;;
-	rb)  interpreter=ruby   ;;
-	py)  interpreter=python ;;
-	pl)  interpreter=perl   ;;
-	js)  interpreter=node   ;;
-	php) interpreter=php    ;;
-	*)   .die "Unsupported interpreter for extension: $ext" ;;
-	esac
-
-	env "$@" "$interpreter" "$file"
-}
 
 src.managed_() {
 	local path=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -134,35 +104,7 @@ src.run_() {
 
 	path.base file
 
-	.calling "$file" src.exe_ "$file"
-}
-
-src.test_() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local test_file=$file
-	path.suffixize test_file '_test'
-
-	src.run_ "$test_file"
-}
-
-src.exe_() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local -a env; src.env_ env
-
-	if [[ -x $file ]]; then
-		env "${env[@]}" "$file"
-	else
-		src.interprete "$file" "${env[@]}"
-	fi
-}
-
-src.env_() {
-	# shellcheck disable=2034
-	local -n src_env_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	flag.env_ src_env_
+	.calling "$file" file.run_ "$file"
 }
 
 src.dst_() {
