@@ -10,7 +10,7 @@ file.install() {
 		[-prefix]=
 		[-quiet]=
 
-		[.help]='[-(group|mode|owner|prefix)=VALUE] URL [FILE]'
+		[.help]='[-group=GROUP|mode=MODE|owner=USER|prefix=DIR|quiet=BOOL] URL [FILE]'
 		[.argc]=1-
 	)
 
@@ -43,7 +43,7 @@ file.chogm() {
 		[-mode]=
 		[-owner]=
 
-		[.help]='[-(group|mode|owner)=VALUE] URL [FILE]'
+		[.help]='[-group=GROUP|mode=MODE|owner=USER] URL [FILE]'
 		[.argc]=1-
 	)
 
@@ -148,7 +148,7 @@ file.do_() {
 
 	[[ $dstdir = . ]] || .must -- mkdir -p "$dstdir"
 
-	local installed=$dst/${src##*/}
+	local done=$dstdir/${src##*/}
 
 	case $op in
 	copy)
@@ -165,11 +165,11 @@ file.do_() {
 		;;
 	esac
 
-	flag.true -quiet || .ok "$installed"
+	flag.true -quiet || .ok "$done"
 
-	file._chogm_ "$installed"
+	file._chogm_ "$done"
 
-	_[.]=$installed
+	_[.]=$done
 }
 
 file.dst_() {

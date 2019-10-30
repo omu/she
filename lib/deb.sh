@@ -49,8 +49,10 @@ deb.install() {
 
 		if url.is "$url" web; then
 			urls+=("$url")
-		else
+		elif url.is "$url" local; then
 			non_urls+=("$url")
+		else
+			.die "Unsupported URL: $url"
 		fi
 	done
 
@@ -278,7 +280,7 @@ deb._key_add_() {
 }
 
 deb._missings() {
-	local -a deb_missings_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n deb_missings_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local package
 	for package; do

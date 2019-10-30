@@ -48,7 +48,7 @@ url.what_() {
 	local    url_what_=${1?${FUNCNAME[0]}: missing argument};      shift
 	local -n url_what_type_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	url_what_type_=
+	url_what_type_=none
 
 	if [[ $url_what_ =~ ^(/|[.]/) ]]; then
 		url_what_type_=local
@@ -58,9 +58,25 @@ url.what_() {
 	if [[ $url_what_ =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
 		# shellcheck disable=2034
 		url_what_type_=src
-	else
+		return
+	fi
+
+	if [[ ! $url_what_ =~ ^([^:]+://) ]]; then
+		# shellcheck disable=2034
+		url_what_type_=local
+		return
+	fi
+
+	if [[ $url_what_ =~ ^(http|https):// ]]; then
 		# shellcheck disable=2034
 		url_what_type_=web
+		return
+	fi
+
+	if [[ $url_what_ =~ ^(git|git[+]ssh|ssh):// ]]; then
+		# shellcheck disable=2034
+		url_what_type_=src
+		return
 	fi
 }
 
