@@ -7,8 +7,10 @@ Shell extensions
 <!-- _ begin -->
 | Command       | Description                                         |
 | ------------- | --------------------------------------------------- |
+| available     | Return if program available                         |
 | bin install   | Install program to path                             |
 | bin use       | Use program by installing to a volatile path        |
+| bug           | Print bug message and exit failure                  |
 | cry           | Print warning message                               |
 | deb add       | Add Debian repository                               |
 | deb install   | Install Debian packages                             |
@@ -18,6 +20,7 @@ Shell extensions
 | deb using     | Use given official Debian distributions             |
 | die           | Print error message and exit failure                |
 | enter         | Get src from url and enter to the directory         |
+| expired       | Return if any of the files expired                  |
 | file install  | Install file from URL                               |
 | filetype any  | Assert any file type                                |
 | filetype is   | Assert file type                                    |
@@ -25,16 +28,19 @@ Shell extensions
 | http any      | Assert url response against any of the given codes  |
 | http get      | Get url                                             |
 | http is       | Assert url response against the given code          |
+| must          | Ensure the given command succeeds                   |
 | os any        | Assert any OS feature                               |
 | os codename   | Print distribution codename                         |
 | os dist       | Print distribution name                             |
 | os is         | Assert OS feature                                   |
+| run           | Try to run any file or url                          |
 | say           | Print message on stderr                             |
 | self install  | Install self                                        |
 | self name     | Print self name                                     |
 | self path     | Print self path                                     |
 | self src      | Print self source                                   |
 | self version  | Print self version                                  |
+| should        | Ignore error if the given command fails             |
 | src install   | Install src into a source tree                      |
 | src use       | Install src into a volatile source tree             |
 | temp inside   | Execute command in temp dir                         |

@@ -1,5 +1,17 @@
 # ui.sh - UI functions
 
+# Print bug message and exit failure
+ui.bug() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.bug "$@"
+}
+
 # Print message and exit success
 ui.bye() {
 	local -A _=(
@@ -182,7 +194,6 @@ ui._init() {
 
 	color.expand _sign_color _text_color
 
-	.ask()     { ui._echo "$@" >&2;           }
 	.bug()     { ui._echo "$@" >&2; exit 127; }
 	.bye()     { ui._echo "$@" >&2; exit 0;   }
 	.calling() { ui._echo "$1" >&2; "${@:2}"; }

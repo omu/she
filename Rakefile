@@ -292,7 +292,6 @@ class Compiler # rubocop:disable Metrics/ClassLength
     sources.values.map(&:blocks).each do |blocks|
       blocks.each do |block|
         next unless block.is_a?(Source::Block::Fun)
-        next if block.undocumented? || block.private?
         next unless commands.key? block.fun
 
         symbols << { fun: block.fun, label: block.label, cmd: commands[block.fun] }

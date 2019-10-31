@@ -681,6 +681,18 @@ color._init
 
 # ui.sh - UI functions
 
+# Print bug message and exit failure
+ui.bug() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.bug "$@"
+}
+
 # Print message and exit success
 ui.bye() {
 	local -A _=(
@@ -863,7 +875,6 @@ ui._init() {
 
 	color.expand _sign_color _text_color
 
-	.ask()     { ui._echo "$@" >&2;           }
 	.bug()     { ui._echo "$@" >&2; exit 127; }
 	.bye()     { ui._echo "$@" >&2; exit 0;   }
 	.calling() { ui._echo "$1" >&2; "${@:2}"; }
@@ -3021,6 +3032,11 @@ zip._unpack_.zst() {
 
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
+		['_.available']='Return if program available'
+		['_.expired']='Return if any of the files expired'
+		['_.must']='Ensure the given command succeeds'
+		['_.run']='Try to run any file or url'
+		['_.should']='Ignore error if the given command fails'
 		['bin.install']='Install program to path'
 		['bin.use']='Use program by installing to a volatile path'
 		['deb.add']='Add Debian repository'
@@ -3051,6 +3067,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['temp.inside']='Execute command in temp dir'
 		['text.fix']='Append stdin content to the target file'
 		['text.unfix']='Remove appended content'
+		['ui.bug']='Print bug message and exit failure'
 		['ui.calling']='Print message and run command'
 		['ui.cry']='Print warning message'
 		['ui.die']='Print error message and exit failure'
@@ -3069,8 +3086,10 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	)
 
 	declare -Ag _command=(
+		['available']='_.available'
 		['bin install']='bin.install'
 		['bin use']='bin.use'
+		['bug']='ui.bug'
 		['cry']='ui.cry'
 		['deb add']='deb.add'
 		['deb install']='deb.install'
@@ -3080,6 +3099,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['deb using']='deb.using'
 		['die']='ui.die'
 		['enter']='src.enter'
+		['expired']='_.expired'
 		['file install']='file.install'
 		['filetype any']='filetype.any'
 		['filetype is']='filetype.is'
@@ -3087,16 +3107,19 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['http any']='http.any'
 		['http get']='http.get'
 		['http is']='http.is'
+		['must']='_.must'
 		['os any']='os.any'
 		['os codename']='os.codename'
 		['os dist']='os.dist'
 		['os is']='os.is'
+		['run']='_.run'
 		['say']='ui.say'
 		['self install']='self.install'
 		['self name']='self.name'
 		['self path']='self.path'
 		['self src']='self.src'
 		['self version']='self.version'
+		['should']='_.should'
 		['src install']='src.install'
 		['src use']='src.use'
 		['temp inside']='temp.inside'
