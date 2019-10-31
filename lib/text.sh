@@ -11,7 +11,7 @@ text.fix() {
 
 	flag.parse
 
-	local file=$1 signature=${2:-fix}
+	local file=$1 signature=${2:-_}
 
 	.must "No such file: $file" [[ -f "$file" ]]
 
@@ -33,7 +33,7 @@ text.unfix() {
 
 	flag.parse
 
-	local file=$1 signature=${2:-fix}
+	local file=$1 signature=${2:-_}
 
 	.must "No such file: $file" [[ -f "$file" ]]
 

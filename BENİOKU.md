@@ -325,18 +325,18 @@ TODO
   + [X] virtual uzayını os'tan ayır
   + [X] her is için any ve duruma göre all ekle
 - [X] flag `--` yönetimi
-- [.] manuel test
+- [X] manuel test
   + [X] ui.info için kısayol
   + [X] bin.run ve src.run'ı seçerek çalıştıran bir run
   + [X] expired lojiğini ters yap
   + [X] ui.plain ile uzun çalışanları yönetiyoruz, kısayol?
   + [X] `_[.target]` vb durumlar için genel tasarımı denetle
   + [X] `bin.install_` yerine `bin.install -prefix=...` vs olsa daha iyi olur
-- [.] omu/debian
+- [X] omu/debian
   + [X] runtime/chrome
   + [X] development/crystal
   + [X] fixme'ler
-  + [ ] tüm kullanımları gözden geçir ve test et
+  + [X] tüm kullanımları gözden geçir ve test et
 - [X] blob unpack
 - [X] bin unpack desteği
 - [ ] README asgari dokümantasyonu
