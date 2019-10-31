@@ -5,48 +5,48 @@ text.fix() {
 	.must 'Input from stdin required' .piped
 
 	local -A _=(
-		[.help]='FILE [SIGNATURE]'
+		[.help]='FILE [MARK]'
 		[.argc]=1-
 	)
 
 	flag.parse
 
-	local file=$1 signature=${2:-_}
+	local file=$1 mark=${2:-_}
 
 	.must "No such file: $file" [[ -f "$file" ]]
 
-	text._unfix "$file" "$signature"
+	text._unfix "$file" "$mark"
 
 	{
-		echo "# begin $signature"
+		echo "# begin $mark"
 		cat
-		echo "# END $signature"
+		echo "# END $mark"
 	} >>"$file"
 }
 
 # Remove appended content
 text.unfix() {
 	local -A _=(
-		[.help]='FILE [SIGNATURE]'
+		[.help]='FILE [MARK]'
 		[.argc]=1-
 	)
 
 	flag.parse
 
-	local file=$1 signature=${2:-_}
+	local file=$1 mark=${2:-_}
 
 	.must "No such file: $file" [[ -f "$file" ]]
 
-	text._unfix "$file" "$signature"
+	text._unfix "$file" "$mark"
 }
 
 # text - Private functions
 
 text._unfix() {
-	local file=${1?${FUNCNAME[0]}: missing argument};      shift
-	local signature=${1?${FUNCNAME[0]}: missing argument}; shift
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local mark=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	grep -qE "#\s+(begin|end)\s+$signature" "$file" || return 0
+	grep -qE "#\s+(begin|end)\s+$mark" "$file" || return 0
 	.must "No such file or file is not writable: $file" [[ -w "$file" ]]
-	sed -i "/begin $signature/,/end $signature/d" "$file"
+	sed -i "/begin $mark/,/end $mark/d" "$file"
 }
