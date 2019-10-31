@@ -67,6 +67,7 @@ Shell extensions
 | ------------- | ---------------------------------------------------- |
 | t err         | Assert command failure and stderr output             |
 | t fail        | Return failure                                       |
+| t go          | Run all test suites                                  |
 | t is          | Assert the actual value equals to the expected       |
 | t isnt        | Assert the actual value not equals to the expected   |
 | t like        | Assert the actual value matches to the expected      |
