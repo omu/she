@@ -65,15 +65,15 @@ Shell extensions
 
 | Command       | Description                                          |
 | ------------- | ---------------------------------------------------- |
-| t err         | Assert command failure and stderr output             |
-| t fail        | Return failure                                       |
-| t go          | Run all test suites                                  |
-| t is          | Assert the actual value equals to the expected       |
-| t isnt        | Assert the actual value not equals to the expected   |
-| t like        | Assert the actual value matches to the expected      |
-| t notok       | Assert command fails                                 |
-| t ok          | Assert command succeeds                              |
-| t out         | Assert command success and stdout output             |
-| t pass        | Return success                                       |
-| t temp        | Create and chdir to temp directory                   |
-| t unlike      | Assert the actual value not matches to the expected  |
+| err           | Assert command failure and stderr output             |
+| fail          | Return failure                                       |
+| go            | Run all test suites                                  |
+| is            | Assert the actual value equals to the expected       |
+| isnt          | Assert the actual value not equals to the expected   |
+| like          | Assert the actual value matches to the expected      |
+| notok         | Assert command fails                                 |
+| ok            | Assert command succeeds                              |
+| out           | Assert command success and stdout output             |
+| pass          | Return success                                       |
+| temp          | Create and chdir to temp directory                   |
+| unlike        | Assert the actual value not matches to the expected  |
