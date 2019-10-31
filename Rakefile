@@ -475,7 +475,7 @@ module Main
 
   require 'awesome_print'
 
-  def self.doc(sources, dst)
+  def self.doc(*sources, dst)
     inlines = File.readlines(dst).map(&:chomp)
 
     sources.each do |src|
@@ -513,7 +513,7 @@ task generate: PRG
 desc 'Update documentation'
 task doc: [*PRG.map { |prg| "bin/#{prg}" }, __FILE__] do
   dst = 'README.md'
-  File.write dst, Main.doc(PRG.map { |prg| "src/#{prg}" }, dst)
+  File.write dst, Main.doc('src/_', dst)
 end
 
 desc 'Clean'

@@ -63,14 +63,16 @@ Shell extensions
 `t` commands
 ------------
 
-<!-- t begin -->
-| Command     | Description                         |
-| ----------- | ----------------------------------- |
-| tap err     | Mark stdin lines as an error output |
-| tap failure | Print TAP failure                   |
-| tap plan    | Print TAP plan                      |
-| tap skip    | Print TAP skip                      |
-| tap success | Print TAP success                   |
-| tap todo    | Print TAP todo                      |
-| tap version | Print TAP version                   |
-<!-- t end -->
+| Command       | Description                                          |
+| ------------- | ---------------------------------------------------- |
+| t err         | Assert command failure and stderr output             |
+| t fail        | Return failure                                       |
+| t is          | Assert the actual value equals to the expected       |
+| t isnt        | Assert the actual value not equals to the expected   |
+| t like        | Assert the actual value matches to the expected      |
+| t notok       | Assert command fails                                 |
+| t ok          | Assert command succeeds                              |
+| t out         | Assert command success and stdout output             |
+| t pass        | Return success                                       |
+| t temp        | Create and chdir to temp directory                   |
+| t unlike      | Assert the actual value not matches to the expected  |
