@@ -1,6 +1,6 @@
 # filetype.sh - Filetype detection
 
-# What mime type
+# Detect mime type
 filetype.mime() {
 	local -A _=(
 		[-zip]=false
@@ -20,7 +20,32 @@ filetype.mime() {
 	fi
 }
 
-# Detect file type
+# Assert any file type
+filetype.any() {
+	local -A _=(
+		[-zip]=false
+
+		[.help]='FILE [TYPE...]'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	local file=$1; shift
+
+	.must "No such file: $file" [[ -f "$file" ]]
+
+	local type
+	for type; do
+		if filetype.is_ "$type"; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+# Assert file type
 filetype.is() {
 	local -A _=(
 		[-zip]=false

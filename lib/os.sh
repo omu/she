@@ -17,51 +17,80 @@ os.codename() {
 	lsb_release -sc
 }
 
-# Detect OS feature
-os.is() {
+# Assert any OS feature
+os.any() {
 	local -A _=(
-		[.help]='FEATURE'
+		[.help]='FEATURE...'
 		[.argc]=1-
 	)
 
 	flag.parse
 
-	local feature=$1
-	shift
+	local feature
 
-	local func=os.is._"${feature}"
+	for feature; do
+		if os._is "$feature"; then
+			return 0
+		fi
+	done
 
-	.must "Unable to detect: $feature" .callable "$func"
+	return 1
+}
 
-	"$func" "$@"
+# Assert OS feature
+os.is() {
+	local -A _=(
+		[.help]='FEATURE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	os._is "$@"
 }
 
 # os - Private functions
 
-os.is._debian() {
-	if [[ $# -gt 0 ]]; then
-		case $1 in
-		unstable|testing|sid)
-			grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-			;;
-		stable)
-			! grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-			;;
-		*)
-			[[ "$(os.codename)" = "$1" ]]
-			;;
-		esac
+os._is() {
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local func=os.is._"${feature}"
+
+	if .callable "$func"; then
+		"$func"
 	else
-		[[ "$(os.dist)" = 'debian' ]]
+		local dist
+		dist=$(os.dist)
+
+		if [[ $dist = "$feature" ]]; then
+			return 0
+		fi
+
+		local codename
+		codename=$(os.codename)
+
+		if [[ $codename = "$feature" ]]; then
+			return 0
+		fi
+
+		return 1
 	fi
 }
 
-os.is._ubuntu() {
-	if [[ $# -gt 0 ]]; then
-		[[ "$(os.codename)" = "$1" ]]
-	else
-		[[ "$(os.dist)" = 'ubuntu' ]]
-	fi
+os.is._unstable() {
+	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+}
+
+os.is._testing() {
+	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+}
+
+os.is._sid() {
+	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+}
+
+os.is._stable() {
+	! os.is._unstable
 }
 
 os.is._proxmox() {

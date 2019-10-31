@@ -323,7 +323,7 @@ TODO
   + [ ] Fonksiyonların dosya içinde sıralanması
   + [.] Stil/tutarlılık bakımı
   + [X] virtual uzayını os'tan ayır
-  + [.] her is için any ve duruma göre all ekle
+  + [X] her is için any ve duruma göre all ekle
 - [X] flag `--` yönetimi
 - [.] manuel test
   + [X] ui.info için kısayol
@@ -336,6 +336,7 @@ TODO
   + [X] runtime/chrome
   + [X] development/crystal
   + [X] fixme'ler
+  + [ ] tüm kullanımları gözden geçir ve test et
 - [X] blob unpack
 - [X] bin unpack desteği
 - [ ] README asgari dokümantasyonu

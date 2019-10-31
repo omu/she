@@ -1269,51 +1269,80 @@ os.codename() {
 	lsb_release -sc
 }
 
-# Detect OS feature
-os.is() {
+# Assert any OS feature
+os.any() {
 	local -A _=(
-		[.help]='FEATURE'
+		[.help]='FEATURE...'
 		[.argc]=1-
 	)
 
 	flag.parse
 
-	local feature=$1
-	shift
+	local feature
 
-	local func=os.is._"${feature}"
+	for feature; do
+		if os._is "$feature"; then
+			return 0
+		fi
+	done
 
-	.must "Unable to detect: $feature" .callable "$func"
+	return 1
+}
 
-	"$func" "$@"
+# Assert OS feature
+os.is() {
+	local -A _=(
+		[.help]='FEATURE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	os._is "$@"
 }
 
 # os - Private functions
 
-os.is._debian() {
-	if [[ $# -gt 0 ]]; then
-		case $1 in
-		unstable|testing|sid)
-			grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-			;;
-		stable)
-			! grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-			;;
-		*)
-			[[ "$(os.codename)" = "$1" ]]
-			;;
-		esac
+os._is() {
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local func=os.is._"${feature}"
+
+	if .callable "$func"; then
+		"$func"
 	else
-		[[ "$(os.dist)" = 'debian' ]]
+		local dist
+		dist=$(os.dist)
+
+		if [[ $dist = "$feature" ]]; then
+			return 0
+		fi
+
+		local codename
+		codename=$(os.codename)
+
+		if [[ $codename = "$feature" ]]; then
+			return 0
+		fi
+
+		return 1
 	fi
 }
 
-os.is._ubuntu() {
-	if [[ $# -gt 0 ]]; then
-		[[ "$(os.codename)" = "$1" ]]
-	else
-		[[ "$(os.dist)" = 'ubuntu' ]]
-	fi
+os.is._unstable() {
+	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+}
+
+os.is._testing() {
+	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+}
+
+os.is._sid() {
+	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+}
+
+os.is._stable() {
+	! os.is._unstable
 }
 
 os.is._proxmox() {
@@ -1578,6 +1607,28 @@ http.get() {
 }
 
 # Assert URL response
+http.any() {
+	local -A _=(
+		[.help]='URL CODE...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	local url=$1
+	shift
+
+	local response
+	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
+
+	local code
+
+	for code; do
+		http._is "$response" "$code"
+	done
+}
+
+# Assert URL response
 http.is() {
 	local -A _=(
 		[.help]='URL CODE'
@@ -1588,12 +1639,21 @@ http.is() {
 
 	local url=$1 code=$2
 
+	local response
+	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
+
+	http._is "$response" "$code"
+}
+
+# http - Private functions
+
+http._is() {
+	local response=${1?${FUNCNAME[0]}: missing argument}; shift
+	local code=${1?${FUNCNAME[0]}: missing argument};     shift
+
 	if [[ ${code,,} = ok ]]; then
 		code=200
 	fi
-
-	local response
-	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
 
 	[[ $response = "$code" ]]
 }
@@ -2611,7 +2671,7 @@ text._unfix() {
 
 # filetype.sh - Filetype detection
 
-# What mime type
+# Detect mime type
 filetype.mime() {
 	local -A _=(
 		[-zip]=false
@@ -2631,7 +2691,32 @@ filetype.mime() {
 	fi
 }
 
-# Detect file type
+# Assert any file type
+filetype.any() {
+	local -A _=(
+		[-zip]=false
+
+		[.help]='FILE [TYPE...]'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	local file=$1; shift
+
+	.must "No such file: $file" [[ -f "$file" ]]
+
+	local type
+	for type; do
+		if filetype.is_ "$type"; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+# Assert file type
 filetype.is() {
 	local -A _=(
 		[-zip]=false
@@ -2918,13 +3003,15 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['temp.inside']='Execute command in temp dir'
 		['os.dist']='Distribution name'
 		['os.codename']='Distribution codename'
-		['os.is']='Detect OS feature'
+		['os.any']='Assert any OS feature'
+		['os.is']='Assert OS feature'
 		['virt']='Detect virtualization type'
 		['virt.is']='Assert virtualization type'
 		['virt.any']='Assert any of the virtualization type'
 		['url.is']='Assert URL type'
 		['url.any']='Assert URL type'
 		['http.get']='Get URL'
+		['http.any']='Assert URL response'
 		['http.is']='Assert URL response'
 		['file.install']='Install file from URL'
 		['file.copy']='Copy file/directory to dstination creating all parents if necessary'
@@ -2947,8 +3034,9 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['deb.using']='Use given official Debian distributions'
 		['text.fix']='Append stdin content to the target file'
 		['text.unfix']='Remove appended content'
-		['filetype.mime']='What mime type'
-		['filetype.is']='Detect file type'
+		['filetype.mime']='Detect mime type'
+		['filetype.any']='Assert any file type'
+		['filetype.is']='Assert file type'
 		['zip.unpack']='Unpack compressed file'
 	)
 
@@ -2972,11 +3060,14 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['enter']='src.enter'
 		['expired']='_.expired'
 		['file install']='file.install'
+		['filetype any']='filetype.any'
 		['filetype is']='filetype.is'
 		['filetype mime']='filetype.mime'
+		['http any']='http.any'
 		['http get']='http.get'
 		['http is']='http.is'
 		['must']='_.must'
+		['os any']='os.any'
 		['os codename']='os.codename'
 		['os dist']='os.dist'
 		['os is']='os.is'
