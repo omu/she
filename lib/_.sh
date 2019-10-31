@@ -12,6 +12,18 @@ _.available() {
 	.available "$@"
 }
 
+# Return if first argument found in remaining arguments
+_.contains() {
+	local -A _=(
+		[.help]='NEEDLE HAYSTACK'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	.contains "$@"
+}
+
 # Return if any of the files expired
 _.expired() {
 	local -A _=(
