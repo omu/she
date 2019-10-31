@@ -1,6 +1,6 @@
 # https.sh - HTTP functions
 
-# Assert url response against any of the given codes
+# Assert HTTP response against any of the given codes
 http.any() {
 	local -A _=(
 		[.help]='URL CODE...'
@@ -22,7 +22,7 @@ http.any() {
 	done
 }
 
-# Get url
+# Get URL
 http.get() {
 	local -A _=(
 		[.help]='URL'
@@ -38,7 +38,7 @@ http.get() {
 	curl -fsSL "$url"
 }
 
-# Assert url response against the given code
+# Assert HTTP response against the given code
 http.is() {
 	local -A _=(
 		[.help]='URL CODE'

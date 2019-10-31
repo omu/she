@@ -25,9 +25,9 @@ Shell extensions
 | filetype any  | Assert any file type                                |
 | filetype is   | Assert file type                                    |
 | filetype mime | Print mime type                                     |
-| http any      | Assert url response against any of the given codes  |
-| http get      | Get url                                             |
-| http is       | Assert url response against the given code          |
+| http any      | Assert HTTP response against any of the given codes |
+| http get      | Get URL                                             |
+| http is       | Assert HTTP response against the given code         |
 | must          | Ensure the given command succeeds                   |
 | os any        | Assert any OS feature                               |
 | os codename   | Print distribution codename                         |

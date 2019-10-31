@@ -1640,7 +1640,7 @@ url.type_() {
 
 # https.sh - HTTP functions
 
-# Assert url response against any of the given codes
+# Assert HTTP response against any of the given codes
 http.any() {
 	local -A _=(
 		[.help]='URL CODE...'
@@ -1662,7 +1662,7 @@ http.any() {
 	done
 }
 
-# Get url
+# Get URL
 http.get() {
 	local -A _=(
 		[.help]='URL'
@@ -1678,7 +1678,7 @@ http.get() {
 	curl -fsSL "$url"
 }
 
-# Assert url response against the given code
+# Assert HTTP response against the given code
 http.is() {
 	local -A _=(
 		[.help]='URL CODE'
@@ -3061,9 +3061,9 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['filetype.any']='Assert any file type'
 		['filetype.is']='Assert file type'
 		['filetype.mime']='Print mime type'
-		['http.any']='Assert url response against any of the given codes'
-		['http.get']='Get url'
-		['http.is']='Assert url response against the given code'
+		['http.any']='Assert HTTP response against any of the given codes'
+		['http.get']='Get URL'
+		['http.is']='Assert HTTP response against the given code'
 		['os.any']='Assert any OS feature'
 		['os.codename']='Print distribution codename'
 		['os.dist']='Print distribution name'
