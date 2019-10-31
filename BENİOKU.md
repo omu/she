@@ -319,7 +319,7 @@ TODO
 - [.] API overhaul
   + [.] isim uzayını değerlendir
   + [ ] public/protected/private ve cli fonksiyonlarının semantiği
-  + [ ] Fonksiyonların kısa açıklamaları
+  + [X] Fonksiyonların kısa açıklamaları
   + [X] Fonksiyonların dosya içinde sıralanması
   + [.] Stil/tutarlılık bakımı
   + [X] virtual uzayını os'tan ayır
@@ -340,7 +340,7 @@ TODO
 - [X] blob unpack
 - [X] bin unpack desteği
 - [ ] README asgari dokümantasyonu
-- [ ] Komut tablosu (README'de)
+- [X] Komut tablosu (README'de)
 - [ ] BENİOKU
 - [.] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
 - [.] scripts aracının yeni sürümü
