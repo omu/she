@@ -5,6 +5,7 @@ file.copy() {
 	file._do_args_ copy "$@"
 }
 
+# Change owner, group and mode
 file.chogm() {
 	# shellcheck disable=2192
 	local -A _=(

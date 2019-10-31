@@ -308,7 +308,7 @@ flag._validate_() {
 
 # flag - Init
 
-flag.init() {
+flag._init() {
 	shopt -s expand_aliases
 
 	# shellcheck disable=2142
@@ -318,10 +318,11 @@ flag.init() {
 	declare -gr NIL="\0"
 }
 
-flag.init
+flag._init
 
 # _.sh - Required functions
 
+# Return if program available
 _.available() {
 	local -A _=(
 		[.help]='PROGRAM'
@@ -333,7 +334,7 @@ _.available() {
 	.available "$@"
 }
 
-# Check the expirations of given files
+# Return if any of the files expired
 _.expired() {
 	local -A _=(
 		[-expiry]=3
@@ -347,6 +348,7 @@ _.expired() {
 	.expired "${_[-expiry]}" "$@"
 }
 
+# Ensure the given command succeeds
 _.must() {
 	local -A _=(
 		[.help]='MESSAGE ARGS...|-- ARGS...'
@@ -379,6 +381,7 @@ _.run() {
 	fi
 }
 
+# Ignore error if the given command fails
 _.should() {
 	local -A _=(
 		[.help]='MESSAGE ARGS...|-- ARGS...'
@@ -392,10 +395,6 @@ _.should() {
 }
 
 # _ - Protected functions
-
-.ask() {
-	.bug 'Not implemented'
-}
 
 .bool() {
 	local value=${1:-}
@@ -547,7 +546,7 @@ _.should() {
 
 # _ - Init
 
-_.init() {
+_._init() {
 	# Default variable as a hash
 	declare -gA _=()
 
@@ -573,7 +572,7 @@ _.init() {
 	unset -f "${FUNCNAME[0]}"
 }
 
-_.init
+_._init
 
 # color.sh - Colors
 
@@ -640,7 +639,7 @@ color.setup() {
 # color - Init
 
 # shellcheck disable=2034
-color.init() {
+color._init() {
 	declare -Ag _color=(
 		# Basic colors with variants - prefix +: bold, prefix -: dim, suffix -: reverse
 
@@ -678,14 +677,11 @@ color.init() {
 	)
 }
 
-color.init
+color._init
 
 # ui.sh - UI functions
 
-ui.ask() {
-	.bug 'Not implemented'
-}
-
+# Print message and exit success
 ui.bye() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -697,6 +693,7 @@ ui.bye() {
 	.bye "$@"
 }
 
+# Print message and run command
 ui.calling() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -708,6 +705,7 @@ ui.calling() {
 	.calling "$@"
 }
 
+# Print warning message
 ui.cry() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -719,6 +717,7 @@ ui.cry() {
 	.cry "$@"
 }
 
+# Print error message and exit failure
 ui.die() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -730,6 +729,7 @@ ui.die() {
 	.die "$@"
 }
 
+# Print message indicating a download and run command
 ui.getting() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -738,9 +738,10 @@ ui.getting() {
 
 	flag.parse
 
-	.calling "$@"
+	.getting "$@"
 }
 
+# Print info message
 ui.hmm() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -752,6 +753,7 @@ ui.hmm() {
 	.hmm "$@"
 }
 
+# Print not ok message
 ui.notok() {
 	local -A _=(
 		[.help]='STRING'
@@ -763,6 +765,7 @@ ui.notok() {
 	.notok "$@"
 }
 
+# Print ok message
 ui.ok() {
 	local -A _=(
 		[.help]='STRING'
@@ -774,6 +777,7 @@ ui.ok() {
 	.ok "$@"
 }
 
+# Print a busy message run command
 ui.running() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -785,6 +789,7 @@ ui.running() {
 	.calling "$@"
 }
 
+# Print message on stderr
 ui.say() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -798,8 +803,24 @@ ui.say() {
 
 # ui - Protected functions
 
+ui.out() {
+	local name=${1:-default}
+	shift || true
+
+	local sign=${_sign[$name]}
+
+	# shellcheck disable=2154
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	echo -en "${sign_color}${sign}${reset} "
+	.out "$@"
+	echo -en "$reset "
+}
+
+# ui - Private functions
+
 # shellcheck disable=2154
-ui.echo() {
+ui._echo() {
 	[[ $# -gt 0 ]] || return 0
 
 	local message=$1
@@ -817,24 +838,10 @@ ui.echo() {
 	fi
 }
 
-ui.out() {
-	local name=${1:-default}
-	shift || true
-
-	local sign=${_sign[$name]}
-
-	# shellcheck disable=2154
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	echo -en "${sign_color}${sign}${reset} "
-	.out "$@"
-	echo -en "$reset "
-}
-
 # ui - Init
 
 # shellcheck disable=2034,2154
-ui.init() {
+ui._init() {
 	declare -Ag _sign _sign_color _text_color
 
 	# Style
@@ -856,35 +863,23 @@ ui.init() {
 
 	color.expand _sign_color _text_color
 
-	.ask()     { ui.echo "$@" >&2;           }
-	.bug()     { ui.echo "$@" >&2; exit 127; }
-	.bye()     { ui.echo "$@" >&2; exit 0;   }
-	.calling() { ui.echo "$1" >&2; "${@:2}"; }
-	.cry()     { ui.echo "$@" >&2;           }
-	.die()     { ui.echo "$@" >&2; exit 1;   }
-	.getting() { ui.echo "$1" >&2; "${@:2}"; }
-	.hmm()     { ui.echo "$@" >&2;           }
-	.notok()   { ui.echo "$@" >&2;           }
-	.ok()      { ui.echo "$@" >&2;           }
-	.running() { ui.echo "$1" >&2; "${@:2}"; }
-	.say()     { ui.echo "$@" >&2;           }
+	.ask()     { ui._echo "$@" >&2;           }
+	.bug()     { ui._echo "$@" >&2; exit 127; }
+	.bye()     { ui._echo "$@" >&2; exit 0;   }
+	.calling() { ui._echo "$1" >&2; "${@:2}"; }
+	.cry()     { ui._echo "$@" >&2;           }
+	.die()     { ui._echo "$@" >&2; exit 1;   }
+	.getting() { ui._echo "$1" >&2; "${@:2}"; }
+	.hmm()     { ui._echo "$@" >&2;           }
+	.notok()   { ui._echo "$@" >&2;           }
+	.ok()      { ui._echo "$@" >&2;           }
+	.running() { ui._echo "$1" >&2; "${@:2}"; }
+	.say()     { ui._echo "$@" >&2;           }
 }
 
-ui.init
+ui._init
 
 # self.sh - Functions related to program itself
-
-# Print self
-self() {
-	local path
-
-	path=$(self.path)
-	if .interactive; then
-		echo "$path"
-	else
-		echo "builtin source '$path'"
-	fi
-}
 
 # Install self
 self.install() {
@@ -913,7 +908,6 @@ self.name() {
 }
 
 # Print self path
-# shellcheck disable=2120
 self.path() {
 	local -A _; flag.parse
 
@@ -925,6 +919,18 @@ self.path() {
 	/*)  echo "$self" ;;
 	*)   readlink -f "$(command -v "$self")" ;;
 	esac
+}
+
+# Print self source
+self.src() {
+	local path
+
+	path=$(self.path)
+	if .interactive; then
+		echo "$path"
+	else
+		echo "builtin source '$path'"
+	fi
 }
 
 # Print self version
@@ -972,7 +978,7 @@ string.has_suffix_deleted() {
 
 # array.sh - Array functions
 
-# Array contains the given element
+# Return if array contains the given element
 array.contains() {
 	local -n array_contains_=${1?${FUNCNAME[0]}: missing argument}; shift
 	local    element=${1?${FUNCNAME[0]}: missing argument};         shift
@@ -1142,6 +1148,7 @@ path.suffixize() {
 	_defer_clean_+=("$@")
 }
 
+# Trap defer setup
 # shellcheck disable=2120
 .defer() {
 	if [[ -v _defer_initialized_ ]]; then
@@ -1219,6 +1226,7 @@ path.suffixize() {
 
 # temp.sh - Functions involving temporary directories or files
 
+# Remove temp files or directories
 temp.clean() {
 	while [[ $# -gt 0 ]]; do
 		local -n temp_clean_=$1; shift
@@ -1227,6 +1235,7 @@ temp.clean() {
 	done
 }
 
+# Create a temp dir
 temp.dir() {
 	# shellcheck disable=2155
 	local -n temp_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -1241,6 +1250,7 @@ temp.dir() {
 	temp_dir_=$dir
 }
 
+# Create a temp file
 temp.file() {
 	# shellcheck disable=2155
 	local -n temp_file_=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -1290,14 +1300,14 @@ os.any() {
 	return 1
 }
 
-# Distribution codename
+# Print distribution codename
 os.codename() {
 	local -A _; flag.parse
 
 	lsb_release -sc
 }
 
-# Distribution name
+# Print distribution name
 os.dist() {
 	local -A _; flag.parse
 
@@ -1367,7 +1377,7 @@ os.is._testing() {
 
 # virt.sh - Virtualization functions
 
-# Assert any of the virtualization type
+# Assert any of the virtualization types
 virt.any() {
 	local -A _=(
 		[.help]='VIRTUALIZATION...'
@@ -1607,7 +1617,7 @@ url.type_() {
 
 # https.sh - HTTP functions
 
-# Assert URL response
+# Assert url response against any of the given codes
 http.any() {
 	local -A _=(
 		[.help]='URL CODE...'
@@ -1629,7 +1639,7 @@ http.any() {
 	done
 }
 
-# Get URL
+# Get url
 http.get() {
 	local -A _=(
 		[.help]='URL'
@@ -1645,7 +1655,7 @@ http.get() {
 	curl -fsSL "$url"
 }
 
-# Assert URL response
+# Assert url response against the given code
 http.is() {
 	local -A _=(
 		[.help]='URL CODE'
@@ -1682,6 +1692,7 @@ file.copy() {
 	file._do_args_ copy "$@"
 }
 
+# Change owner, group and mode
 file.chogm() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1942,7 +1953,7 @@ bin.install() {
 	bin.install_ "$@"
 }
 
-# Use program
+# Use program by installing to a volatile path
 bin.use() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -2024,6 +2035,7 @@ bin._inspect() {
 
 # git.sh - Git functions
 
+# Git pull if repository expired
 git.update() {
 	local -A _=(
 		[-expiry]=3
@@ -2159,7 +2171,7 @@ git.update_() {
 
 # src.sh - Source management
 
-# Get src from URL and enter to the directory
+# Get src from url and enter to the directory
 src.enter() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -2179,7 +2191,7 @@ src.enter() {
 	echo "$PWD"
 }
 
-# Install to a known location
+# Install src into a source tree
 src.install() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -2195,7 +2207,7 @@ src.install() {
 	src.install_ "$@"
 }
 
-# Run src from URL
+# Run src from url
 src.run() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -2215,7 +2227,7 @@ src.run() {
 	src.run_ "${_[.dir]}"
 }
 
-# Install src into the runtime tree
+# Install src into a volatile source tree
 src.use() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -2490,7 +2502,6 @@ deb.uninstall() {
 }
 
 # Update Debian package index
-# shellcheck disable=2120
 deb.update() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -2635,13 +2646,13 @@ deb._missings() {
 
 # deb - Init
 
-deb.init() {
+deb._init() {
 	.available apt-get || .die 'Only Debian and derivatives supported.'
 
 	export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 }
 
-deb.init
+deb._init
 
 
 # text.sh - Text blob manipulations
@@ -2733,7 +2744,7 @@ filetype.is() {
 	filetype.is_ "$@"
 }
 
-# Detect mime type
+# Print mime type
 filetype.mime() {
 	local -A _=(
 		[-zip]=false
@@ -3010,74 +3021,65 @@ zip._unpack_.zst() {
 
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
-		['color.init']='shellcheck disable=2034'
-		['ui.echo']='shellcheck disable=2154'
-		['ui.init']='shellcheck disable=2034,2154'
-		['self']='Print self'
-		['self.install']='Install self'
-		['self.name']='Print self name'
-		['self.path']='Print self path'
-		['self.version']='Print self version'
-		['array.contains']='Array contains the given element'
-		['array.dup']='Duplicate array'
-		['array.join']='Join array with the given separator'
-		['temp.inside']='Execute command in temp dir'
-		['os.any']='Assert any OS feature'
-		['os.codename']='Distribution codename'
-		['os.dist']='Distribution name'
-		['os.is']='Assert OS feature'
-		['virt.any']='Assert any of the virtualization type'
-		['virt.is']='Assert virtualization type'
-		['virt.which']='Detect virtualization type'
-		['url.any']='Assert URL type'
-		['url.is']='Assert URL type'
-		['http.any']='Assert URL response'
-		['http.get']='Get URL'
-		['http.is']='Assert URL response'
-		['file.copy']='Copy file/directory to dstination creating all parents if necessary'
-		['file.install']='Install file from URL'
-		['file.link']='Link file/directory to dstination creating all parents if necessary'
-		['file.move']='Move file/directory to destination creating all parents if necessary'
-		['file.run']='Run program'
 		['bin.install']='Install program to path'
-		['bin.use']='Use program'
-		['src.enter']='Get src from URL and enter to the directory'
-		['src.install']='Install to a known location'
-		['src.run']='Run src from URL'
-		['src.use']='Install src into the runtime tree'
+		['bin.use']='Use program by installing to a volatile path'
 		['deb.add']='Add Debian repository'
 		['deb.install']='Install Debian packages'
 		['deb.missings']='Print missing packages among given packages'
 		['deb.uninstall']='Uninstall Debian packages'
 		['deb.update']='Update Debian package index'
 		['deb.using']='Use given official Debian distributions'
-		['text.fix']='Append stdin content to the target file'
-		['text.unfix']='Remove appended content'
+		['file.install']='Install file from URL'
 		['filetype.any']='Assert any file type'
 		['filetype.is']='Assert file type'
-		['filetype.mime']='Detect mime type'
+		['filetype.mime']='Print mime type'
+		['http.any']='Assert url response against any of the given codes'
+		['http.get']='Get url'
+		['http.is']='Assert url response against the given code'
+		['os.any']='Assert any OS feature'
+		['os.codename']='Print distribution codename'
+		['os.dist']='Print distribution name'
+		['os.is']='Assert OS feature'
+		['self.install']='Install self'
+		['self.name']='Print self name'
+		['self.path']='Print self path'
+		['self.src']='Print self source'
+		['self.version']='Print self version'
+		['src.enter']='Get src from url and enter to the directory'
+		['src.install']='Install src into a source tree'
+		['src.use']='Install src into a volatile source tree'
+		['temp.inside']='Execute command in temp dir'
+		['text.fix']='Append stdin content to the target file'
+		['text.unfix']='Remove appended content'
+		['ui.calling']='Print message and run command'
+		['ui.cry']='Print warning message'
+		['ui.die']='Print error message and exit failure'
+		['ui.getting']='Print message indicating a download and run command'
+		['ui.hmm']='Print info message'
+		['ui.notok']='Print not ok message'
+		['ui.ok']='Print ok message'
+		['ui.running']='Print a busy message run command'
+		['ui.say']='Print message on stderr'
+		['url.any']='Assert URL type'
+		['url.is']='Assert URL type'
+		['virt.any']='Assert any of the virtualization types'
+		['virt.is']='Assert virtualization type'
+		['virt.which']='Detect virtualization type'
 		['zip.unpack']='Unpack compressed file'
 	)
 
-
 	declare -Ag _command=(
-		['ask']='ui.ask'
-		['available']='_.available'
 		['bin install']='bin.install'
-		['bin run']='bin.run'
 		['bin use']='bin.use'
-		['bug']='ui.bug'
 		['cry']='ui.cry'
 		['deb add']='deb.add'
 		['deb install']='deb.install'
-		['deb installed']='deb.installed'
 		['deb missings']='deb.missings'
 		['deb uninstall']='deb.uninstall'
 		['deb update']='deb.update'
 		['deb using']='deb.using'
 		['die']='ui.die'
 		['enter']='src.enter'
-		['expired']='_.expired'
 		['file install']='file.install'
 		['filetype any']='filetype.any'
 		['filetype is']='filetype.is'
@@ -3085,19 +3087,16 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['http any']='http.any'
 		['http get']='http.get'
 		['http is']='http.is'
-		['must']='_.must'
 		['os any']='os.any'
 		['os codename']='os.codename'
 		['os dist']='os.dist'
 		['os is']='os.is'
-		['run']='_.run'
 		['say']='ui.say'
 		['self install']='self.install'
 		['self name']='self.name'
 		['self path']='self.path'
-		['self']='self'
+		['self src']='self.src'
 		['self version']='self.version'
-		['should']='_.should'
 		['src install']='src.install'
 		['src use']='src.use'
 		['temp inside']='temp.inside'

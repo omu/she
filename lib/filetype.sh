@@ -41,7 +41,7 @@ filetype.is() {
 	filetype.is_ "$@"
 }
 
-# Detect mime type
+# Print mime type
 filetype.mime() {
 	local -A _=(
 		[-zip]=false

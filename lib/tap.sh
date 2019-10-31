@@ -1,10 +1,13 @@
-readonly _TAP_VERSION_=13
+# tap.sh - TAP functions
 
+# Mark stdin lines as an error output
 tap.err() {
+	local -A _; flag.parse
+
 	sed 's:^:# err> :' | color.out +red
 }
 
-# Failure
+# Print TAP failure
 tap.failure() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -32,10 +35,14 @@ tap.failure() {
 	done | sed -u -e 's/^/# /'
 }
 
+# Mark stdin lines as a successful output
 tap.out() {
+	local -A _; flag.parse
+
 	sed 's:^:# out> :' | color.out +green
 }
 
+# Print TAP plan
 tap.plan() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -56,6 +63,7 @@ tap.plan() {
 	echo "# There are ${_[todo]} todo test(s) waiting to be done."
 }
 
+# Print TAP summary
 tap.shutdown() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -72,7 +80,7 @@ tap.shutdown() {
 	:
 }
 
-# Skip
+# Print TAP skip
 tap.skip() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -98,6 +106,7 @@ tap.skip() {
 	} | color.out +blue
 }
 
+# Print TAP start
 tap.startup() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -112,7 +121,7 @@ tap.startup() {
 	echo "# Running tests in $file"
 }
 
-# Success
+# Print TAP success
 tap.success() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -134,19 +143,17 @@ tap.success() {
 	fi | color.out +blue
 }
 
-tap.stack() {
-	sed 's:^:# :' | color.out yellow
-}
-
+# Print TAP version
 tap.version() {
 	local -A _=(
 		[.argc]=0
 	)
 
-	echo TAP version $_TAP_VERSION_
+	echo TAP version "$_TAP_VERSION_"
 	echo
 }
 
+# Print TAP todo
 tap.todo() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -176,3 +183,17 @@ tap.todo() {
 		echo "$message"
 	done | sed -u -e 's/^/# /'
 }
+
+# tap - Protected functions
+
+tap.stack() {
+	sed 's:^:# :' | color.out yellow
+}
+
+# tap - Init
+
+tap._init() {
+	readonly _TAP_VERSION_=13
+}
+
+tap._init

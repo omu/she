@@ -1,17 +1,5 @@
 # self.sh - Functions related to program itself
 
-# Print self
-self() {
-	local path
-
-	path=$(self.path)
-	if .interactive; then
-		echo "$path"
-	else
-		echo "builtin source '$path'"
-	fi
-}
-
 # Install self
 self.install() {
 	# shellcheck disable=2192,2128
@@ -39,7 +27,6 @@ self.name() {
 }
 
 # Print self path
-# shellcheck disable=2120
 self.path() {
 	local -A _; flag.parse
 
@@ -51,6 +38,18 @@ self.path() {
 	/*)  echo "$self" ;;
 	*)   readlink -f "$(command -v "$self")" ;;
 	esac
+}
+
+# Print self source
+self.src() {
+	local path
+
+	path=$(self.path)
+	if .interactive; then
+		echo "$path"
+	else
+		echo "builtin source '$path'"
+	fi
 }
 
 # Print self version

@@ -63,7 +63,7 @@ color.setup() {
 # color - Init
 
 # shellcheck disable=2034
-color.init() {
+color._init() {
 	declare -Ag _color=(
 		# Basic colors with variants - prefix +: bold, prefix -: dim, suffix -: reverse
 
@@ -101,4 +101,4 @@ color.init() {
 	)
 }
 
-color.init
+color._init

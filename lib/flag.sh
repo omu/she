@@ -168,7 +168,7 @@ flag._validate_() {
 
 # flag - Init
 
-flag.init() {
+flag._init() {
 	shopt -s expand_aliases
 
 	# shellcheck disable=2142
@@ -178,4 +178,4 @@ flag.init() {
 	declare -gr NIL="\0"
 }
 
-flag.init
+flag._init

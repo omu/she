@@ -1,9 +1,6 @@
 # ui.sh - UI functions
 
-ui.ask() {
-	.bug 'Not implemented'
-}
-
+# Print message and exit success
 ui.bye() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -15,6 +12,7 @@ ui.bye() {
 	.bye "$@"
 }
 
+# Print message and run command
 ui.calling() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -26,6 +24,7 @@ ui.calling() {
 	.calling "$@"
 }
 
+# Print warning message
 ui.cry() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -37,6 +36,7 @@ ui.cry() {
 	.cry "$@"
 }
 
+# Print error message and exit failure
 ui.die() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -48,6 +48,7 @@ ui.die() {
 	.die "$@"
 }
 
+# Print message indicating a download and run command
 ui.getting() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -56,9 +57,10 @@ ui.getting() {
 
 	flag.parse
 
-	.calling "$@"
+	.getting "$@"
 }
 
+# Print info message
 ui.hmm() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -70,6 +72,7 @@ ui.hmm() {
 	.hmm "$@"
 }
 
+# Print not ok message
 ui.notok() {
 	local -A _=(
 		[.help]='STRING'
@@ -81,6 +84,7 @@ ui.notok() {
 	.notok "$@"
 }
 
+# Print ok message
 ui.ok() {
 	local -A _=(
 		[.help]='STRING'
@@ -92,6 +96,7 @@ ui.ok() {
 	.ok "$@"
 }
 
+# Print a busy message run command
 ui.running() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -103,6 +108,7 @@ ui.running() {
 	.calling "$@"
 }
 
+# Print message on stderr
 ui.say() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -116,8 +122,24 @@ ui.say() {
 
 # ui - Protected functions
 
+ui.out() {
+	local name=${1:-default}
+	shift || true
+
+	local sign=${_sign[$name]}
+
+	# shellcheck disable=2154
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	echo -en "${sign_color}${sign}${reset} "
+	.out "$@"
+	echo -en "$reset "
+}
+
+# ui - Private functions
+
 # shellcheck disable=2154
-ui.echo() {
+ui._echo() {
 	[[ $# -gt 0 ]] || return 0
 
 	local message=$1
@@ -135,24 +157,10 @@ ui.echo() {
 	fi
 }
 
-ui.out() {
-	local name=${1:-default}
-	shift || true
-
-	local sign=${_sign[$name]}
-
-	# shellcheck disable=2154
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	echo -en "${sign_color}${sign}${reset} "
-	.out "$@"
-	echo -en "$reset "
-}
-
 # ui - Init
 
 # shellcheck disable=2034,2154
-ui.init() {
+ui._init() {
 	declare -Ag _sign _sign_color _text_color
 
 	# Style
@@ -174,18 +182,18 @@ ui.init() {
 
 	color.expand _sign_color _text_color
 
-	.ask()     { ui.echo "$@" >&2;           }
-	.bug()     { ui.echo "$@" >&2; exit 127; }
-	.bye()     { ui.echo "$@" >&2; exit 0;   }
-	.calling() { ui.echo "$1" >&2; "${@:2}"; }
-	.cry()     { ui.echo "$@" >&2;           }
-	.die()     { ui.echo "$@" >&2; exit 1;   }
-	.getting() { ui.echo "$1" >&2; "${@:2}"; }
-	.hmm()     { ui.echo "$@" >&2;           }
-	.notok()   { ui.echo "$@" >&2;           }
-	.ok()      { ui.echo "$@" >&2;           }
-	.running() { ui.echo "$1" >&2; "${@:2}"; }
-	.say()     { ui.echo "$@" >&2;           }
+	.ask()     { ui._echo "$@" >&2;           }
+	.bug()     { ui._echo "$@" >&2; exit 127; }
+	.bye()     { ui._echo "$@" >&2; exit 0;   }
+	.calling() { ui._echo "$1" >&2; "${@:2}"; }
+	.cry()     { ui._echo "$@" >&2;           }
+	.die()     { ui._echo "$@" >&2; exit 1;   }
+	.getting() { ui._echo "$1" >&2; "${@:2}"; }
+	.hmm()     { ui._echo "$@" >&2;           }
+	.notok()   { ui._echo "$@" >&2;           }
+	.ok()      { ui._echo "$@" >&2;           }
+	.running() { ui._echo "$1" >&2; "${@:2}"; }
+	.say()     { ui._echo "$@" >&2;           }
 }
 
-ui.init
+ui._init

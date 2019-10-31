@@ -154,7 +154,6 @@ deb.uninstall() {
 }
 
 # Update Debian package index
-# shellcheck disable=2120
 deb.update() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -299,11 +298,11 @@ deb._missings() {
 
 # deb - Init
 
-deb.init() {
+deb._init() {
 	.available apt-get || .die 'Only Debian and derivatives supported.'
 
 	export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 }
 
-deb.init
+deb._init
 

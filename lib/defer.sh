@@ -7,6 +7,7 @@
 	_defer_clean_+=("$@")
 }
 
+# Trap defer setup
 # shellcheck disable=2120
 .defer() {
 	if [[ -v _defer_initialized_ ]]; then

@@ -1,6 +1,6 @@
 # virt.sh - Virtualization functions
 
-# Assert any of the virtualization type
+# Assert any of the virtualization types
 virt.any() {
 	local -A _=(
 		[.help]='VIRTUALIZATION...'

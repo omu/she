@@ -8,21 +8,7 @@
 
 if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/
-
-	declare -Ag _command=(
-		['isnt']='test.isnt'
-		['is']='test.is'
-		['notok']='test.notok'
-		['ok']='test.ok'
-		['tap err']='tap.err'
-		['tap failure']='tap.failure'
-		['tap plan']='tap.plan'
-		['tap skip']='tap.skip'
-		['tap success']='tap.success'
-		['tap todo']='tap.todo'
-		['tap version']='tap.version'
-	)
-
+	#/command/
 	#:src/common.sh
 	.source() {
 		echo "_SELF=$(self.path)"

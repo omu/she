@@ -1,5 +1,6 @@
 # git.sh - Git functions
 
+# Git pull if repository expired
 git.update() {
 	local -A _=(
 		[-expiry]=3

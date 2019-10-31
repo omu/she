@@ -308,7 +308,7 @@ flag._validate_() {
 
 # flag - Init
 
-flag.init() {
+flag._init() {
 	shopt -s expand_aliases
 
 	# shellcheck disable=2142
@@ -318,10 +318,11 @@ flag.init() {
 	declare -gr NIL="\0"
 }
 
-flag.init
+flag._init
 
 # _.sh - Required functions
 
+# Return if program available
 _.available() {
 	local -A _=(
 		[.help]='PROGRAM'
@@ -333,7 +334,7 @@ _.available() {
 	.available "$@"
 }
 
-# Check the expirations of given files
+# Return if any of the files expired
 _.expired() {
 	local -A _=(
 		[-expiry]=3
@@ -347,6 +348,7 @@ _.expired() {
 	.expired "${_[-expiry]}" "$@"
 }
 
+# Ensure the given command succeeds
 _.must() {
 	local -A _=(
 		[.help]='MESSAGE ARGS...|-- ARGS...'
@@ -379,6 +381,7 @@ _.run() {
 	fi
 }
 
+# Ignore error if the given command fails
 _.should() {
 	local -A _=(
 		[.help]='MESSAGE ARGS...|-- ARGS...'
@@ -392,10 +395,6 @@ _.should() {
 }
 
 # _ - Protected functions
-
-.ask() {
-	.bug 'Not implemented'
-}
 
 .bool() {
 	local value=${1:-}
@@ -547,7 +546,7 @@ _.should() {
 
 # _ - Init
 
-_.init() {
+_._init() {
 	# Default variable as a hash
 	declare -gA _=()
 
@@ -573,7 +572,7 @@ _.init() {
 	unset -f "${FUNCNAME[0]}"
 }
 
-_.init
+_._init
 
 # color.sh - Colors
 
@@ -640,7 +639,7 @@ color.setup() {
 # color - Init
 
 # shellcheck disable=2034
-color.init() {
+color._init() {
 	declare -Ag _color=(
 		# Basic colors with variants - prefix +: bold, prefix -: dim, suffix -: reverse
 
@@ -678,14 +677,11 @@ color.init() {
 	)
 }
 
-color.init
+color._init
 
 # ui.sh - UI functions
 
-ui.ask() {
-	.bug 'Not implemented'
-}
-
+# Print message and exit success
 ui.bye() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -697,6 +693,7 @@ ui.bye() {
 	.bye "$@"
 }
 
+# Print message and run command
 ui.calling() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -708,6 +705,7 @@ ui.calling() {
 	.calling "$@"
 }
 
+# Print warning message
 ui.cry() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -719,6 +717,7 @@ ui.cry() {
 	.cry "$@"
 }
 
+# Print error message and exit failure
 ui.die() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -730,6 +729,7 @@ ui.die() {
 	.die "$@"
 }
 
+# Print message indicating a download and run command
 ui.getting() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -738,9 +738,10 @@ ui.getting() {
 
 	flag.parse
 
-	.calling "$@"
+	.getting "$@"
 }
 
+# Print info message
 ui.hmm() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -752,6 +753,7 @@ ui.hmm() {
 	.hmm "$@"
 }
 
+# Print not ok message
 ui.notok() {
 	local -A _=(
 		[.help]='STRING'
@@ -763,6 +765,7 @@ ui.notok() {
 	.notok "$@"
 }
 
+# Print ok message
 ui.ok() {
 	local -A _=(
 		[.help]='STRING'
@@ -774,6 +777,7 @@ ui.ok() {
 	.ok "$@"
 }
 
+# Print a busy message run command
 ui.running() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -785,6 +789,7 @@ ui.running() {
 	.calling "$@"
 }
 
+# Print message on stderr
 ui.say() {
 	local -A _=(
 		[.help]='MESSAGE'
@@ -798,8 +803,24 @@ ui.say() {
 
 # ui - Protected functions
 
+ui.out() {
+	local name=${1:-default}
+	shift || true
+
+	local sign=${_sign[$name]}
+
+	# shellcheck disable=2154
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	echo -en "${sign_color}${sign}${reset} "
+	.out "$@"
+	echo -en "$reset "
+}
+
+# ui - Private functions
+
 # shellcheck disable=2154
-ui.echo() {
+ui._echo() {
 	[[ $# -gt 0 ]] || return 0
 
 	local message=$1
@@ -817,24 +838,10 @@ ui.echo() {
 	fi
 }
 
-ui.out() {
-	local name=${1:-default}
-	shift || true
-
-	local sign=${_sign[$name]}
-
-	# shellcheck disable=2154
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	echo -en "${sign_color}${sign}${reset} "
-	.out "$@"
-	echo -en "$reset "
-}
-
 # ui - Init
 
 # shellcheck disable=2034,2154
-ui.init() {
+ui._init() {
 	declare -Ag _sign _sign_color _text_color
 
 	# Style
@@ -856,29 +863,32 @@ ui.init() {
 
 	color.expand _sign_color _text_color
 
-	.ask()     { ui.echo "$@" >&2;           }
-	.bug()     { ui.echo "$@" >&2; exit 127; }
-	.bye()     { ui.echo "$@" >&2; exit 0;   }
-	.calling() { ui.echo "$1" >&2; "${@:2}"; }
-	.cry()     { ui.echo "$@" >&2;           }
-	.die()     { ui.echo "$@" >&2; exit 1;   }
-	.getting() { ui.echo "$1" >&2; "${@:2}"; }
-	.hmm()     { ui.echo "$@" >&2;           }
-	.notok()   { ui.echo "$@" >&2;           }
-	.ok()      { ui.echo "$@" >&2;           }
-	.running() { ui.echo "$1" >&2; "${@:2}"; }
-	.say()     { ui.echo "$@" >&2;           }
+	.ask()     { ui._echo "$@" >&2;           }
+	.bug()     { ui._echo "$@" >&2; exit 127; }
+	.bye()     { ui._echo "$@" >&2; exit 0;   }
+	.calling() { ui._echo "$1" >&2; "${@:2}"; }
+	.cry()     { ui._echo "$@" >&2;           }
+	.die()     { ui._echo "$@" >&2; exit 1;   }
+	.getting() { ui._echo "$1" >&2; "${@:2}"; }
+	.hmm()     { ui._echo "$@" >&2;           }
+	.notok()   { ui._echo "$@" >&2;           }
+	.ok()      { ui._echo "$@" >&2;           }
+	.running() { ui._echo "$1" >&2; "${@:2}"; }
+	.say()     { ui._echo "$@" >&2;           }
 }
 
-ui.init
+ui._init
 
-readonly _TAP_VERSION_=13
+# tap.sh - TAP functions
 
+# Mark stdin lines as an error output
 tap.err() {
+	local -A _; flag.parse
+
 	sed 's:^:# err> :' | color.out +red
 }
 
-# Failure
+# Print TAP failure
 tap.failure() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -906,10 +916,14 @@ tap.failure() {
 	done | sed -u -e 's/^/# /'
 }
 
+# Mark stdin lines as a successful output
 tap.out() {
+	local -A _; flag.parse
+
 	sed 's:^:# out> :' | color.out +green
 }
 
+# Print TAP plan
 tap.plan() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -930,6 +944,7 @@ tap.plan() {
 	echo "# There are ${_[todo]} todo test(s) waiting to be done."
 }
 
+# Print TAP summary
 tap.shutdown() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -946,7 +961,7 @@ tap.shutdown() {
 	:
 }
 
-# Skip
+# Print TAP skip
 tap.skip() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -972,6 +987,7 @@ tap.skip() {
 	} | color.out +blue
 }
 
+# Print TAP start
 tap.startup() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -986,7 +1002,7 @@ tap.startup() {
 	echo "# Running tests in $file"
 }
 
-# Success
+# Print TAP success
 tap.success() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1008,19 +1024,17 @@ tap.success() {
 	fi | color.out +blue
 }
 
-tap.stack() {
-	sed 's:^:# :' | color.out yellow
-}
-
+# Print TAP version
 tap.version() {
 	local -A _=(
 		[.argc]=0
 	)
 
-	echo TAP version $_TAP_VERSION_
+	echo TAP version "$_TAP_VERSION_"
 	echo
 }
 
+# Print TAP todo
 tap.todo() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -1051,19 +1065,21 @@ tap.todo() {
 	done | sed -u -e 's/^/# /'
 }
 
-# self.sh - Functions related to program itself
+# tap - Protected functions
 
-# Print self
-self() {
-	local path
-
-	path=$(self.path)
-	if .interactive; then
-		echo "$path"
-	else
-		echo "builtin source '$path'"
-	fi
+tap.stack() {
+	sed 's:^:# :' | color.out yellow
 }
+
+# tap - Init
+
+tap._init() {
+	readonly _TAP_VERSION_=13
+}
+
+tap._init
+
+# self.sh - Functions related to program itself
 
 # Install self
 self.install() {
@@ -1092,7 +1108,6 @@ self.name() {
 }
 
 # Print self path
-# shellcheck disable=2120
 self.path() {
 	local -A _; flag.parse
 
@@ -1106,6 +1121,18 @@ self.path() {
 	esac
 }
 
+# Print self source
+self.src() {
+	local path
+
+	path=$(self.path)
+	if .interactive; then
+		echo "$path"
+	else
+		echo "builtin source '$path'"
+	fi
+}
+
 # Print self version
 self.version() {
 	local -A _; flag.parse
@@ -1116,38 +1143,16 @@ self.version() {
 
 if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
-		['color.init']='shellcheck disable=2034'
-		['ui.echo']='shellcheck disable=2154'
-		['ui.init']='shellcheck disable=2034,2154'
-		['tap.failure']='Failure'
-		['tap.skip']='Skip'
-		['tap.success']='Success'
-		['self']='Print self'
-		['self.install']='Install self'
-		['self.name']='Print self name'
-		['self.path']='Print self path'
-		['self.version']='Print self version'
-		['temp.inside']='Execute command in temp dir'
-		['assert.err']='Assert failed command outputs'
-		['assert.fail']='Just fail'
-		['assert.is']='Assert actual value equals to the expected'
-		['assert.isnt']='Assert got value not equals to the expected'
-		['assert.like']='Assert got value matches with the expected'
-		['assert.notok']='Assert command failed'
-		['assert.ok']='Assert command succeed'
-		['assert.out']='Assert successful command outputs'
-		['assert.pass']='Just pass'
-		['assert.unlike']='Assert got value not matches with the expected'
-		['t.go']='shellcheck disable=2034'
-		['t']='shellcheck disable=2034'
+		['tap.err']='Mark stdin lines as an error output'
+		['tap.failure']='Print TAP failure'
+		['tap.plan']='Print TAP plan'
+		['tap.skip']='Print TAP skip'
+		['tap.success']='Print TAP success'
+		['tap.todo']='Print TAP todo'
+		['tap.version']='Print TAP version'
 	)
 
-
 	declare -Ag _command=(
-		['isnt']='test.isnt'
-		['is']='test.is'
-		['notok']='test.notok'
-		['ok']='test.ok'
 		['tap err']='tap.err'
 		['tap failure']='tap.failure'
 		['tap plan']='tap.plan'
@@ -1377,6 +1382,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			_defer_clean_+=("$@")
 		}
 
+		# Trap defer setup
 		# shellcheck disable=2120
 		.defer() {
 			if [[ -v _defer_initialized_ ]]; then
@@ -1452,6 +1458,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			readonly -f _defer_
 		}
 
+		# Create a temp dir
 		temp.dir() {
 			# shellcheck disable=2155
 			local -n temp_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -1466,6 +1473,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			temp_dir_=$dir
 		}
 
+		# Remove temp files or directories
 		temp.clean() {
 			while [[ $# -gt 0 ]]; do
 				local -n temp_clean_=$1; shift
@@ -1487,7 +1495,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			)")
 		}
 
-		# Just fail
+		# Return failure
 		assert.fail() {
 			false
 		}
@@ -1561,7 +1569,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			)")
 		}
 
-		# Just pass
+		# Return success
 		assert.pass() {
 			true
 		}

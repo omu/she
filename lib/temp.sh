@@ -1,5 +1,6 @@
 # temp.sh - Functions involving temporary directories or files
 
+# Remove temp files or directories
 temp.clean() {
 	while [[ $# -gt 0 ]]; do
 		local -n temp_clean_=$1; shift
@@ -8,6 +9,7 @@ temp.clean() {
 	done
 }
 
+# Create a temp dir
 temp.dir() {
 	# shellcheck disable=2155
 	local -n temp_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -22,6 +24,7 @@ temp.dir() {
 	temp_dir_=$dir
 }
 
+# Create a temp file
 temp.file() {
 	# shellcheck disable=2155
 	local -n temp_file_=${1?${FUNCNAME[0]}: missing argument}; shift

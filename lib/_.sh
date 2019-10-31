@@ -1,5 +1,6 @@
 # _.sh - Required functions
 
+# Return if program available
 _.available() {
 	local -A _=(
 		[.help]='PROGRAM'
@@ -11,7 +12,7 @@ _.available() {
 	.available "$@"
 }
 
-# Check the expirations of given files
+# Return if any of the files expired
 _.expired() {
 	local -A _=(
 		[-expiry]=3
@@ -25,6 +26,7 @@ _.expired() {
 	.expired "${_[-expiry]}" "$@"
 }
 
+# Ensure the given command succeeds
 _.must() {
 	local -A _=(
 		[.help]='MESSAGE ARGS...|-- ARGS...'
@@ -57,6 +59,7 @@ _.run() {
 	fi
 }
 
+# Ignore error if the given command fails
 _.should() {
 	local -A _=(
 		[.help]='MESSAGE ARGS...|-- ARGS...'
@@ -70,10 +73,6 @@ _.should() {
 }
 
 # _ - Protected functions
-
-.ask() {
-	.bug 'Not implemented'
-}
 
 .bool() {
 	local value=${1:-}
@@ -225,7 +224,7 @@ _.should() {
 
 # _ - Init
 
-_.init() {
+_._init() {
 	# Default variable as a hash
 	declare -gA _=()
 
@@ -251,4 +250,4 @@ _.init() {
 	unset -f "${FUNCNAME[0]}"
 }
 
-_.init
+_._init

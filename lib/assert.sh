@@ -10,7 +10,7 @@ assert.err() {
 	)")
 }
 
-# Just fail
+# Return failure
 assert.fail() {
 	false
 }
@@ -84,7 +84,7 @@ assert.out() {
 	)")
 }
 
-# Just pass
+# Return success
 assert.pass() {
 	true
 }

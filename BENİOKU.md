@@ -320,7 +320,7 @@ TODO
   + [.] isim uzayını değerlendir
   + [ ] public/protected/private ve cli fonksiyonlarının semantiği
   + [ ] Fonksiyonların kısa açıklamaları
-  + [ ] Fonksiyonların dosya içinde sıralanması
+  + [X] Fonksiyonların dosya içinde sıralanması
   + [.] Stil/tutarlılık bakımı
   + [X] virtual uzayını os'tan ayır
   + [X] her is için any ve duruma göre all ekle
@@ -340,6 +340,7 @@ TODO
 - [X] blob unpack
 - [X] bin unpack desteği
 - [ ] README asgari dokümantasyonu
+- [ ] Komut tablosu (README'de)
 - [ ] BENİOKU
 - [.] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
 - [.] scripts aracının yeni sürümü

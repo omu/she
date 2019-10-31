@@ -20,14 +20,14 @@ os.any() {
 	return 1
 }
 
-# Distribution codename
+# Print distribution codename
 os.codename() {
 	local -A _; flag.parse
 
 	lsb_release -sc
 }
 
-# Distribution name
+# Print distribution name
 os.dist() {
 	local -A _; flag.parse
 

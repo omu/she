@@ -1,6 +1,6 @@
 # src.sh - Source management
 
-# Get src from URL and enter to the directory
+# Get src from url and enter to the directory
 src.enter() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -20,7 +20,7 @@ src.enter() {
 	echo "$PWD"
 }
 
-# Install to a known location
+# Install src into a source tree
 src.install() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -36,7 +36,7 @@ src.install() {
 	src.install_ "$@"
 }
 
-# Run src from URL
+# Run src from url
 src.run() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -56,7 +56,7 @@ src.run() {
 	src.run_ "${_[.dir]}"
 }
 
-# Install src into the runtime tree
+# Install src into a volatile source tree
 src.use() {
 	# shellcheck disable=2192
 	local -A _=(

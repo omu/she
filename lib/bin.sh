@@ -16,7 +16,7 @@ bin.install() {
 	bin.install_ "$@"
 }
 
-# Use program
+# Use program by installing to a volatile path
 bin.use() {
 	# shellcheck disable=2192
 	local -A _=(

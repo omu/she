@@ -1,6 +1,6 @@
 # array.sh - Array functions
 
-# Array contains the given element
+# Return if array contains the given element
 array.contains() {
 	local -n array_contains_=${1?${FUNCNAME[0]}: missing argument}; shift
 	local    element=${1?${FUNCNAME[0]}: missing argument};         shift

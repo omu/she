@@ -4,7 +4,80 @@
 # Compile shell files, that is, include (selected) code snippets and do substitutions via simple directives.
 # Note that, this is not a full-fledged implementation (i.e. no nested inclusions).
 #
-# See src/she for an example.
+# See src/* for examples.
+
+# rubocop:disable Style/TrailingCommaInHashLiteral,Layout/AlignHash
+COMMANDS = {
+  '_' => {
+    '_.available'   => 'available',
+    'bin.install'   => 'bin install',
+    'bin.run'       => 'bin run',
+    'bin.use'       => 'bin use',
+    'deb.add'       => 'deb add',
+    'deb.install'   => 'deb install',
+    'deb.installed' => 'deb installed',
+    'deb.missings'  => 'deb missings',
+    'deb.uninstall' => 'deb uninstall',
+    'deb.update'    => 'deb update',
+    'deb.using'     => 'deb using',
+    '_.expired'     => 'expired',
+    'file.install'  => 'file install',
+    'filetype.any'  => 'filetype any',
+    'filetype.is'   => 'filetype is',
+    'filetype.mime' => 'filetype mime',
+    'http.any'      => 'http any',
+    'http.get'      => 'http get',
+    'http.is'       => 'http is',
+    '_.must'        => 'must',
+    'os.any'        => 'os any',
+    'os.codename'   => 'os codename',
+    'os.dist'       => 'os dist',
+    'os.is'         => 'os is',
+    '_.run'         => 'run',
+    'self.install'  => 'self install',
+    'self.name'     => 'self name',
+    'self.path'     => 'self path',
+    'self.src'      => 'self src',
+    'self.version'  => 'self version',
+    '_.should'      => 'should',
+    'src.enter'     => 'enter',
+    'src.install'   => 'src install',
+    'src.use'       => 'src use',
+    'temp.inside'   => 'temp inside',
+    'text.fix'      => 'text fix',
+    'text.unfix'    => 'text unfix',
+    'ui.bug'        => 'bug',
+    'ui.calling'    => 'ui calling',
+    'ui.cry'        => 'cry',
+    'ui.die'        => 'die',
+    'ui.getting'    => 'ui getting',
+    'ui.hmm'        => 'ui info',
+    'ui.notok'      => 'ui notok',
+    'ui.ok'         => 'ui ok',
+    'ui.running'    => 'ui running',
+    'ui.say'        => 'say',
+    'url.any'       => 'url any',
+    'url.is'        => 'url is',
+    'virt.any'      => 'virt any',
+    'virt.is'       => 'virt is',
+    'virt.which'    => 'virt which',
+    'zip.unpack'    => 'unzip',
+  },
+  't' => {
+    'tap.err'       => 'tap err',
+    'tap.failure'   => 'tap failure',
+    'tap.plan'      => 'tap plan',
+    'tap.skip'      => 'tap skip',
+    'tap.success'   => 'tap success',
+    'tap.todo'      => 'tap todo',
+    'tap.version'   => 'tap version',
+    'test.is'       => 'is',
+    'test.isnt'     => 'isnt',
+    'test.notok'    => 'notok',
+    'test.ok'       => 'ok',
+  }
+}.freeze
+# rubocop:enable Style/TrailingCommaInHashLiteral,Layout/AlignHash
 
 module Fmt
   DEFAULT_FMT_OPTIONS = {
@@ -187,16 +260,17 @@ class Source
   end
 end
 
-class Compiler
+class Compiler # rubocop:disable Metrics/ClassLength
   using Fmt
 
   Error = Class.new StandardError
 
   attr_reader :inlines, :sources, :exports
 
-  def initialize(inlines, substitutions: nil)
+  def initialize(inlines, substitutions: nil, commands: nil)
     @inlines       = inlines.map(&:chomp)
     @substitutions = substitutions || {}
+    @commands      = commands      || {}
     @sources       = {}
   end
 
@@ -212,15 +286,16 @@ class Compiler
     second_pass.join "\n"
   end
 
-  def export
+  def export # rubocop:disable Metrtics/AbcSize
     symbols = []
 
     sources.values.map(&:blocks).each do |blocks|
       blocks.each do |block|
         next unless block.is_a?(Source::Block::Fun)
         next if block.undocumented? || block.private?
+        next unless commands.key? block.fun
 
-        symbols << { fun: block.fun, label: block.label }
+        symbols << { fun: block.fun, label: block.label, cmd: commands[block.fun] }
       end
     end
 
@@ -229,7 +304,7 @@ class Compiler
 
   private
 
-  attr_reader :substitutions
+  attr_reader :substitutions, :commands
   attr_writer :exports
 
   DIRECTIVE = {
@@ -287,6 +362,8 @@ class Compiler
   end
 
   def do_substitute(match)
+    return [] if substitutions.empty?
+
     unless (substituter = substitutions[substitution = match[:substitution]])
       warn "No substituter found for: #{substitution}"
       return [line]
@@ -325,6 +402,12 @@ class Compiler
     def compile(*args, **options)
       new(*args, **options).compile
     end
+
+    def export(*args, **options)
+      compiler = new(*args, **options)
+      compiler.compile
+      compiler.export
+    end
   end
 end
 
@@ -334,48 +417,109 @@ module Main
   class << self
     private
 
-    def bash_array_lines(exports, variable, key)
-      pairs = exports.map { |h| "['#{h[:fun]}']='#{h[key]}'" }
+    def bash_array_lines(exports, variable, lhs, rhs)
+      pairs = exports.sort_by { |h| h[lhs] }.map { |h| "['#{h[lhs]}']='#{h[rhs]}'" }
 
       ["declare -Ag #{variable}=(", *pairs.fmt(indent: 1), ')']
+    end
+
+    def markdown_table_lines(inlines:, export:, name:) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+      stamp_begin = "<!-- #{name} begin -->"
+      stamp_end   = "<!-- #{name} end -->"
+
+      starting = inlines.find_index stamp_begin
+      ending   = inlines.find_index stamp_end
+
+      return inlines if starting.nil? || ending.nil?
+
+      max_command_lenth = export.map { |h| h[:cmd].length   }.max
+      max_label_lenth   = export.map { |h| h[:label].length }.max
+
+      lines = []
+
+      lines << format("| %-#{max_command_lenth}s | %-#{max_label_lenth}s |",
+                      'Command', 'Description')
+      lines << format("| %-#{max_command_lenth}s | %-#{max_label_lenth}s |",
+                      '-' * max_command_lenth, '-' * max_label_lenth)
+
+      export.sort_by { |h| h[:cmd] }.each do |h|
+        label, cmd = h[:label], h[:cmd]
+
+        lines << format("| %-#{max_command_lenth}s | %-#{max_label_lenth}s |",
+                        cmd, label)
+      end
+
+      [
+        *inlines[0..starting],
+        *lines,
+        *inlines[ending..-1]
+      ]
     end
   end
 
   SUBSTITUTIONS = {
-    'help' => proc { |compiler| bash_array_lines(compiler.exports, '_help', :label) }
+    'help'    => proc { |compiler| bash_array_lines(compiler.exports, '_help',    :fun, :label) },
+    'command' => proc { |compiler| bash_array_lines(compiler.exports, '_command', :cmd, :fun)   }
   }.freeze
 
-  def self.call(src, dst)
-    File.write(dst, Compiler.compile(File.readlines(src), substitutions: SUBSTITUTIONS))
+  def self.call(src, dst, commands:)
+    File.write(dst, Compiler.compile(File.readlines(src), substitutions: SUBSTITUTIONS, commands: commands))
   rescue Compiler::Error => e
     abort 'E: ' + e.message
   end
+
+  def self.export(src, **options)
+    Compiler.export(File.readlines(src), **options)
+  rescue Compiler::Error => e
+    abort 'E: ' + e.message
+  end
+
+  require 'awesome_print'
+
+  def self.doc(sources, dst)
+    inlines = File.readlines(dst).map(&:chomp)
+
+    sources.each do |src|
+      name    = File.basename(src)
+      export  = Main.export src, commands: COMMANDS[name]
+
+      inlines = markdown_table_lines(inlines: inlines, export: export, name: name)
+    end
+
+    inlines.join("\n").chomp + "\n"
+  end
 end
 
-BIN = %w[_ t].freeze
+PRG = %w[_ t].freeze
 
-BIN.each do |bin|
-  file "bin/#{bin}" => ["src/#{bin}", "src/#{bin}.sh", 'src/common.sh', *Dir['lib/*.sh'], __FILE__] do |task|
+PRG.each do |prg|
+  file "bin/#{prg}" => ["src/#{prg}", "src/#{prg}.sh", 'src/common.sh', *Dir['lib/*.sh'], __FILE__] do |task|
     src, dst = task.prerequisites.first, task.name
 
     mkdir_p File.dirname(dst)
-    Main.(src, dst)
+    Main.(src, dst, commands: COMMANDS[prg])
     chmod '+x', dst
 
     sh 'bash', '-n', dst
     sh 'shellcheck', dst
   end
 
-  desc "Generate #{bin}"
-  task bin.to_sym => "bin/#{bin}"
+  desc "Generate #{prg}"
+  task prg.to_sym => "bin/#{prg}"
 end
 
 desc 'Generate programs'
-task generate: BIN
+task generate: PRG
+
+desc 'Update documentation'
+task doc: [*PRG.map { |prg| "bin/#{prg}" }, __FILE__] do
+  dst = 'README.md'
+  File.write dst, Main.doc(PRG.map { |prg| "src/#{prg}" }, dst)
+end
 
 desc 'Clean'
 task :clean do
-  rm_f(BIN.map { |bin| "bin/#{bin}" })
+  rm_f(PRG.map { |prg| "bin/#{prg}" })
 end
 
 task default: :generate
