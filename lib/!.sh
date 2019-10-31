@@ -3,31 +3,10 @@
 [ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
 
-# shellcheck disable=2034,2128
-.prelude() {
-	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+# Protected functions
 
-	export LC_ALL=C.UTF-8 LANG=C.UTF-8
-
-	declare -ag PROGNAME=("${0##*/}") # Program name
-
-	declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
-}
-
-.prelude
-
-.say() {
-	echo -e "${@-""}"
-}
-
-.die() {
-	if [[ $# -gt 0 ]]; then
-		echo -e >&2 "E: $*"
-	else
-		echo >&2 ""
-	fi
-
-	exit 1
+.available() {
+	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
 }
 
 .bug() {
@@ -50,32 +29,8 @@
 	exit 0
 }
 
-.cry() {
-	if [[ $# -gt 0 ]]; then
-		echo -e >&2 "W: $*"
-	else
-		echo >&2 ""
-	fi
-}
-
-.must() {
-	if [[ ${1:-} = -- ]]; then
-		shift
-
-		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .die "Command failed: $*"
-	else
-		eval -- "${@:2}" || .die "${1?${FUNCNAME[0]}: missing argument}"
-	fi
-}
-
-.should() {
-	if [[ ${1:-} = -- ]]; then
-		shift
-
-		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .cry "Exit code $? is suppressed: $*"
-	else
-		eval -- "${@:2}" || .cry "${1?${FUNCNAME[0]}: missing argument}"
-	fi
+.callable() {
+	[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
 }
 
 .contains() {
@@ -92,12 +47,22 @@
 	return 1
 }
 
-.available() {
-	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
+.cry() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "W: $*"
+	else
+		echo >&2 ""
+	fi
 }
 
-.callable() {
-	[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
+.die() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "E: $*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 1
 }
 
 .load() {
@@ -133,3 +98,42 @@
 	builtin cd "$_load_old_" || .die "Chdir error: $_load_old_"
 	unset _load_old_
 }
+
+.must() {
+	if [[ ${1:-} = -- ]]; then
+		shift
+
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .die "Command failed: $*"
+	else
+		eval -- "${@:2}" || .die "${1?${FUNCNAME[0]}: missing argument}"
+	fi
+}
+
+.say() {
+	echo -e "${@-""}"
+}
+
+.should() {
+	if [[ ${1:-} = -- ]]; then
+		shift
+
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .cry "Exit code $? is suppressed: $*"
+	else
+		eval -- "${@:2}" || .cry "${1?${FUNCNAME[0]}: missing argument}"
+	fi
+}
+
+# Init
+
+# shellcheck disable=2034,2128
+.prelude() {
+	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+
+	export LC_ALL=C.UTF-8 LANG=C.UTF-8
+
+	declare -ag PROGNAME=("${0##*/}") # Program name
+
+	declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
+}
+
+.prelude

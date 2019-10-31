@@ -1,38 +1,5 @@
 # src.sh - Source management
 
-# Install to a known location
-src.install() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-expiry]=
-		[-prefix]="$_USR"/src
-
-		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	src.install_ "$@"
-}
-
-# Install src into the runtime tree
-src.use() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-expiry]=
-		[-prefix]="$_RUN"/src
-		[-shallow]=false
-
-		[.help]='[-(expiry=MINUTES|prefix=DIR|shallow=BOOL)] URL'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	src.install_ "$@"
-}
-
 # Get src from URL and enter to the directory
 src.enter() {
 	# shellcheck disable=2192
@@ -51,6 +18,22 @@ src.enter() {
 
 	# shellcheck disable=2128
 	echo "$PWD"
+}
+
+# Install to a known location
+src.install() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-expiry]=
+		[-prefix]="$_USR"/src
+
+		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	src.install_ "$@"
 }
 
 # Run src from URL
@@ -73,12 +56,39 @@ src.run() {
 	src.run_ "${_[.dir]}"
 }
 
+# Install src into the runtime tree
+src.use() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-expiry]=
+		[-prefix]="$_RUN"/src
+		[-shallow]=false
+
+		[.help]='[-(expiry=MINUTES|prefix=DIR|shallow=BOOL)] URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	src.install_ "$@"
+}
+
 # src - Protected functions
 
-src.managed_() {
-	local path=${1?${FUNCNAME[0]}: missing argument}; shift
+src.dst_() {
+	git.dst_ "$@"
+}
 
-	git.is.git "$path" && git -C "$path" config underscore.name &>/dev/null
+src.enter_() {
+	git.enter_ "$@"
+}
+
+src.exist_() {
+	git.is.exist_ "$@"
+}
+
+src.get_() {
+	git.clone_ "$@"
 }
 
 src.install_() {
@@ -99,6 +109,12 @@ src.install_() {
 	src.enter_ "$dst"
 }
 
+src.managed_() {
+	local path=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	git.is.git "$path" && git -C "$path" config underscore.name &>/dev/null
+}
+
 src.run_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -107,24 +123,8 @@ src.run_() {
 	.calling "$file" file.run_ "$file"
 }
 
-src.dst_() {
-	git.dst_ "$@"
-}
-
-src.exist_() {
-	git.is.exist_ "$@"
-}
-
-src.get_() {
-	git.clone_ "$@"
-}
-
 src.update_() {
 	git.update_ "$@"
-}
-
-src.enter_() {
-	git.enter_ "$@"
 }
 
 # src - Private functions

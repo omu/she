@@ -3,31 +3,10 @@
 [ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
 
-# shellcheck disable=2034,2128
-.prelude() {
-	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+# Protected functions
 
-	export LC_ALL=C.UTF-8 LANG=C.UTF-8
-
-	declare -ag PROGNAME=("${0##*/}") # Program name
-
-	declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
-}
-
-.prelude
-
-.say() {
-	echo -e "${@-""}"
-}
-
-.die() {
-	if [[ $# -gt 0 ]]; then
-		echo -e >&2 "E: $*"
-	else
-		echo >&2 ""
-	fi
-
-	exit 1
+.available() {
+	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
 }
 
 .bug() {
@@ -50,32 +29,8 @@
 	exit 0
 }
 
-.cry() {
-	if [[ $# -gt 0 ]]; then
-		echo -e >&2 "W: $*"
-	else
-		echo >&2 ""
-	fi
-}
-
-.must() {
-	if [[ ${1:-} = -- ]]; then
-		shift
-
-		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .die "Command failed: $*"
-	else
-		eval -- "${@:2}" || .die "${1?${FUNCNAME[0]}: missing argument}"
-	fi
-}
-
-.should() {
-	if [[ ${1:-} = -- ]]; then
-		shift
-
-		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .cry "Exit code $? is suppressed: $*"
-	else
-		eval -- "${@:2}" || .cry "${1?${FUNCNAME[0]}: missing argument}"
-	fi
+.callable() {
+	[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
 }
 
 .contains() {
@@ -92,12 +47,22 @@
 	return 1
 }
 
-.available() {
-	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
+.cry() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "W: $*"
+	else
+		echo >&2 ""
+	fi
 }
 
-.callable() {
-	[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
+.die() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "E: $*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 1
 }
 
 .load() {
@@ -134,37 +99,71 @@
 	unset _load_old_
 }
 
-# flag.sh - Flag handling
+.must() {
+	if [[ ${1:-} = -- ]]; then
+		shift
 
-shopt -s expand_aliases
-
-# shellcheck disable=2142
-alias flag.parse='flag.parse_ "$@"; local -a __a; flag.args_ __a; set -- "${__a[@]}"; unset -v __a'
-
-# shellcheck disable=2034
-declare -gr NIL="\0"
-
-flag.usage_() {
-	if [[ -n ${_[.help]:-} ]]; then
-		# shellcheck disable=2128
-		.say "Usage: ${PROGNAME[*]} ${_[.help]}"
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .die "Command failed: $*"
 	else
-		# shellcheck disable=2128
-		.say "Usage: ${PROGNAME[*]}"
+		eval -- "${@:2}" || .die "${1?${FUNCNAME[0]}: missing argument}"
 	fi
 }
 
-flag.usage_and_die_() {
-	flag.usage_
-
-	.die "$@"
+.say() {
+	echo -e "${@-""}"
 }
 
-# shellcheck disable=2120
-flag.usage_and_bye_() {
-	flag.usage_
+.should() {
+	if [[ ${1:-} = -- ]]; then
+		shift
 
-	.bye "$@"
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .cry "Exit code $? is suppressed: $*"
+	else
+		eval -- "${@:2}" || .cry "${1?${FUNCNAME[0]}: missing argument}"
+	fi
+}
+
+# Init
+
+# shellcheck disable=2034,2128
+.prelude() {
+	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+
+	export LC_ALL=C.UTF-8 LANG=C.UTF-8
+
+	declare -ag PROGNAME=("${0##*/}") # Program name
+
+	declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
+}
+
+.prelude
+
+# flag.sh - Flag handling
+
+flag.args_() {
+	flag.values '^[1-9][0-9]*$' "$@"
+}
+
+flag.env_() {
+	flag.values '^[[:alpha:]_][[:alnum:]_]*$' "$@"
+}
+
+flag.false() {
+	! flag.true "$@"
+}
+
+flag.load() {
+	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!_load_src_[@]}"; do
+		# shellcheck disable=2034
+		_[$key]=${_load_src_[$key]}
+	done
+}
+
+flag.nil() {
+	[[ ${_[$1]:-} = "$NIL" ]]
 }
 
 # shellcheck disable=2034
@@ -201,16 +200,6 @@ flag.parse_() {
 	flag._validate_ $argc
 }
 
-flag.load() {
-	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!_load_src_[@]}"; do
-		# shellcheck disable=2034
-		_[$key]=${_load_src_[$key]}
-	done
-}
-
 flag.values() {
 	local pattern=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -241,38 +230,34 @@ flag.values() {
 	fi
 }
 
-flag.args_() {
-	flag.values '^[1-9][0-9]*$' "$@"
-}
-
-flag.env_() {
-	flag.values '^[[:alpha:]_][[:alnum:]_]*$' "$@"
-}
-
 flag.true() {
 	.bool "${_[$1]:-}"
 }
 
-flag.false() {
-	! flag.true "$@"
+flag.usage_() {
+	if [[ -n ${_[.help]:-} ]]; then
+		# shellcheck disable=2128
+		.say "Usage: ${PROGNAME[*]} ${_[.help]}"
+	else
+		# shellcheck disable=2128
+		.say "Usage: ${PROGNAME[*]}"
+	fi
 }
 
-flag.nil() {
-	[[ ${_[$1]:-} = "$NIL" ]]
+flag.usage_and_die_() {
+	flag.usage_
+
+	.die "$@"
 }
 
-flag._nils_() {
-	local -a required=()
+# shellcheck disable=2120
+flag.usage_and_bye_() {
+	flag.usage_
 
-	local key
-	for key in "${!_[@]}"; do
-		if flag.nil "$key"; then
-			required+=("$key")
-		fi
-	done
-
-	[[ ${#required[@]} -eq 0 ]] || .die "Missing values for: ${required[*]}"
+	.bye "$@"
 }
+
+# flag - Private functions
 
 flag._args_() {
 	local n=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -303,10 +288,37 @@ flag._args_() {
 	flag.usage_and_die_ "$message"
 }
 
+flag._nils_() {
+	local -a required=()
+
+	local key
+	for key in "${!_[@]}"; do
+		if flag.nil "$key"; then
+			required+=("$key")
+		fi
+	done
+
+	[[ ${#required[@]} -eq 0 ]] || .die "Missing values for: ${required[*]}"
+}
+
 flag._validate_() {
 	flag._args_ "$@"
 	flag._nils_
 }
+
+# flag - Init
+
+flag.init() {
+	shopt -s expand_aliases
+
+	# shellcheck disable=2142
+	alias flag.parse='flag.parse_ "$@"; local -a __a; flag.args_ __a; set -- "${__a[@]}"; unset -v __a'
+
+	# shellcheck disable=2034
+	declare -gr NIL="\0"
+}
+
+flag.init
 
 # _.sh - Required functions
 
@@ -402,6 +414,14 @@ _.should() {
 	esac
 }
 
+.calling() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "--> $message"
+
+	"$@"
+}
+
 # Capture outputs to arrays and return exit code
 # shellcheck disable=2034,2178
 .capture() {
@@ -434,13 +454,6 @@ _.should() {
 	fi
 
 	return $ret
-}
-.calling() {
-	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	.say "--> $message"
-
-	"$@"
 }
 
 .dbg() {
@@ -515,14 +528,6 @@ _.should() {
 	[[ ! -t 0 ]]
 }
 
-.running() {
-	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	.say "... $message"
-
-	"$@"
-}
-
 .stacktrace() {
 	local -i i=1
 
@@ -532,9 +537,17 @@ _.should() {
 	done | grep -v "^${BASH_SOURCE[0]}"
 }
 
-# Initialize underscore system
+.running() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
 
-.init() {
+	.say "... $message"
+
+	"$@"
+}
+
+# _ - Init
+
+_.init() {
 	# Default variable as a hash
 	declare -gA _=()
 
@@ -560,7 +573,71 @@ _.should() {
 	unset -f "${FUNCNAME[0]}"
 }
 
+_.init
+
 # color.sh - Colors
+
+color.code() {
+	local name="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local code="${_color[$name]:-}"
+
+	[[ -n $code ]] || .bug "No such color: $name"
+
+	echo -en "$code"
+}
+
+color.echo() {
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local code reset
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -e "${code}${*}${reset}"
+}
+
+color.expand() {
+	while [[ $# -gt 0 ]]; do
+		local -n color_expand_=${1?missing argument}
+		shift
+
+		local key value
+		for key in "${!color_expand_[@]}"; do
+			value=${color_expand_[$key]}
+
+			color_expand_[$key]=${_color[$value]}
+		done
+	done
+}
+
+color.out() {
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local code reset
+
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -en "$code"
+	.out
+	echo -en "$reset"
+}
+
+color.setup() {
+	while [[ $# -gt 0 ]]; do
+		local key=${1%%=*}; value=${1#*=}
+
+		if [[ -n ${_color[$value]:-} ]]; then
+			_color[$key]=${_color[$value]}
+		else
+			_color[$key]=$value
+		fi
+
+		shift
+	done
+}
+
+# color - Init
 
 # shellcheck disable=2034
 color.init() {
@@ -603,67 +680,158 @@ color.init() {
 
 color.init
 
-color.expand() {
-	while [[ $# -gt 0 ]]; do
-		local -n color_expand_=${1?missing argument}
-		shift
-
-		local key value
-		for key in "${!color_expand_[@]}"; do
-			value=${color_expand_[$key]}
-
-			color_expand_[$key]=${_color[$value]}
-		done
-	done
-}
-
-color.setup() {
-	while [[ $# -gt 0 ]]; do
-		local key=${1%%=*}; value=${1#*=}
-
-		if [[ -n ${_color[$value]:-} ]]; then
-			_color[$key]=${_color[$value]}
-		else
-			_color[$key]=$value
-		fi
-
-		shift
-	done
-}
-
-color.code() {
-	local name="${1?${FUNCNAME[0]}: missing argument}"; shift
-	local code="${_color[$name]:-}"
-
-	[[ -n $code ]] || .bug "No such color: $name"
-
-	echo -en "$code"
-}
-
-color.out() {
-	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	local code reset
-
-	code=$(color.code "$color")
-	reset=$(color.code reset)
-
-	echo -en "$code"
-	.out
-	echo -en "$reset"
-}
-
-color.echo() {
-	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	local code reset
-	code=$(color.code "$color")
-	reset=$(color.code reset)
-
-	echo -e "${code}${*}${reset}"
-}
-
 # ui.sh - UI functions
+
+ui.ask() {
+	.bug 'Not implemented'
+}
+
+ui.bye() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.bye "$@"
+}
+
+ui.calling() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+ui.cry() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.cry "$@"
+}
+
+ui.die() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.die "$@"
+}
+
+ui.getting() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+ui.hmm() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.hmm "$@"
+}
+
+ui.notok() {
+	local -A _=(
+		[.help]='STRING'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.notok "$@"
+}
+
+ui.ok() {
+	local -A _=(
+		[.help]='STRING'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.ok "$@"
+}
+
+ui.running() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+ui.say() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.say "$@"
+}
+
+# ui - Protected functions
+
+# shellcheck disable=2154
+ui.echo() {
+	[[ $# -gt 0 ]] || return 0
+
+	local message=$1
+
+	local name=${FUNCNAME[1]#*.}
+
+	local sign=${_sign[$name]}
+
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	if [[ -n ${sign:-} ]]; then
+		echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
+	else
+		echo -e "${text_color}${message}${reset}"
+	fi
+}
+
+ui.out() {
+	local name=${1:-default}
+	shift || true
+
+	local sign=${_sign[$name]}
+
+	# shellcheck disable=2154
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	echo -en "${sign_color}${sign}${reset} "
+	.out "$@"
+	echo -en "$reset "
+}
+
+# ui - Init
 
 # shellcheck disable=2034,2154
 ui.init() {
@@ -687,255 +855,27 @@ ui.init() {
 	_sign[default]='∙'; _sign_color[default]=+white; _text_color[default]=medium
 
 	color.expand _sign_color _text_color
+
+	.ask()     { ui.echo "$@" >&2;           }
+	.bug()     { ui.echo "$@" >&2; exit 127; }
+	.bye()     { ui.echo "$@" >&2; exit 0;   }
+	.calling() { ui.echo "$1" >&2; "${@:2}"; }
+	.cry()     { ui.echo "$@" >&2;           }
+	.die()     { ui.echo "$@" >&2; exit 1;   }
+	.getting() { ui.echo "$1" >&2; "${@:2}"; }
+	.hmm()     { ui.echo "$@" >&2;           }
+	.notok()   { ui.echo "$@" >&2;           }
+	.ok()      { ui.echo "$@" >&2;           }
+	.running() { ui.echo "$1" >&2; "${@:2}"; }
+	.say()     { ui.echo "$@" >&2;           }
 }
 
 ui.init
 
-ui.ask() {
-	.bug 'Not implemented'
-}
-
-ui.die() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.die "$@"
-}
-
-ui.cry() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.cry "$@"
-}
-
-ui.bye() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.bye "$@"
-}
-
-ui.hmm() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.hmm "$@"
-}
-
-ui.say() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.say "$@"
-}
-
-ui.ok() {
-	local -A _=(
-		[.help]='STRING'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.ok "$@"
-}
-
-ui.notok() {
-	local -A _=(
-		[.help]='STRING'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.notok "$@"
-}
-
-ui.calling() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.calling "$@"
-}
-
-ui.getting() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.calling "$@"
-}
-
-ui.running() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.calling "$@"
-}
-
-# ui - Protected functions
-
-.ask()     { ui.echo "$@" >&2;           }
-.bug()     { ui.echo "$@" >&2; exit 127; }
-.bye()     { ui.echo "$@" >&2; exit 0;   }
-.cry()     { ui.echo "$@" >&2;           }
-.die()     { ui.echo "$@" >&2; exit 1;   }
-.hmm()     { ui.echo "$@" >&2;           }
-.say()     { ui.echo "$@" >&2;           }
-
-.ok()      { ui.echo "$@" >&2;           }
-.notok()   { ui.echo "$@" >&2;           }
-
-.calling() { ui.echo "$1" >&2; "${@:2}"; }
-.getting() { ui.echo "$1" >&2; "${@:2}"; }
-.running() { ui.echo "$1" >&2; "${@:2}"; }
-
-ui.out() {
-	local name=${1:-default}
-	shift || true
-
-	local sign=${_sign[$name]}
-
-	# shellcheck disable=2154
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	echo -en "${sign_color}${sign}${reset} "
-	.out "$@"
-	echo -en "$reset "
-}
-
-# shellcheck disable=2034,2154
-ui.echo() {
-	[[ $# -gt 0 ]] || return 0
-
-	local message=$1
-
-	local name=${FUNCNAME[1]#*.}
-
-	local sign=${_sign[$name]}
-
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	if [[ -n ${sign:-} ]]; then
-		echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
-	else
-		echo -e "${text_color}${message}${reset}"
-	fi
-}
-
 readonly _TAP_VERSION_=13
 
-tap.startup() {
-	# shellcheck disable=2192
-	local -A _=(
-		[.help]='[FILE]'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	local file=$1
-
-	echo "# Running tests in $file"
-}
-
-tap.shutdown() {
-	# shellcheck disable=2192
-	local -A _=(
-		[total]=$NIL
-		[success]=$NIL
-		[failure]=$NIL
-		[duration]=$NIL
-
-		[.help]='total=NUM success=NUM failure=NUM duration=SECONDS'
-	)
-
-	flag.parse
-
-	:
-}
-
-tap.version() {
-	local -A _=(
-		[.argc]=0
-	)
-
-	echo TAP version $_TAP_VERSION_
-	echo
-}
-
-tap.plan() {
-	# shellcheck disable=2192
-	local -A _=(
-		[failure]=$NIL
-		[skip]=0
-		[success]=$NIL
-		[todo]=0
-		[total]=$NIL
-
-		[.help]='total=NUM success=NUM failure=NUM [todo=NUM] [skip=NUM]'
-	)
-
-	flag.parse
-
-	echo "1..${_[total]}"
-	echo
-	echo "# ${_[success]} test(s) succeeded, ${_[failure]} test(s) failed, ${_[skip]} test(s) skipped."
-	echo "# There are ${_[todo]} todo test(s) waiting to be done."
-}
-
-# Success
-tap.success() {
-	# shellcheck disable=2192
-	local -A _=(
-		[test]=$NIL
-		[number]=
-
-		[.help]='test=MSG [number=NUM]'
-	)
-
-	flag.parse
-
-	echo -n 'ok     '
-	ui.out ok
-
-	if [[ -n ${_[number]:-} ]]; then
-		echo "${_[number]} - ${_[test]}"
-	else
-		echo "${_[test]}"
-	fi | color.out +blue
+tap.err() {
+	sed 's:^:# err> :' | color.out +red
 }
 
 # Failure
@@ -966,6 +906,46 @@ tap.failure() {
 	done | sed -u -e 's/^/# /'
 }
 
+tap.out() {
+	sed 's:^:# out> :' | color.out +green
+}
+
+tap.plan() {
+	# shellcheck disable=2192
+	local -A _=(
+		[failure]=$NIL
+		[skip]=0
+		[success]=$NIL
+		[todo]=0
+		[total]=$NIL
+
+		[.help]='total=NUM success=NUM failure=NUM [todo=NUM] [skip=NUM]'
+	)
+
+	flag.parse
+
+	echo "1..${_[total]}"
+	echo
+	echo "# ${_[success]} test(s) succeeded, ${_[failure]} test(s) failed, ${_[skip]} test(s) skipped."
+	echo "# There are ${_[todo]} todo test(s) waiting to be done."
+}
+
+tap.shutdown() {
+	# shellcheck disable=2192
+	local -A _=(
+		[total]=$NIL
+		[success]=$NIL
+		[failure]=$NIL
+		[duration]=$NIL
+
+		[.help]='total=NUM success=NUM failure=NUM duration=SECONDS'
+	)
+
+	flag.parse
+
+	:
+}
+
 # Skip
 tap.skip() {
 	# shellcheck disable=2192
@@ -990,6 +970,55 @@ tap.skip() {
 
 		color.echo +yellow ' # SKIP'
 	} | color.out +blue
+}
+
+tap.startup() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='[FILE]'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	local file=$1
+
+	echo "# Running tests in $file"
+}
+
+# Success
+tap.success() {
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+
+		[.help]='test=MSG [number=NUM]'
+	)
+
+	flag.parse
+
+	echo -n 'ok     '
+	ui.out ok
+
+	if [[ -n ${_[number]:-} ]]; then
+		echo "${_[number]} - ${_[test]}"
+	else
+		echo "${_[test]}"
+	fi | color.out +blue
+}
+
+tap.stack() {
+	sed 's:^:# :' | color.out yellow
+}
+
+tap.version() {
+	local -A _=(
+		[.argc]=0
+	)
+
+	echo TAP version $_TAP_VERSION_
+	echo
 }
 
 tap.todo() {
@@ -1022,18 +1051,6 @@ tap.todo() {
 	done | sed -u -e 's/^/# /'
 }
 
-tap.out() {
-	sed 's:^:# out> :' | color.out +green
-}
-
-tap.err() {
-	sed 's:^:# err> :' | color.out +red
-}
-
-tap.stack() {
-	sed 's:^:# :' | color.out yellow
-}
-
 # self.sh - Functions related to program itself
 
 # Print self
@@ -1048,11 +1065,22 @@ self() {
 	fi
 }
 
-# Print self version
-self.version() {
-	local -A _; flag.parse
+# Install self
+self.install() {
+	# shellcheck disable=2192,2128
+	local -A _=(
+		[-prefix]="$_USR"/bin
+		[-name]=$PROGNAME
 
-	echo 0.0
+		[.help]=
+		[.argc]=0
+	)
+
+	flag.parse
+
+	_[1]=$(self.path)
+
+	bin.install_
 }
 
 # Print self name
@@ -1078,49 +1106,38 @@ self.path() {
 	esac
 }
 
-# Install self
-self.install() {
-	# shellcheck disable=2192,2128
-	local -A _=(
-		[-prefix]="$_USR"/bin
-		[-name]=$PROGNAME
+# Print self version
+self.version() {
+	local -A _; flag.parse
 
-		[.help]=
-		[.argc]=0
-	)
-
-	flag.parse
-
-	_[1]=$(self.path)
-
-	bin.install_
+	echo 0.0
 }
 
 
 if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		['color.init']='shellcheck disable=2034'
+		['ui.echo']='shellcheck disable=2154'
 		['ui.init']='shellcheck disable=2034,2154'
-		['ui.echo']='shellcheck disable=2034,2154'
-		['tap.success']='Success'
 		['tap.failure']='Failure'
 		['tap.skip']='Skip'
+		['tap.success']='Success'
 		['self']='Print self'
-		['self.version']='Print self version'
+		['self.install']='Install self'
 		['self.name']='Print self name'
 		['self.path']='Print self path'
-		['self.install']='Install self'
+		['self.version']='Print self version'
 		['temp.inside']='Execute command in temp dir'
-		['assert.ok']='Assert command succeed'
-		['assert.notok']='Assert command failed'
+		['assert.err']='Assert failed command outputs'
+		['assert.fail']='Just fail'
 		['assert.is']='Assert actual value equals to the expected'
 		['assert.isnt']='Assert got value not equals to the expected'
 		['assert.like']='Assert got value matches with the expected'
-		['assert.unlike']='Assert got value not matches with the expected'
+		['assert.notok']='Assert command failed'
+		['assert.ok']='Assert command succeed'
 		['assert.out']='Assert successful command outputs'
-		['assert.err']='Assert failed command outputs'
 		['assert.pass']='Just pass'
-		['assert.fail']='Just fail'
+		['assert.unlike']='Assert got value not matches with the expected'
 		['t.go']='shellcheck disable=2034'
 		['t']='shellcheck disable=2034'
 	)
@@ -1216,31 +1233,10 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
 		[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
 
-		# shellcheck disable=2034,2128
-		.prelude() {
-			set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+		# Protected functions
 
-			export LC_ALL=C.UTF-8 LANG=C.UTF-8
-
-			declare -ag PROGNAME=("${0##*/}") # Program name
-
-			declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
-		}
-
-		.prelude
-
-		.say() {
-			echo -e "${@-""}"
-		}
-
-		.die() {
-			if [[ $# -gt 0 ]]; then
-				echo -e >&2 "E: $*"
-			else
-				echo >&2 ""
-			fi
-
-			exit 1
+		.available() {
+			command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
 		}
 
 		.bug() {
@@ -1263,32 +1259,8 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			exit 0
 		}
 
-		.cry() {
-			if [[ $# -gt 0 ]]; then
-				echo -e >&2 "W: $*"
-			else
-				echo >&2 ""
-			fi
-		}
-
-		.must() {
-			if [[ ${1:-} = -- ]]; then
-				shift
-
-				eval -- "${@?${FUNCNAME[0]}: missing argument}" || .die "Command failed: $*"
-			else
-				eval -- "${@:2}" || .die "${1?${FUNCNAME[0]}: missing argument}"
-			fi
-		}
-
-		.should() {
-			if [[ ${1:-} = -- ]]; then
-				shift
-
-				eval -- "${@?${FUNCNAME[0]}: missing argument}" || .cry "Exit code $? is suppressed: $*"
-			else
-				eval -- "${@:2}" || .cry "${1?${FUNCNAME[0]}: missing argument}"
-			fi
+		.callable() {
+			[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
 		}
 
 		.contains() {
@@ -1305,12 +1277,22 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			return 1
 		}
 
-		.available() {
-			command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
+		.cry() {
+			if [[ $# -gt 0 ]]; then
+				echo -e >&2 "W: $*"
+			else
+				echo >&2 ""
+			fi
 		}
 
-		.callable() {
-			[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
+		.die() {
+			if [[ $# -gt 0 ]]; then
+				echo -e >&2 "E: $*"
+			else
+				echo >&2 ""
+			fi
+
+			exit 1
 		}
 
 		.load() {
@@ -1347,7 +1329,53 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			unset _load_old_
 		}
 
+		.must() {
+			if [[ ${1:-} = -- ]]; then
+				shift
+
+				eval -- "${@?${FUNCNAME[0]}: missing argument}" || .die "Command failed: $*"
+			else
+				eval -- "${@:2}" || .die "${1?${FUNCNAME[0]}: missing argument}"
+			fi
+		}
+
+		.say() {
+			echo -e "${@-""}"
+		}
+
+		.should() {
+			if [[ ${1:-} = -- ]]; then
+				shift
+
+				eval -- "${@?${FUNCNAME[0]}: missing argument}" || .cry "Exit code $? is suppressed: $*"
+			else
+				eval -- "${@:2}" || .cry "${1?${FUNCNAME[0]}: missing argument}"
+			fi
+		}
+
+		# Init
+
+		# shellcheck disable=2034,2128
+		.prelude() {
+			set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+
+			export LC_ALL=C.UTF-8 LANG=C.UTF-8
+
+			declare -ag PROGNAME=("${0##*/}") # Program name
+
+			declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
+		}
+
+		.prelude
+
 		# defer.sh - Deferred functions
+
+		# Register files/directories to clean up at exit
+		.clean() {
+			[[ -v _defer_initialized_ ]] || .defer
+
+			_defer_clean_+=("$@")
+		}
 
 		# shellcheck disable=2120
 		.defer() {
@@ -1424,13 +1452,6 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			readonly -f _defer_
 		}
 
-		# Register files/directories to clean up at exit
-		.clean() {
-			[[ -v _defer_initialized_ ]] || .defer
-
-			_defer_clean_+=("$@")
-		}
-
 		temp.dir() {
 			# shellcheck disable=2155
 			local -n temp_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -1456,23 +1477,19 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 		# assert.sh - Assert functions
 
-		# Assert command succeed
-		# shellcheck disable=2034
-		assert.ok() {
-			local -n assert_ok_=${1?${FUNCNAME[0]}: missing argument}; shift
+		# Assert failed command outputs
+		assert.err() {
+			local -n assert_err_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-			assert_ok_="Command expected to succeed but failed: $*"
-
-			eval -- "$@"
+			# shellcheck disable=2034
+			assert_err_=("$(
+				hope -success=false "$@"
+			)")
 		}
 
-		# Assert command failed
-		assert.notok() {
-			local -n assert_notok_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-			assert_notok_="Command expected to fail but succeeded: $*"
-
-			! eval -- "$@"
+		# Just fail
+		assert.fail() {
+			false
 		}
 
 		# Assert actual value equals to the expected
@@ -1482,6 +1499,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			local got=${1?${FUNCNAME[0]}: missing argument};      shift
 			local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
+			# shellcheck disable=2034
 			assert_is_="Got '$got' where expected '$expected'"
 
 			[[ $got = "$expected" ]]
@@ -1494,6 +1512,7 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			local got=${1?${FUNCNAME[0]}: missing argument};      shift
 			local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
+			# shellcheck disable=2034
 			assert_isnt_=("Got unexpected '$got'")
 
 			[[ $got != "$expected" ]]
@@ -1506,9 +1525,45 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			local got=${1?${FUNCNAME[0]}: missing argument};      shift
 			local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
+			# shellcheck disable=2034
 			assert_like_=("Got '$got' where expected to match with '$expected'")
 
 			[[ $got =~ $expected ]]
+		}
+
+		# Assert command failed
+		assert.notok() {
+			local -n assert_notok_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+			# shellcheck disable=2034
+			assert_notok_="Command expected to fail but succeeded: $*"
+
+			! eval -- "$@"
+		}
+
+		# Assert command succeed
+		# shellcheck disable=2034
+		assert.ok() {
+			local -n assert_ok_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+			assert_ok_="Command expected to succeed but failed: $*"
+
+			eval -- "$@"
+		}
+
+		# Assert successful command outputs
+		assert.out() {
+			local -n assert_out_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+			# shellcheck disable=2034
+			assert_out_=("$(
+				hope -success=true "$@"
+			)")
+		}
+
+		# Just pass
+		assert.pass() {
+			true
 		}
 
 		# Assert got value not matches with the expected
@@ -1518,37 +1573,10 @@ if [[ ${OVERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			local got=${1?${FUNCNAME[0]}: missing argument};      shift
 			local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
+			# shellcheck disable=2034
 			assert_unlike_=("Got '$got' where expected to unmatch with '$expected'")
 
 			[[ ! $got =~ $expected ]]
-		}
-
-		# Assert successful command outputs
-		assert.out() {
-			local -n assert_out_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-			assert_out_=("$(
-				hope -success=true "$@"
-			)")
-		}
-
-		# Assert failed command outputs
-		assert.err() {
-			local -n assert_err_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-			assert_err_=("$(
-				hope -success=false "$@"
-			)")
-		}
-
-		# Just pass
-		assert.pass() {
-			true
-		}
-
-		# Just fail
-		assert.fail() {
-			false
 		}
 
 		declare -gr _SELF=$_SELF

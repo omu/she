@@ -92,6 +92,14 @@ _.should() {
 	esac
 }
 
+.calling() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "--> $message"
+
+	"$@"
+}
+
 # Capture outputs to arrays and return exit code
 # shellcheck disable=2034,2178
 .capture() {
@@ -124,13 +132,6 @@ _.should() {
 	fi
 
 	return $ret
-}
-.calling() {
-	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	.say "--> $message"
-
-	"$@"
 }
 
 .dbg() {
@@ -205,14 +206,6 @@ _.should() {
 	[[ ! -t 0 ]]
 }
 
-.running() {
-	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	.say "... $message"
-
-	"$@"
-}
-
 .stacktrace() {
 	local -i i=1
 
@@ -222,9 +215,17 @@ _.should() {
 	done | grep -v "^${BASH_SOURCE[0]}"
 }
 
-# Initialize underscore system
+.running() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
 
-.init() {
+	.say "... $message"
+
+	"$@"
+}
+
+# _ - Init
+
+_.init() {
 	# Default variable as a hash
 	declare -gA _=()
 
@@ -249,3 +250,5 @@ _.should() {
 
 	unset -f "${FUNCNAME[0]}"
 }
+
+_.init

@@ -1,14 +1,28 @@
 # virt.sh - Virtualization functions
 
-# Detect virtualization type
-virt() {
+# Assert any of the virtualization type
+virt.any() {
 	local -A _=(
-		[.argc]=0
+		[.help]='VIRTUALIZATION...'
+		[.argc]=1-
 	)
 
 	flag.parse
 
-	systemd-detect-virt || true
+	local virt
+	for virt; do
+		local func=virt.is._"${virt}"
+
+		if .callable "$func"; then
+			"$func"
+		else
+			[[ $(virt.which) = "$virt" ]]
+		fi || continue
+
+		return 0
+	done
+
+	return 1
 }
 
 # Assert virtualization type
@@ -27,36 +41,22 @@ virt.is() {
 	if .callable "$func"; then
 		"$func"
 	else
-		[[ $(virt) = "$virt" ]]
+		[[ $(virt.which) = "$virt" ]]
 	fi
 }
 
-# Assert any of the virtualization type
-virt.any() {
+# Detect virtualization type
+virt.which() {
 	local -A _=(
-		[.help]='VIRTUALIZATION...'
-		[.argc]=1-
+		[.argc]=0
 	)
 
 	flag.parse
 
-	local virt
-	for virt; do
-		local func=virt.is._"${virt}"
-
-		if .callable "$func"; then
-			"$func"
-		else
-			[[ $(virt) = "$virt" ]]
-		fi || continue
-
-		return 0
-	done
-
-	return 1
+	systemd-detect-virt || true
 }
 
-# os - Private functions
+# virt - Private functions
 
 virt.is._any() {
 	[[ -z ${CI:-} ]] || return 0

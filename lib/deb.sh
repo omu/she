@@ -1,8 +1,33 @@
 # deb.sh - Debian package management
 
-.available apt-get || .die 'Only Debian and derivatives supported.'
+# Add Debian repository
+deb.add() {
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
 
-export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
+	# shellcheck disable=2192
+	local -A _=(
+		[repository]=$NIL
+		[key]=
+		[deb]=$NIL
+		[src]=
+
+		[.help]='repository=NAME deb=LINE [src=LINE] [key=URL]'
+		[.argc]=0
+	)
+
+	flag.parse
+
+	local repository=${_[repository]:-}
+
+	[[ -n $repository ]] || .bug "Undefined repository."
+
+	[[ -z ${_[key]:-} ]] || deb._key_add "${_[key]}" || return 0
+
+	echo "deb ${_[deb]}"  >/etc/apt/sources.list.d/"$repository".list
+	[[ -z ${_[src]:-} ]] || echo "deb-src ${_[src]}" >>/etc/apt/sources.list.d/"$repository".list
+
+	.getting 'Updating package index' apt-get update -y
+}
 
 # Install Debian packages
 deb.install() {
@@ -88,6 +113,23 @@ deb.install() {
 	[[ "${#urls[@]}" -eq 0     ]] || .running 'Installing packages' deb._install_from_urls "${urls[@]}"
 }
 
+# Print missing packages among given packages
+deb.missings() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='PACKAGE...'
+	)
+
+	flag.parse
+
+	local -a missings
+	deb._missings missings "$@"
+
+	for package in "${missings[@]}"; do
+		echo "$package"
+	done
+}
+
 # Uninstall Debian packages
 deb.uninstall() {
 	# shellcheck disable=2192
@@ -111,29 +153,6 @@ deb.uninstall() {
 	.should -- apt-get autoclean -y
 }
 
-deb.installed() {
-	local package="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	[[ -n "$(dpkg-query -W -f='${Installed-Size}' "$package" 2>/dev/null ||:)" ]]
-}
-
-# Print missing packages among given packages
-deb.missings() {
-	# shellcheck disable=2192
-	local -A _=(
-		[.help]='PACKAGE...'
-	)
-
-	flag.parse
-
-	local -a missings
-	deb._missings missings "$@"
-
-	for package in "${missings[@]}"; do
-		echo "$package"
-	done
-}
-
 # Update Debian package index
 # shellcheck disable=2120
 deb.update() {
@@ -150,35 +169,6 @@ deb.update() {
 
 		.getting 'Updating package index' apt-get update -y
 	fi
-}
-
-# Add Debian repository
-deb.add() {
-	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
-
-	# shellcheck disable=2192
-	local -A _=(
-		[repository]=$NIL
-		[key]=
-		[deb]=$NIL
-		[src]=
-
-		[.help]='repository=NAME deb=LINE [src=LINE] [key=URL]'
-		[.argc]=0
-	)
-
-	flag.parse
-
-	local repository=${_[repository]:-}
-
-	[[ -n $repository ]] || .bug "Undefined repository."
-
-	[[ -z ${_[key]:-} ]] || deb._key_add "${_[key]}" || return 0
-
-	echo "deb ${_[deb]}"  >/etc/apt/sources.list.d/"$repository".list
-	[[ -z ${_[src]:-} ]] || echo "deb-src ${_[src]}" >>/etc/apt/sources.list.d/"$repository".list
-
-	.getting 'Updating package index' apt-get update -y
 }
 
 # Use given official Debian distributions
@@ -209,23 +199,41 @@ deb.using() {
 
 # deb - Private functions
 
-deb._dist_valid() {
-	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	http.is http://ftp.debian.org/debian/dists/"$dist"/ OK
-}
-
 deb._dist_added() {
 	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	grep -qE "^deb.*\bdebian.org\b.*\b$dist\b" /etc/apt/*.list /etc/apt/sources.list.d/*.list
 }
 
-deb._key_add() {
-	.involving_gnupg deb._key_add_ "$@"
+deb._dist_valid() {
+	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	http.is http://ftp.debian.org/debian/dists/"$dist"/ OK
 }
 
-.involving_gnupg() {
+deb._installed() {
+	local package="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	[[ -n "$(dpkg-query -W -f='${Installed-Size}' "$package" 2>/dev/null ||:)" ]]
+}
+
+deb._install_from_urls() {
+	local url
+
+	for url; do
+		local deb
+
+		file.download "$url" deb
+
+		dpkg-deb --info "$deb" &>/dev/null || .die "Not a valid Debian package: $url"
+		dpkg -i -- "$deb" 2>/dev/null || true
+		apt-get -y install --no-install-recommends --fix-broken
+
+		rm -f -- "$deb"
+	done
+}
+
+deb._key_add() {
 	local artifact=
 
 	if [[ ! -d $HOME/.gnupg ]]; then
@@ -235,7 +243,7 @@ deb._key_add() {
 	fi
 
 	local err
-	"$@"  || err=$? && err=$?
+	deb._key_add_ "$@"  || err=$? && err=$?
 
 	[[ -z ${artifact:-} ]] || rm -rf "$artifact"
 
@@ -285,22 +293,17 @@ deb._missings() {
 	local package
 	for package; do
 		# shellcheck disable=2016
-		deb.installed "$package" || deb_missings_+=("$package")
+		deb._installed "$package" || deb_missings_+=("$package")
 	done
 }
 
-deb._install_from_urls() {
-	local url
+# deb - Init
 
-	for url; do
-		local deb
+deb.init() {
+	.available apt-get || .die 'Only Debian and derivatives supported.'
 
-		file.download "$url" deb
-
-		dpkg-deb --info "$deb" &>/dev/null || .die "Not a valid Debian package: $url"
-		dpkg -i -- "$deb" 2>/dev/null || true
-		apt-get -y install --no-install-recommends --fix-broken
-
-		rm -f -- "$deb"
-	done
+	export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 }
+
+deb.init
+

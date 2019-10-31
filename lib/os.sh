@@ -1,22 +1,5 @@
 # os.sh - OS related functions
 
-# Distribution name
-# shellcheck disable=2120
-os.dist() {
-	local -A _; flag.parse
-
-	# shellcheck disable=1091
-	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
-}
-
-# Distribution codename
-# shellcheck disable=2120
-os.codename() {
-	local -A _; flag.parse
-
-	lsb_release -sc
-}
-
 # Assert any OS feature
 os.any() {
 	local -A _=(
@@ -35,6 +18,21 @@ os.any() {
 	done
 
 	return 1
+}
+
+# Distribution codename
+os.codename() {
+	local -A _; flag.parse
+
+	lsb_release -sc
+}
+
+# Distribution name
+os.dist() {
+	local -A _; flag.parse
+
+	# shellcheck disable=1091
+	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
 }
 
 # Assert OS feature
@@ -77,12 +75,8 @@ os._is() {
 	fi
 }
 
-os.is._unstable() {
-	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-}
-
-os.is._testing() {
-	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+os.is._proxmox() {
+	.available pveversion && uname -a | grep -q -i pve
 }
 
 os.is._sid() {
@@ -93,6 +87,10 @@ os.is._stable() {
 	! os.is._unstable
 }
 
-os.is._proxmox() {
-	.available pveversion && uname -a | grep -q -i pve
+os.is._unstable() {
+	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+}
+
+os.is._testing() {
+	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
 }

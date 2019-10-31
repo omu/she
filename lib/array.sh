@@ -1,11 +1,13 @@
 # array.sh - Array functions
 
-# Join array with the given separator
-array.join() {
-	local IFS=${1?${FUNCNAME[0]}: missing argument}; shift
+# Array contains the given element
+array.contains() {
+	local -n array_contains_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    element=${1?${FUNCNAME[0]}: missing argument};         shift
 
-	echo "$*"
+	.contains "$element" "${array_contains_[@]}"
 }
+
 # Duplicate array
 array.dup() {
 	local -n array_dup_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -18,10 +20,9 @@ array.dup() {
 	done
 }
 
-# Array contains the given element
-array.contains() {
-	local -n array_contains_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    element=${1?${FUNCNAME[0]}: missing argument};         shift
+# Join array with the given separator
+array.join() {
+	local IFS=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	.contains "$element" "${array_contains_[@]}"
+	echo "$*"
 }

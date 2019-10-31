@@ -1,34 +1,29 @@
 # flag.sh - Flag handling
 
-shopt -s expand_aliases
-
-# shellcheck disable=2142
-alias flag.parse='flag.parse_ "$@"; local -a __a; flag.args_ __a; set -- "${__a[@]}"; unset -v __a'
-
-# shellcheck disable=2034
-declare -gr NIL="\0"
-
-flag.usage_() {
-	if [[ -n ${_[.help]:-} ]]; then
-		# shellcheck disable=2128
-		.say "Usage: ${PROGNAME[*]} ${_[.help]}"
-	else
-		# shellcheck disable=2128
-		.say "Usage: ${PROGNAME[*]}"
-	fi
+flag.args_() {
+	flag.values '^[1-9][0-9]*$' "$@"
 }
 
-flag.usage_and_die_() {
-	flag.usage_
-
-	.die "$@"
+flag.env_() {
+	flag.values '^[[:alpha:]_][[:alnum:]_]*$' "$@"
 }
 
-# shellcheck disable=2120
-flag.usage_and_bye_() {
-	flag.usage_
+flag.false() {
+	! flag.true "$@"
+}
 
-	.bye "$@"
+flag.load() {
+	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!_load_src_[@]}"; do
+		# shellcheck disable=2034
+		_[$key]=${_load_src_[$key]}
+	done
+}
+
+flag.nil() {
+	[[ ${_[$1]:-} = "$NIL" ]]
 }
 
 # shellcheck disable=2034
@@ -65,16 +60,6 @@ flag.parse_() {
 	flag._validate_ $argc
 }
 
-flag.load() {
-	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!_load_src_[@]}"; do
-		# shellcheck disable=2034
-		_[$key]=${_load_src_[$key]}
-	done
-}
-
 flag.values() {
 	local pattern=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -105,38 +90,34 @@ flag.values() {
 	fi
 }
 
-flag.args_() {
-	flag.values '^[1-9][0-9]*$' "$@"
-}
-
-flag.env_() {
-	flag.values '^[[:alpha:]_][[:alnum:]_]*$' "$@"
-}
-
 flag.true() {
 	.bool "${_[$1]:-}"
 }
 
-flag.false() {
-	! flag.true "$@"
+flag.usage_() {
+	if [[ -n ${_[.help]:-} ]]; then
+		# shellcheck disable=2128
+		.say "Usage: ${PROGNAME[*]} ${_[.help]}"
+	else
+		# shellcheck disable=2128
+		.say "Usage: ${PROGNAME[*]}"
+	fi
 }
 
-flag.nil() {
-	[[ ${_[$1]:-} = "$NIL" ]]
+flag.usage_and_die_() {
+	flag.usage_
+
+	.die "$@"
 }
 
-flag._nils_() {
-	local -a required=()
+# shellcheck disable=2120
+flag.usage_and_bye_() {
+	flag.usage_
 
-	local key
-	for key in "${!_[@]}"; do
-		if flag.nil "$key"; then
-			required+=("$key")
-		fi
-	done
-
-	[[ ${#required[@]} -eq 0 ]] || .die "Missing values for: ${required[*]}"
+	.bye "$@"
 }
+
+# flag - Private functions
 
 flag._args_() {
 	local n=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -167,7 +148,34 @@ flag._args_() {
 	flag.usage_and_die_ "$message"
 }
 
+flag._nils_() {
+	local -a required=()
+
+	local key
+	for key in "${!_[@]}"; do
+		if flag.nil "$key"; then
+			required+=("$key")
+		fi
+	done
+
+	[[ ${#required[@]} -eq 0 ]] || .die "Missing values for: ${required[*]}"
+}
+
 flag._validate_() {
 	flag._args_ "$@"
 	flag._nils_
 }
+
+# flag - Init
+
+flag.init() {
+	shopt -s expand_aliases
+
+	# shellcheck disable=2142
+	alias flag.parse='flag.parse_ "$@"; local -a __a; flag.args_ __a; set -- "${__a[@]}"; unset -v __a'
+
+	# shellcheck disable=2034
+	declare -gr NIL="\0"
+}
+
+flag.init

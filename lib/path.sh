@@ -1,9 +1,41 @@
 # path.sh - Path management
 
-path.is.volatile() {
-	local path=${1?${FUNCNAME[0]}: missing argument}; shift
+path.base() {
+	local -n path_base_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    ext=${1:-}
 
-	df -t tmpfs "$path" &>/dev/null
+	path_base_=${path_base_##*/}
+}
+
+path.dir() {
+	local -n path_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	path.normalize path_dir_
+
+	case $path_dir_ in
+	*/*)
+		path_dir_=${path_dir_%/*}
+		[[ -n $path_dir_ ]] || path_dir_=/
+		;;
+	*)
+		path_dir_=.
+		;;
+	esac
+}
+
+path.ext() {
+	local -n path_ext_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	path_ext_=${path_ext_##*/}
+
+	case $path_ext_ in
+	*.*)
+		path_ext_=${path_ext_##*.}
+		;;
+	*)
+		path_ext_=
+		;;
+	esac
 }
 
 path.is.equal() {
@@ -23,27 +55,10 @@ path.is.inside() {
 	[[ ! $relative =~ ^[.] ]]
 }
 
-path.dir() {
-	local -n path_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
+path.is.volatile() {
+	local path=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	path.normalize path_dir_
-
-	case $path_dir_ in
-	*/*)
-		path_dir_=${path_dir_%/*}
-		[[ -n $path_dir_ ]] || path_dir_=/
-		;;
-	*)
-		path_dir_=.
-		;;
-	esac
-}
-
-path.base() {
-	local -n path_base_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    ext=${1:-}
-
-	path_base_=${path_base_##*/}
+	df -t tmpfs "$path" &>/dev/null
 }
 
 path.name() {
@@ -54,44 +69,6 @@ path.name() {
 	path_name_=${path_name_%.*}
 }
 
-path.ext() {
-	local -n path_ext_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	path_ext_=${path_ext_##*/}
-
-	case $path_ext_ in
-	*.*)
-		path_ext_=${path_ext_##*.}
-		;;
-	*)
-		path_ext_=
-		;;
-	esac
-}
-
-path.subext() {
-	local -n path_subext_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    ext=${1?${FUNCNAME[0]}: missing argument};          shift
-
-	case $path_subext_ in
-	*.*)
-		path_subext_=${path_subext_%.*}
-		path_subext_=${path_subext_}.${ext}
-		;;
-	*)
-		;;
-	esac
-}
-
-path.suffixize() {
-	local -n path_suffixize_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    suffix=${1?${FUNCNAME[0]}: missing argument};          shift
-
-	local -A _
-	path.parse_ "$path_suffixize_"
-
-	printf -v path_suffixize_ "%s/%s${suffix}%s" "${_[.dir]:-.}" "${_[.name]}" "${_[.dotext]}"
-}
 
 path.normalize() {
 	local -n path_normalize_=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -131,3 +108,26 @@ path.parse_() {
 	fi
 }
 
+path.subext() {
+	local -n path_subext_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    ext=${1?${FUNCNAME[0]}: missing argument};          shift
+
+	case $path_subext_ in
+	*.*)
+		path_subext_=${path_subext_%.*}
+		path_subext_=${path_subext_}.${ext}
+		;;
+	*)
+		;;
+	esac
+}
+
+path.suffixize() {
+	local -n path_suffixize_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    suffix=${1?${FUNCNAME[0]}: missing argument};          shift
+
+	local -A _
+	path.parse_ "$path_suffixize_"
+
+	printf -v path_suffixize_ "%s/%s${suffix}%s" "${_[.dir]:-.}" "${_[.name]}" "${_[.dotext]}"
+}

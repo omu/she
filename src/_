@@ -79,7 +79,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['url is']='url.is'
 		['virt any']='virt.any'
 		['virt is']='virt.is'
-		['virt']='virt'
+		['virt which']='virt.which'
 	)
 
 	#:src/common.sh
@@ -96,7 +96,6 @@ EOF
 		if ! .interactive && [[ $# -eq 0 ]]; then
 			.source
 		else
-			.init
 			.dispatch "$@"
 		fi
 	}

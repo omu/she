@@ -12,11 +12,22 @@ self() {
 	fi
 }
 
-# Print self version
-self.version() {
-	local -A _; flag.parse
+# Install self
+self.install() {
+	# shellcheck disable=2192,2128
+	local -A _=(
+		[-prefix]="$_USR"/bin
+		[-name]=$PROGNAME
 
-	echo 0.0
+		[.help]=
+		[.argc]=0
+	)
+
+	flag.parse
+
+	_[1]=$(self.path)
+
+	bin.install_
 }
 
 # Print self name
@@ -42,20 +53,9 @@ self.path() {
 	esac
 }
 
-# Install self
-self.install() {
-	# shellcheck disable=2192,2128
-	local -A _=(
-		[-prefix]="$_USR"/bin
-		[-name]=$PROGNAME
+# Print self version
+self.version() {
+	local -A _; flag.parse
 
-		[.help]=
-		[.argc]=0
-	)
-
-	flag.parse
-
-	_[1]=$(self.path)
-
-	bin.install_
+	echo 0.0
 }

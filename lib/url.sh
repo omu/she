@@ -1,23 +1,6 @@
 # url.sh - URL processing
 
 # Assert URL type
-url.is() {
-	local -A _=(
-		[.help]='URL TYPE'
-		[.argc]=2
-	)
-
-	flag.parse
-
-	local url=$1 expected=$2
-
-	local got=
-	url.type_ "$url" got
-
-	[[ $expected = "$got" ]]
-}
-
-# Assert URL type
 url.any() {
 	local -A _=(
 		[.help]='URL TYPE...'
@@ -41,43 +24,24 @@ url.any() {
 	return 1
 }
 
-# url - Protected functions
+# Assert URL type
+url.is() {
+	local -A _=(
+		[.help]='URL TYPE'
+		[.argc]=2
+	)
 
-url.type_() {
-	local    url=${1?${FUNCNAME[0]}: missing argument};       shift
-	local -n url_type_=${1?${FUNCNAME[0]}: missing argument}; shift
+	flag.parse
 
-	url_type_=none
+	local url=$1 expected=$2
 
-	if [[ $url =~ ^(/|[.]/) ]]; then
-		url_type_=local
-		return
-	fi
+	local got=
+	url.type_ "$url" got
 
-	if [[ $url =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
-		# shellcheck disable=2034
-		url_type_=src
-		return
-	fi
-
-	if [[ ! $url =~ ^([^:]+://) ]]; then
-		# shellcheck disable=2034
-		url_type_=local
-		return
-	fi
-
-	if [[ $url =~ ^(http|https):// ]]; then
-		# shellcheck disable=2034
-		url_type_=web
-		return
-	fi
-
-	if [[ $url =~ ^(git|git[+]ssh|ssh):// ]]; then
-		# shellcheck disable=2034
-		url_type_=src
-		return
-	fi
+	[[ $expected = "$got" ]]
 }
+
+# url - Protected functions
 
 # Parse URL
 # shellcheck disable=2034
@@ -159,3 +123,40 @@ url.parse_() {
 	url_parse_[.proto]=$proto
 	url_parse_[.userinfo]=$userinfo
 }
+
+url.type_() {
+	local    url=${1?${FUNCNAME[0]}: missing argument};       shift
+	local -n url_type_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	url_type_=none
+
+	if [[ $url =~ ^(/|[.]/) ]]; then
+		url_type_=local
+		return
+	fi
+
+	if [[ $url =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
+		# shellcheck disable=2034
+		url_type_=src
+		return
+	fi
+
+	if [[ ! $url =~ ^([^:]+://) ]]; then
+		# shellcheck disable=2034
+		url_type_=local
+		return
+	fi
+
+	if [[ $url =~ ^(http|https):// ]]; then
+		# shellcheck disable=2034
+		url_type_=web
+		return
+	fi
+
+	if [[ $url =~ ^(git|git[+]ssh|ssh):// ]]; then
+		# shellcheck disable=2034
+		url_type_=src
+		return
+	fi
+}
+

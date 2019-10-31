@@ -1,5 +1,12 @@
 # defer.sh - Deferred functions
 
+# Register files/directories to clean up at exit
+.clean() {
+	[[ -v _defer_initialized_ ]] || .defer
+
+	_defer_clean_+=("$@")
+}
+
 # shellcheck disable=2120
 .defer() {
 	if [[ -v _defer_initialized_ ]]; then
@@ -73,11 +80,4 @@
 	}
 
 	readonly -f _defer_
-}
-
-# Register files/directories to clean up at exit
-.clean() {
-	[[ -v _defer_initialized_ ]] || .defer
-
-	_defer_clean_+=("$@")
 }

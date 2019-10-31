@@ -1,5 +1,13 @@
 # string.sh - String manipulation
 
+string.delete_prefix() {
+	string.has_prefix_deleted "$@" || :
+}
+
+string.delete_suffix() {
+	string.has_suffix_deleted "$@" || :
+}
+
 string.has_prefix_deleted() {
 	local -n string_has_prefix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
 	local    prefix=${1?${FUNCNAME[0]}: missing argument};                     shift
@@ -13,10 +21,6 @@ string.has_prefix_deleted() {
 	return 1
 }
 
-string.delete_prefix() {
-	string.has_prefix_deleted "$@" || :
-}
-
 string.has_suffix_deleted() {
 	local -n string_has_suffix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
 	local    suffix=${1?${FUNCNAME[0]}: missing argument};                     shift
@@ -28,8 +32,4 @@ string.has_suffix_deleted() {
 	fi
 
 	return 1
-}
-
-string.delete_suffix() {
-	string.has_suffix_deleted "$@" || :
 }

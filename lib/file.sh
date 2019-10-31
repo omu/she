@@ -1,5 +1,28 @@
 # file.sh - File related operations
 
+# Copy file/directory to dstination creating all parents if necessary
+file.copy() {
+	file._do_args_ copy "$@"
+}
+
+file.chogm() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-group]=
+		[-mode]=
+		[-owner]=
+
+		[.help]='[-group=GROUP|mode=MODE|owner=USER] URL [FILE]'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	local dst=$1
+
+	file.chogm_ "$dst"
+}
+
 # Install file from URL
 file.install() {
 	# shellcheck disable=2192
@@ -21,37 +44,14 @@ file.install() {
 	file.install_ "$url" "$dst"
 }
 
-# Copy file/directory to dstination creating all parents if necessary
-file.copy() {
-	file._do_args_ copy "$@"
-}
-
-# Move file/directory to destination creating all parents if necessary
-file.move() {
-	file._do_args_ move "$@"
-}
-
 # Link file/directory to dstination creating all parents if necessary
 file.link() {
 	file._do_args_ link "$@"
 }
 
-file.chogm() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-group]=
-		[-mode]=
-		[-owner]=
-
-		[.help]='[-group=GROUP|mode=MODE|owner=USER] URL [FILE]'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	local dst=$1
-
-	file.chogm_ "$dst"
+# Move file/directory to destination creating all parents if necessary
+file.move() {
+	file._do_args_ move "$@"
 }
 
 # Run program
@@ -92,14 +92,6 @@ file.run() {
 
 # file - Protected functions
 
-file.ln() {
-	local src=${1?${FUNCNAME[0]}: missing argument}; shift
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	src=$(realpath -m --relative-base "${dst%/*}" "$src")
-	.must -- ln -sf "$src" "$dst"
-}
-
 file.enter() {
 	local dir=${1:-}
 
@@ -112,21 +104,6 @@ file.enter() {
 		[[ -d $dir ]] || .die "No path found to enter: $dir"
 		.must -- cd "$dir"
 	fi
-}
-
-file.download() {
-	local    url=${1?${FUNCNAME[0]}: missing argument};                shift
-	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local download
-	temp.file download
-
-	.getting "Downloading $url"
-	.must -- http.get "$url" >"$download"
-	.must -- chmod 644 "$download"
-
-	# shellcheck disable=2034
-	file_download_dst_=$download
 }
 
 file.do_() {
@@ -172,6 +149,21 @@ file.do_() {
 	_[.]=$done
 }
 
+file.download() {
+	local    url=${1?${FUNCNAME[0]}: missing argument};                shift
+	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local download
+	temp.file download
+
+	.getting "Downloading $url"
+	.must -- http.get "$url" >"$download"
+	.must -- chmod 644 "$download"
+
+	# shellcheck disable=2034
+	file_download_dst_=$download
+}
+
 file.dst_() {
 	local -n file_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -189,6 +181,14 @@ file.install_() {
 	else
 		file.do_ copy "$src" "$dst"
 	fi
+}
+
+file.ln() {
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	src=$(realpath -m --relative-base "${dst%/*}" "$src")
+	.must -- ln -sf "$src" "$dst"
 }
 
 file.run_() {
@@ -218,6 +218,14 @@ file.run_() {
 
 # file - Private functions
 
+file._chogm_() {
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ -z ${_[-mode]:-}  ]] || .must -- chmod "${_[-mode]}"  "$dst"
+	[[ -z ${_[-owner]:-} ]] || .must -- chown "${_[-owner]}" "$dst"
+	[[ -z ${_[-group]:-} ]] || .must -- chgrp "${_[-group]}" "$dst"
+}
+
 file._do_args_() {
 	local op=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -237,12 +245,4 @@ file._do_args_() {
 	local src=$1 dst=$2
 
 	file.do_ "$op" "$src" "$dst"
-}
-
-file._chogm_() {
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ -z ${_[-mode]:-}  ]] || .must -- chmod "${_[-mode]}"  "$dst"
-	[[ -z ${_[-owner]:-} ]] || .must -- chown "${_[-owner]}" "$dst"
-	[[ -z ${_[-group]:-} ]] || .must -- chgrp "${_[-group]}" "$dst"
 }
