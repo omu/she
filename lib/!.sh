@@ -65,6 +65,45 @@
 	exit 1
 }
 
+.err() {
+	.out "$@" >&2
+}
+
+.expired() {
+	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $expiry -gt 0 ]] || return 1
+
+	local file
+	for file; do
+		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
+			return 1
+		fi
+	done
+
+	return 0
+}
+
+.interactive() {
+	[[   -t 1 ]]
+}
+
+.out() {
+	local arg
+
+	for arg; do
+		echo -e "$arg"
+	done
+
+	if .piped; then
+		cat
+	fi
+}
+
+.piped() {
+	[[ ! -t 0 ]]
+}
+
 .load() {
 	# shellcheck disable=2128
 	local _load_old_=$PWD

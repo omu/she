@@ -166,6 +166,25 @@ flag._validate_() {
 	flag._nils_
 }
 
+# flag - Protected functions
+
+.bool() {
+	local value=${1:-}
+
+	value=${value,,}
+
+	case $value in
+	true|t|1|on|yes|y)
+		return 0
+		;;
+	false|f|0|off|no|n|"")
+		return 1
+		;;
+	*)
+		.bug "Invalid boolean: $value"
+	esac
+}
+
 # flag - Init
 
 flag._init() {
