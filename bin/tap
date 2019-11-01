@@ -1,0 +1,1267 @@
+#!/usr/bin/env bash
+
+[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
+[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
+
+# Protected functions
+
+.available() {
+	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
+}
+
+.bug() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "BUG: $*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 127
+}
+
+.bye() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "$*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 0
+}
+
+.callable() {
+	[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
+}
+
+.contains() {
+	: "${1?${FUNCNAME[0]}: missing argument}"
+
+	local element
+
+	for element in "${@:2}"; do
+		if [[ $element = "$1" ]]; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+.cry() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "W: $*"
+	else
+		echo >&2 ""
+	fi
+}
+
+.die() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "E: $*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 1
+}
+
+.load() {
+	# shellcheck disable=2128
+	local _load_old_=$PWD
+
+	[[ -v _load_dirs_ ]] || declare -ag _load_dirs_=(
+		"$(dirname "$(readlink -f "$0")")"
+	)
+
+	local _load_src_
+
+	for _load_src_; do
+		builtin cd "${_load_dirs_[-1]}" || .die "Chdir error: ${_load_dirs_[-1]}"
+
+		local _load_src_found_
+
+		for _load_src_found_ in "$_load_src_" "$_load_src_".sh; do
+			if [[ -f $_load_src_found_ ]]; then
+				_load_src_found_=$(readlink -f "$_load_src_found_")
+
+				_load_dirs_+=("$(dirname "$_load_src_found_")")
+
+				builtin source "$_load_src_found_"
+			fi
+		done
+
+		unset _load_src_found_
+	done
+
+	unset _load_src_
+
+	builtin cd "$_load_old_" || .die "Chdir error: $_load_old_"
+	unset _load_old_
+}
+
+.must() {
+	if [[ ${1:-} = -- ]]; then
+		shift
+
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .die "Command failed: $*"
+	else
+		eval -- "${@:2}" || .die "${1?${FUNCNAME[0]}: missing argument}"
+	fi
+}
+
+.say() {
+	echo -e "${@-""}"
+}
+
+.should() {
+	if [[ ${1:-} = -- ]]; then
+		shift
+
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .cry "Exit code $? is suppressed: $*"
+	else
+		eval -- "${@:2}" || .cry "${1?${FUNCNAME[0]}: missing argument}"
+	fi
+}
+
+# Init
+
+# shellcheck disable=2034,2128
+.prelude() {
+	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+
+	export LC_ALL=C.UTF-8 LANG=C.UTF-8
+
+	declare -ag PROGNAME=("${0##*/}") # Program name
+
+	declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
+}
+
+.prelude
+
+# flag.sh - Flag handling
+
+flag.args_() {
+	flag.values '^[1-9][0-9]*$' "$@"
+}
+
+flag.env_() {
+	flag.values '^[[:alpha:]_][[:alnum:]_]*$' "$@"
+}
+
+flag.false() {
+	! flag.true "$@"
+}
+
+flag.load() {
+	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!_load_src_[@]}"; do
+		# shellcheck disable=2034
+		_[$key]=${_load_src_[$key]}
+	done
+}
+
+flag.nil() {
+	[[ ${_[$1]:-} = "$NIL" ]]
+}
+
+# shellcheck disable=2034
+flag.parse_() {
+	if .contains -help "$@"; then
+		flag.usage_and_bye_
+	fi
+
+	local -A flag_result_
+
+	local -i argc=0
+	while [[ $# -gt 0 ]]; do
+		local key value
+
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+			key=${1%%=*}; value=${1#*=}
+			if [[ $key =~ ^-.+$ ]] && [[ ! -v _[$key] ]]; then
+				.die "Unrecognized flag: $key"
+			fi
+		elif [[ $1 == '--' ]] && [[ -z ${_[.dash]:-} ]]; then
+			shift
+			break
+		else
+			key=$((++argc)); value=$1
+		fi
+
+		flag_result_["$key"]=${value:-${_["$key"]:-}}
+
+		shift
+	done
+
+	flag.load flag_result_
+
+	flag._validate_ $argc
+}
+
+flag.values() {
+	local pattern=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local -a keys
+
+	mapfile -t keys < <(
+		for key in "${!_[@]}"; do
+			[[ $key =~ $pattern ]] || continue
+
+			echo "$key"
+		done | sort -u
+	)
+
+	local key
+
+	if [[ $# -gt 0 ]]; then
+		local -n _values_=$1
+
+		for key in "${keys[@]}"; do
+			_values_+=("${_[$key]}")
+		done
+
+		_values_=("${_values_[@]}")
+	else
+		for key in "${keys[@]}"; do
+			echo "${_[$key]}"
+		done
+	fi
+}
+
+flag.true() {
+	.bool "${_[$1]:-}"
+}
+
+flag.usage_() {
+	if [[ -n ${_[.help]:-} ]]; then
+		# shellcheck disable=2128
+		.say "Usage: ${PROGNAME[*]} ${_[.help]}"
+	else
+		# shellcheck disable=2128
+		.say "Usage: ${PROGNAME[*]}"
+	fi
+}
+
+flag.usage_and_die_() {
+	flag.usage_
+
+	.die "$@"
+}
+
+# shellcheck disable=2120
+flag.usage_and_bye_() {
+	flag.usage_
+
+	.bye "$@"
+}
+
+# flag - Private functions
+
+flag._args_() {
+	local n=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local argc=${_[.argc]:-0}
+
+	[[ $argc != '-' ]] || return 0
+
+	local lo hi
+
+	if [[ $argc =~ ^[0-9]+$ ]]; then
+		lo=$argc; hi=$argc
+	elif [[ $argc =~ ^[0-9]*-[0-9]*$ ]]; then
+		IFS=- read -r lo hi <<<"$argc"
+	else
+		.bug "Incorrect range: $argc"
+	fi
+
+	local message
+	if   [[ -n ${lo:-} ]] && [[ $n -lt $lo ]]; then
+		message='Too few arguments'
+	elif [[ -n ${hi:-} ]] && [[ $n -gt $hi ]]; then
+		message='Too many arguments'
+	else
+		return 0
+	fi
+
+	flag.usage_and_die_ "$message"
+}
+
+flag._nils_() {
+	local -a required=()
+
+	local key
+	for key in "${!_[@]}"; do
+		if flag.nil "$key"; then
+			required+=("$key")
+		fi
+	done
+
+	[[ ${#required[@]} -eq 0 ]] || .die "Missing values for: ${required[*]}"
+}
+
+flag._validate_() {
+	flag._args_ "$@"
+	flag._nils_
+}
+
+# flag - Init
+
+flag._init() {
+	shopt -s expand_aliases
+
+	# shellcheck disable=2142
+	alias flag.parse='flag.parse_ "$@"; local -a __a; flag.args_ __a; set -- "${__a[@]}"; unset -v __a'
+
+	# shellcheck disable=2034
+	declare -gr NIL="\0"
+}
+
+flag._init
+
+# _.sh - Required functions
+
+# Return if program available
+_.available() {
+	local -A _=(
+		[.help]='PROGRAM'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.available "$@"
+}
+
+# Return if first argument found in remaining arguments
+_.contains() {
+	local -A _=(
+		[.help]='NEEDLE HAYSTACK'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	.contains "$@"
+}
+
+# Return if any of the files expired
+_.expired() {
+	local -A _=(
+		[-expiry]=3
+
+		[.help]='[-expiry=MINUTES] FILE...'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.expired "${_[-expiry]}" "$@"
+}
+
+# Ensure the given command succeeds
+_.must() {
+	local -A _=(
+		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.argc]=2-
+		[.dash]=true
+	)
+
+	flag.parse
+
+	.must "$@"
+}
+
+# Try to run any file or url
+_.run() {
+	local -A _=(
+		[.help]='FILE|URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	local url=$1
+
+	if url.any "$url" web local; then
+		file.run "$url"
+	elif url.is "$url" src; then
+		src.run "$url"
+	else
+		.die "Unsupported URL type: $url"
+	fi
+}
+
+# Ignore error if the given command fails
+_.should() {
+	local -A _=(
+		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.argc]=2-
+		[.dash]=true
+	)
+
+	flag.parse
+
+	.should "$@"
+}
+
+# _ - Protected functions
+
+.bool() {
+	local value=${1:-}
+
+	value=${value,,}
+
+	case $value in
+	true|t|1|on|yes|y)
+		return 0
+		;;
+	false|f|0|off|no|n|"")
+		return 1
+		;;
+	*)
+		.bug "Invalid boolean: $value"
+	esac
+}
+
+.calling() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "--> $message"
+
+	"$@"
+}
+
+# Capture outputs to arrays and return exit code
+# shellcheck disable=2034,2178
+.capture() {
+	local out err ret
+
+	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
+		local -n capture_out_=$1
+
+		out=$(mktemp)
+	fi
+	shift
+
+	if [[ ${1?${FUNCNAME[0]}: missing argument} != '-' ]]; then
+		local -n capture_err_=$1
+
+		err=$(mktemp)
+	fi
+	shift
+
+	"$@" >"${out:-/dev/stdout}" 2>"${err:-/dev/stderr}" && ret=$? || ret=$?
+
+	if [[ -n ${out:-} ]]; then
+		mapfile -t capture_out_ <"$out" || true
+		rm -f -- "$out"
+	fi
+
+	if [[ -n ${err:-} ]]; then
+		mapfile -t capture_err_ <"$err" || true
+		rm -f -- "$err"
+	fi
+
+	return $ret
+}
+
+.dbg() {
+	[[ $# -gt 0 ]] || return 0
+
+	# shellcheck disable=2178,2155
+	local -n dbg_=$1
+
+	echo "${!dbg_}"
+
+	local key
+	for key in "${!dbg_[@]}"; do
+		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
+	done | sort
+
+	echo
+}
+
+.err() {
+	.out "$@" >&2
+}
+
+# Check the expirations of given files
+.expired() {
+	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $expiry -gt 0 ]] || return 1
+
+	local file
+	for file; do
+		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
+			return 1
+		fi
+	done
+
+	return 0
+}
+
+.getting() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "... $message"
+
+	"$@"
+}
+
+.interactive() {
+	[[   -t 1 ]]
+}
+
+.notok() {
+	.say "NOTOK $*"
+}
+
+.ok() {
+	.say "OK    $*"
+}
+
+.out() {
+	local arg
+
+	for arg; do
+		echo -e "$arg"
+	done
+
+	if .piped; then
+		cat
+	fi
+}
+
+.piped() {
+	[[ ! -t 0 ]]
+}
+
+.stacktrace() {
+	local -i i=1
+
+	while [[ -n ${BASH_SOURCE[$i]:-} ]]; do
+		echo "${BASH_SOURCE[$i]}":"${BASH_LINENO[$((i-1))]}":"${FUNCNAME[$i]}"\(\)
+		i=$((i + 1))
+	done | grep -v "^${BASH_SOURCE[0]}"
+}
+
+.running() {
+	local message="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	.say "... $message"
+
+	"$@"
+}
+
+# _ - Init
+
+_._init() {
+	# Default variable as a hash
+	declare -gA _=()
+
+	# shellcheck disable=2034
+
+	# Core environment
+	if [[ ${EUID:-} -eq 0 ]]; then
+		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
+		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
+		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
+	else
+		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
+		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
+		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
+
+		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
+		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
+		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
+	fi
+
+	export PATH="$_RUN"/bin:"$PATH"
+
+	unset -f "${FUNCNAME[0]}"
+}
+
+_._init
+
+# color.sh - Colors
+
+color.code() {
+	local name="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local code="${_color[$name]:-}"
+
+	[[ -n $code ]] || .bug "No such color: $name"
+
+	echo -en "$code"
+}
+
+color.echo() {
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local code reset
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -e "${code}${*}${reset}"
+}
+
+color.expand() {
+	while [[ $# -gt 0 ]]; do
+		local -n color_expand_=${1?missing argument}
+		shift
+
+		local key value
+		for key in "${!color_expand_[@]}"; do
+			value=${color_expand_[$key]}
+
+			color_expand_[$key]=${_color[$value]}
+		done
+	done
+}
+
+color.out() {
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local code reset
+
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -en "$code"
+	.out
+	echo -en "$reset"
+}
+
+color.setup() {
+	while [[ $# -gt 0 ]]; do
+		local key=${1%%=*}; value=${1#*=}
+
+		if [[ -n ${_color[$value]:-} ]]; then
+			_color[$key]=${_color[$value]}
+		else
+			_color[$key]=$value
+		fi
+
+		shift
+	done
+}
+
+# color - Init
+
+# shellcheck disable=2034
+color._init() {
+	declare -Ag _color=(
+		# Basic colors with variants - prefix +: bold, prefix -: dim, suffix -: reverse
+
+		[black]='\e[38;5;8m'          [+black]='\e[1m\e[38;5;8m'     [-black]='\e[38;5;0m'
+		[black-]='\e[48;5;8m'         [+black-]='\e[1m\e[48;5;8m'    [-black-]='\e[48;5;0m'
+
+		[blue]='\e[38;5;12m'          [+blue]='\e[1m\e[38;5;12m'     [-blue]='\e[38;5;4m'
+		[blue-]='\e[48;5;12m'         [+blue-]='\e[1m\e[48;5;12m'    [-blue-]='\e[48;5;4m'
+
+		[cyan]='\e[38;5;14m'          [+cyan]='\e[1m\e[38;5;14m'     [-cyan]='\e[38;5;6m'
+		[cyan-]='\e[48;5;14m'         [+cyan-]='\e[1m\e[48;5;14m'    [-cyan-]='\e[48;5;6m'
+
+		[green]='\e[38;5;10m'         [+green]='\e[1m\e[38;5;10m'    [-green]='\e[38;5;2m'
+		[green-]='\e[48;5;10m'        [+green-]='\e[1m\e[48;5;10m'   [-green-]='\e[48;5;2m'
+
+		[magenta]='\e[38;5;13m'       [+magenta]='\e[1m\e[38;5;13m'  [-magenta]='\e[38;5;5m'
+		[magenta-]='\e[48;5;13m'      [+magenta-]='\e[1m\e[48;5;13m' [-magenta-]='\e[48;5;5m'
+
+		[red]='\e[38;5;9m'            [+red]='\e[1m\e[38;5;9m'       [-red]='\e[38;5;1m'
+		[red-]='\e[48;5;9m'           [+red-]='\e[1m\e[48;5;9m'      [-red-]='\e[48;5;1m'
+
+		[white]='\e[38;5;15m'         [+white]='\e[1m\e[38;5;15m'    [-white]='\e[38;5;7m'
+		[white-]='\e[48;5;15m'        [+white-]='\e[1m\e[48;5;15m'   [-white-]='\e[48;5;7m'
+
+		[yellow]='\e[38;5;11m'        [+yellow]='\e[1m\e[38;5;11m'   [-yellow]='\e[38;5;3m'
+		[yellow-]='\e[48;5;11m'       [+yellow-]='\e[1m\e[48;5;11m'  [-yellow-]='\e[48;5;3m'
+
+		# Attributes
+
+		[bold]='\e[1m'                [dark]='\e[2m'                 [underlined]='\e[4m'
+		[blink]='\e[5m'               [reverse]='\e[7m'              [reset]='\e[0m'
+
+		# Priority aliases
+		[high]='\e[1m'                [medium]=''                    [low]='\e[2m'
+	)
+}
+
+color._init
+
+# ui.sh - UI functions
+
+# Print bug message and exit failure
+ui.bug() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.bug "$@"
+}
+
+# Print message and exit success
+ui.bye() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.bye "$@"
+}
+
+# Print message and run command
+ui.calling() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+# Print warning message
+ui.cry() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.cry "$@"
+}
+
+# Print error message and exit failure
+ui.die() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.die "$@"
+}
+
+# Print message indicating a download and run command
+ui.getting() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.getting "$@"
+}
+
+# Print info message
+ui.hmm() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.hmm "$@"
+}
+
+# Print not ok message
+ui.notok() {
+	local -A _=(
+		[.help]='STRING'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.notok "$@"
+}
+
+# Print ok message
+ui.ok() {
+	local -A _=(
+		[.help]='STRING'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.ok "$@"
+}
+
+# Print a busy message run command
+ui.running() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+# Print message on stderr
+ui.say() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.say "$@"
+}
+
+# ui - Protected functions
+
+ui.out() {
+	local name=${1:-default}
+	shift || true
+
+	local sign=${_sign[$name]}
+
+	# shellcheck disable=2154
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	echo -en "${sign_color}${sign}${reset} "
+	.out "$@"
+	echo -en "$reset "
+}
+
+# ui - Private functions
+
+# shellcheck disable=2154
+ui._echo() {
+	[[ $# -gt 0 ]] || return 0
+
+	local message=$1
+
+	local name=${FUNCNAME[1]#*.}
+
+	local sign=${_sign[$name]}
+
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	if [[ -n ${sign:-} ]]; then
+		echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
+	else
+		echo -e "${text_color}${message}${reset}"
+	fi
+}
+
+# ui - Init
+
+# shellcheck disable=2034,2154
+ui._init() {
+	declare -Ag _sign _sign_color _text_color
+
+	# Style
+
+	_sign[ask]='?';     _sign_color[ask]=+yellow;    _text_color[ask]=high
+	_sign[bug]='✖';     _sign_color[bug]=red;        _text_color[bug]=high
+	_sign[cry]='!';     _sign_color[cry]=+yellow;    _text_color[cry]=medium
+	_sign[die]='✗';     _sign_color[die]=+red;       _text_color[die]=high
+	_sign[hmm]='ℹ';     _sign_color[hmm]=-yellow;    _text_color[hmm]=low
+	_sign[say]='' ;     _sign_color[say]=+white;     _text_color[say]=medium
+
+	_sign[notok]='✗';   _sign_color[notok]=+red;     _text_color[notok]=high
+	_sign[ok]='✓';      _sign_color[ok]=+green;      _text_color[ok]=high
+
+	_sign[calling]='>'; _sign_color[calling]=+cyan;  _text_color[calling]=high
+	_sign[getting]='↓'; _sign_color[getting]=+cyan;  _text_color[getting]=low
+	_sign[running]='∙'; _sign_color[running]=+cyan;  _text_color[running]=low
+	_sign[default]='∙'; _sign_color[default]=+white; _text_color[default]=medium
+
+	color.expand _sign_color _text_color
+
+	.bug()     { ui._echo "$@" >&2; exit 127; }
+	.bye()     { ui._echo "$@" >&2; exit 0;   }
+	.calling() { ui._echo "$1" >&2; "${@:2}"; }
+	.cry()     { ui._echo "$@" >&2;           }
+	.die()     { ui._echo "$@" >&2; exit 1;   }
+	.getting() { ui._echo "$1" >&2; "${@:2}"; }
+	.hmm()     { ui._echo "$@" >&2;           }
+	.notok()   { ui._echo "$@" >&2;           }
+	.ok()      { ui._echo "$@" >&2;           }
+	.running() { ui._echo "$1" >&2; "${@:2}"; }
+	.say()     { ui._echo "$@" >&2;           }
+}
+
+ui._init
+
+# tap.sh - TAP functions
+
+# Mark stdin lines as an error output
+tap.err() {
+	local -A _; flag.parse
+
+	sed 's:^:# err> :' | color.out +red
+}
+
+# Print TAP failure
+tap.failure() {
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+
+		[.help]='test=MSG [number=NUM] [MSG...]'
+		[.argc]=0-
+	)
+
+	flag.parse
+
+	echo -n 'not ok '
+	ui.out notok
+
+	if [[ -n ${_[number]:-} ]]; then
+		echo "${_[number]} - ${_[test]}"
+	else
+		echo "${_[test]}"
+	fi | color.out +blue
+
+	local message
+	for message; do
+		echo "$message"
+	done | sed -u -e 's/^/# /'
+}
+
+# Mark stdin lines as a successful output
+tap.out() {
+	local -A _; flag.parse
+
+	sed 's:^:# out> :' | color.out +green
+}
+
+# Print TAP plan
+tap.plan() {
+	# shellcheck disable=2192
+	local -A _=(
+		[failure]=$NIL
+		[skip]=0
+		[success]=$NIL
+		[todo]=0
+		[total]=$NIL
+
+		[.help]='total=NUM success=NUM failure=NUM [todo=NUM] [skip=NUM]'
+	)
+
+	flag.parse
+
+	echo "1..${_[total]}"
+	echo
+	echo "# ${_[success]} test(s) succeeded, ${_[failure]} test(s) failed, ${_[skip]} test(s) skipped."
+	echo "# There are ${_[todo]} todo test(s) waiting to be done."
+}
+
+# Print TAP summary
+tap.shutdown() {
+	# shellcheck disable=2192
+	local -A _=(
+		[total]=$NIL
+		[success]=$NIL
+		[failure]=$NIL
+		[duration]=$NIL
+
+		[.help]='total=NUM success=NUM failure=NUM duration=SECONDS'
+	)
+
+	flag.parse
+
+	:
+}
+
+# Print TAP skip
+tap.skip() {
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+
+		[.help]='test=MSG [number=NUM]'
+	)
+
+	flag.parse
+
+	echo -n 'ok     '
+	ui.out default
+
+	{
+		if [[ -n ${_[number]:-} ]]; then
+			echo -n "${_[number]} - ${_[test]}"
+		else
+			echo -n "${_[test]}"
+		fi
+
+		color.echo +yellow ' # SKIP'
+	} | color.out +blue
+}
+
+# Print TAP start
+tap.startup() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='[FILE]'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	local file=$1
+
+	echo "# Running tests in $file"
+}
+
+# Print TAP success
+tap.success() {
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+
+		[.help]='test=MSG [number=NUM]'
+	)
+
+	flag.parse
+
+	echo -n 'ok     '
+	ui.out ok
+
+	if [[ -n ${_[number]:-} ]]; then
+		echo "${_[number]} - ${_[test]}"
+	else
+		echo "${_[test]}"
+	fi | color.out +blue
+}
+
+# Print TAP version
+tap.version() {
+	local -A _=(
+		[.argc]=0
+	)
+
+	echo TAP version "$_TAP_VERSION_"
+	echo
+}
+
+# Print TAP todo
+tap.todo() {
+	# shellcheck disable=2192
+	local -A _=(
+		[test]=$NIL
+		[number]=
+
+		[.help]='test=MSG [number=NUM]'
+	)
+
+	flag.parse
+
+	echo -n 'not ok '
+	ui.out notok
+
+	{
+		if [[ -n ${_[number]:-} ]]; then
+			echo -n "${_[number]} - ${_[test]}"
+		else
+			echo -n "${_[test]}"
+		fi
+
+		color.echo +yellow ' # TODO'
+	} | color.out +blue
+
+	local message
+	for message; do
+		echo "$message"
+	done | sed -u -e 's/^/# /'
+}
+
+# tap - Protected functions
+
+tap.stack() {
+	sed 's:^:# :' | color.out yellow
+}
+
+# tap - Init
+
+tap._init() {
+	readonly _TAP_VERSION_=13
+}
+
+tap._init
+
+# self.sh - Functions related to program itself
+
+# Install self
+self.install() {
+	# shellcheck disable=2192,2128
+	local -A _=(
+		[-prefix]="$_USR"/bin
+		[-name]=$PROGNAME
+
+		[.help]=
+		[.argc]=0
+	)
+
+	flag.parse
+
+	_[1]=$(self.path)
+
+	bin.install_
+}
+
+# Print self name
+self.name() {
+	local -A _; flag.parse
+
+	# shellcheck disable=2128
+	echo "$PROGNAME"
+}
+
+# Print self path
+self.path() {
+	local -A _; flag.parse
+
+	local self
+
+	self=${BASH_SOURCE[0]}
+	case $self in
+	./*) readlink -f "$self" ;;
+	/*)  echo "$self" ;;
+	*)   readlink -f "$(command -v "$self")" ;;
+	esac
+}
+
+# Print self source
+self.src() {
+	local path
+
+	path=$(self.path)
+	if .interactive; then
+		echo "$path"
+	else
+		echo "builtin source '$path'"
+	fi
+}
+
+# Print self version
+self.version() {
+	local -A _; flag.parse
+
+	echo 0.0
+}
+
+
+if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
+	declare -Ag _help=(
+		['tap.err']='Mark stdin lines as an error output'
+		['tap.failure']='Print TAP failure'
+		['tap.out']='Mark stdin lines as a successful output'
+		['tap.plan']='Print TAP plan'
+		['tap.shutdown']='Print TAP summary'
+		['tap.skip']='Print TAP skip'
+		['tap.startup']='Print TAP start'
+		['tap.success']='Print TAP success'
+		['tap.todo']='Print TAP todo'
+		['tap.version']='Print TAP version'
+	)
+
+	declare -Ag _command=(
+		['err']='tap.err'
+		['failure']='tap.failure'
+		['out']='tap.out'
+		['plan']='tap.plan'
+		['shutdown']='tap.shutdown'
+		['skip']='tap.skip'
+		['startup']='tap.startup'
+		['success']='tap.success'
+		['todo']='tap.todo'
+		['version']='tap.version'
+	)
+
+
+	.usage() {
+		# shellcheck disable=2128
+		.say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
+		.say "Commands:"
+
+		local cmd
+
+		# shellcheck disable=2154
+		for cmd in "${!_command[@]}"; do
+			local fun=${_command[$cmd]}
+
+			printf "\\t%-24s  %s\n" "$cmd" "${_help[$fun]:-}"
+		done | sort >&2
+	}
+
+	# shellcheck disable=2154
+	.dispatch() {
+		local orig="${*}"
+
+		if [[ $# -eq 0 ]]; then
+			.usage
+
+			.die 'Command required'
+		fi
+
+		local help=
+
+		if [[ $1 = help ]]; then
+			help=true
+
+			shift
+
+			if [[ $# -eq 0 ]]; then
+				.usage
+
+				.die 'Help topic required'
+			fi
+		fi
+
+		local -a args=("$@") try
+
+		local cmd
+		while [[ $# -gt 0 ]]; do
+			try+=("$1")
+			shift
+
+			if [[ -n ${_command[${try[*]}]:-} ]]; then
+				cmd=${try[*]}
+				args=("$@")
+			fi
+		done
+
+		[[ -n ${cmd:-} ]] || .die "No command found: $orig"
+
+		local fun=${_command["$cmd"]}
+
+		readonly PROGNAME+=("$cmd")
+
+		if [[ -n ${help:-} ]]; then
+			.say "${_help[$fun]:-}" ""
+
+			"$fun" -help
+		else
+			"$fun" "${args[@]}"
+		fi
+	}
+
+	.main() {
+		.dispatch "$@"
+	}
+
+	.main "$@"
+fi

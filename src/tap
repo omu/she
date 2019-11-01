@@ -3,23 +3,12 @@
 #:lib/_.sh
 #:lib/color.sh
 #:lib/ui.sh
+#:lib/tap.sh
 #:lib/self.sh
-#:lib/t.sh
 
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/
 	#/command/
-	.source() {
-		echo "readonly _SELF=$(self.path)"
-		echo
-		sed 's/^\t\t//' <<'EOF'
-			#:lib/!.sh
-			#:lib/defer.sh
-			#:lib/temp.sh: temp.dir temp.clean
-			#:lib/t.sh
-			#:src/t.sh
-EOF
-	}
 
 	.usage() {
 		# shellcheck disable=2128
@@ -89,11 +78,7 @@ EOF
 	}
 
 	.main() {
-		if ! .interactive && [[ $# -eq 0 ]]; then
-			.source
-		else
-			.dispatch "$@"
-		fi
+		.dispatch "$@"
 	}
 
 	.main "$@"

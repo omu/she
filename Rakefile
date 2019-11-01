@@ -64,18 +64,31 @@ COMMANDS = {
     'zip.unpack'    => 'unzip',
   },
   't' => {
-    'tap.err'       => 'tap err',
-    'tap.failure'   => 'tap failure',
-    'tap.plan'      => 'tap plan',
-    'tap.skip'      => 'tap skip',
-    'tap.success'   => 'tap success',
-    'tap.todo'      => 'tap todo',
-    'tap.version'   => 'tap version',
-    'test.is'       => 'is',
-    'test.isnt'     => 'isnt',
-    'test.notok'    => 'notok',
-    'test.ok'       => 'ok',
-  }
+    't.err'         => 'err',
+    't.fail'        => 'fail',
+    't.go'          => 'go',
+    't.is'          => 'is',
+    't.isnt'        => 'isnt',
+    't.like'        => 'like',
+    't.notok'       => 'notok',
+    't.ok'          => 'ok',
+    't.out'         => 'out',
+    't.pass'        => 'pass',
+    't.temp'        => 'temp',
+    't.unlike'      => 'unlike',
+  },
+  'tap' => {
+    'tap.err'       => 'err',
+    'tap.failure'   => 'failure',
+    'tap.out'       => 'out',
+    'tap.plan'      => 'plan',
+    'tap.shutdown'  => 'shutdown',
+    'tap.skip'      => 'skip',
+    'tap.startup'   => 'startup',
+    'tap.success'   => 'success',
+    'tap.todo'      => 'todo',
+    'tap.version'   => 'version',
+  },
 }.freeze
 # rubocop:enable Style/TrailingCommaInHashLiteral,Layout/AlignHash
 
@@ -260,33 +273,26 @@ class Source
   end
 end
 
-class Compiler # rubocop:disable Metrics/ClassLength
-  using Fmt
-
+class Catalog
   Error = Class.new StandardError
 
-  attr_reader :inlines, :sources, :exports
+  def initialize(paths = nil)
+    @sources = {}
 
-  def initialize(inlines, substitutions: nil, commands: nil)
-    @inlines       = inlines.map(&:chomp)
-    @substitutions = substitutions || {}
-    @commands      = commands      || {}
-    @sources       = {}
+    scan(paths) if paths
   end
 
-  def compile
-    first_pass = []
-    inlines.each { |line| first_pass += process(line, :include) }
+  def src(path)
+    unless sources.key?(path)
+      raise Error, "File not found: #{path}" unless File.exist?(path)
 
-    self.exports = export
+      sources[path] = Source.new path
+    end
 
-    second_pass = []
-    first_pass.each { |line| second_pass += process(line, :substitute) }
-
-    second_pass.join "\n"
+    sources[path]
   end
 
-  def export # rubocop:disable Metrtics/AbcSize
+  def export(commands = {})
     symbols = []
 
     sources.values.map(&:blocks).each do |blocks|
@@ -299,6 +305,43 @@ class Compiler # rubocop:disable Metrics/ClassLength
     end
 
     symbols
+  end
+
+  private
+
+  attr_reader :sources
+
+  def scan(paths)
+    paths.each { |path| src(path) }
+  end
+end
+
+class Compiler
+  using Fmt
+
+  Error = Class.new StandardError
+
+  attr_reader :inlines, :catalog
+
+  def initialize(inlines, catalog:, commands: nil, substitutions: nil)
+    @inlines       = inlines.map(&:chomp)
+    @commands      = commands      || {}
+    @substitutions = substitutions || {}
+    @catalog       = catalog
+  end
+
+  def compile
+    first_pass = []
+    inlines.each { |line| first_pass += process(line, :include) }
+
+    second_pass = []
+    first_pass.each { |line| second_pass += process(line, :substitute) }
+
+    second_pass.join "\n"
+  end
+
+  def exports
+    catalog.export(commands)
   end
 
   private
@@ -332,10 +375,11 @@ class Compiler # rubocop:disable Metrics/ClassLength
 
   def do_include(match) # rubocop:disable Metrics/AbcSize
     parsed = parse_include(match[:arg])
+    src    = catalog.src parsed[:path]
 
-    return src(parsed[:path]).rawlines if parsed[:funs].empty?
+    return src.rawlines if parsed[:funs].empty?
 
-    result = query_blocks_for_funs(src(parsed[:path]).blocks, *parsed[:funs])
+    result = query_blocks_for_funs src.blocks, *parsed[:funs]
     raise Error, "No match for line: #{match}" if result.empty?
 
     parsed[:calls].empty? ? result : [*result, parsed[:calls].join("\n")]
@@ -387,25 +431,9 @@ class Compiler # rubocop:disable Metrics/ClassLength
     result
   end
 
-  def src(path)
-    unless sources.key?(path)
-      raise Error, "File not found: #{path}" unless File.exist?(path)
-
-      sources[path] = Source.new path
-    end
-
-    sources[path]
-  end
-
   class << self
     def compile(*args, **options)
       new(*args, **options).compile
-    end
-
-    def export(*args, **options)
-      compiler = new(*args, **options)
-      compiler.compile
-      compiler.export
     end
   end
 end
@@ -422,30 +450,49 @@ module Main
       ["declare -Ag #{variable}=(", *pairs.fmt(indent: 1), ')']
     end
 
-    def markdown_table_lines(inlines:, export:, name:) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
-      stamp_begin = "<!-- #{name} begin -->"
-      stamp_end   = "<!-- #{name} end -->"
+    # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
+    def help_lines(catalog, sections)
+      result = {}
+
+      max_command_lengths = []
+      max_label_lengths   = []
+
+      sections.each do |section|
+        export = catalog.export COMMANDS[section]
+
+        max_command_lengths << export.map { |h| h[:cmd].length   }.max
+        max_label_lengths   << export.map { |h| h[:label].length }.max
+
+        result[section] = export.sort_by { |h| h[:cmd] }.map do |h|
+          { cmd: h[:cmd], label: h[:label] }
+        end
+      end
+
+      [{ cmd: max_command_lengths.max, label: max_label_lengths.max }, result]
+    end
+
+    def markdown_table_lines(inlines:, section:, collected:, lengths:)
+      stamp_begin = "<!-- #{section} begin -->"
+      stamp_end   = "<!-- #{section} end -->"
 
       starting = inlines.find_index stamp_begin
       ending   = inlines.find_index stamp_end
 
       return inlines if starting.nil? || ending.nil?
 
-      max_command_lenth = export.map { |h| h[:cmd].length   }.max
-      max_label_lenth   = export.map { |h| h[:label].length }.max
-
       lines = []
 
-      lines << format("| %-#{max_command_lenth}s | %-#{max_label_lenth}s |",
-                      'Command', 'Description')
-      lines << format("| %-#{max_command_lenth}s | %-#{max_label_lenth}s |",
-                      '-' * max_command_lenth, '-' * max_label_lenth)
+      cmd_length, desc_length = lengths[:cmd], lengths[:label]
 
-      export.sort_by { |h| h[:cmd] }.each do |h|
+      lines << format("| %-#{cmd_length}s | %-#{desc_length}s |",
+                      'Command', 'Description')
+      lines << format("| %-#{cmd_length}s | %-#{desc_length}s |",
+                      '-' * cmd_length, '-' * desc_length)
+
+      collected[section].each do |h|
         label, cmd = h[:label], h[:cmd]
 
-        lines << format("| %-#{max_command_lenth}s | %-#{max_label_lenth}s |",
-                        cmd, label)
+        lines << format("| %-#{cmd_length}s | %-#{desc_length}s |", cmd, label)
       end
 
       [
@@ -454,6 +501,7 @@ module Main
         *inlines[ending..-1]
       ]
     end
+    # rubocop:enable Metrics/MethodLength,Metrics/AbcSize
   end
 
   SUBSTITUTIONS = {
@@ -461,38 +509,45 @@ module Main
     'command' => proc { |compiler| bash_array_lines(compiler.exports, '_command', :cmd, :fun)   }
   }.freeze
 
-  def self.call(src, dst, commands:)
-    File.write(dst, Compiler.compile(File.readlines(src), substitutions: SUBSTITUTIONS, commands: commands))
+  def self.call(src, dst, catalog: Catalog.new, commands:)
+    File.write(dst, Compiler.compile(File.readlines(src),
+                                     catalog: catalog, substitutions: SUBSTITUTIONS, commands: commands))
   rescue Compiler::Error => e
     abort 'E: ' + e.message
   end
 
-  def self.export(src, **options)
-    Compiler.export(File.readlines(src), **options)
-  rescue Compiler::Error => e
-    abort 'E: ' + e.message
-  end
-
-  require 'awesome_print'
-
-  def self.doc(*sources, dst)
+  def self.doc(dst, sections:, catalog:)
     inlines = File.readlines(dst).map(&:chomp)
 
-    sources.each do |src|
-      name    = File.basename(src)
-      export  = Main.export src, commands: COMMANDS[name]
+    lengths, collected = help_lines(catalog, sections)
 
-      inlines = markdown_table_lines(inlines: inlines, export: export, name: name)
+    sections.each do |section|
+      inlines = markdown_table_lines(inlines: inlines, section: section,
+                                     collected: collected, lengths: lengths)
     end
 
     inlines.join("\n").chomp + "\n"
   end
 end
 
-PRG = %w[_ t].freeze
+PRG = %w[_ t tap].freeze
+
+def deps(prg)
+  deps = []
+
+  deps.append("src/#{prg}")
+
+  companion = "src/#{prg}.sh"
+  deps.append(companion) if File.exist? companion
+
+  deps.append(*Dir['lib/*.sh'])
+  deps.append(__FILE__)
+
+  deps
+end
 
 PRG.each do |prg|
-  file "bin/#{prg}" => ["src/#{prg}", "src/#{prg}.sh", 'src/common.sh', *Dir['lib/*.sh'], __FILE__] do |task|
+  file "bin/#{prg}" => deps(prg) do |task|
     src, dst = task.prerequisites.first, task.name
 
     mkdir_p File.dirname(dst)
@@ -512,8 +567,9 @@ task generate: PRG
 
 desc 'Update documentation'
 task doc: [*PRG.map { |prg| "bin/#{prg}" }, __FILE__] do
-  dst = 'README.md'
-  File.write dst, Main.doc('src/_', dst)
+  dst     = 'README.md'
+  catalog = Catalog.new Dir['lib/*.sh', 'src/*.sh']
+  File.write dst, Main.doc(dst, sections: %w[_ t tap], catalog: catalog)
 end
 
 desc 'Clean'
