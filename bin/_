@@ -3142,7 +3142,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 EOF
 	}
 
-	# main - Application utils
+	# main - Application
 
 	.usage() {
 		# shellcheck disable=2128

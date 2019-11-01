@@ -1,4 +1,4 @@
-# main - Application utils
+# main - Application
 
 .usage() {
 	# shellcheck disable=2128
