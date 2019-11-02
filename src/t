@@ -9,6 +9,7 @@
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/
 	#/command/
+
 	.source() {
 		echo "readonly _SELF=$(self.path)"
 		echo
@@ -22,6 +23,7 @@ EOF
 	}
 
 	#:lib/main.sh
+
 	.main() {
 		if ! .interactive && [[ $# -eq 0 ]]; then
 			.source

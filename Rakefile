@@ -330,12 +330,20 @@ class Compiler
     @catalog       = catalog
   end
 
-  def compile
+  def compile # rubocop:disable Metrics/MethodLength
+    outlines = nil
+
     first_pass = []
-    inlines.each { |line| first_pass += process(line, :include) }
+    inlines.each do |line|
+      outlines = process(line, :include, previous: outlines)
+      first_pass.append(*outlines || line)
+    end
 
     second_pass = []
-    first_pass.each { |line| second_pass += process(line, :substitute) }
+    first_pass.each do |line|
+      outlines = process(line, :substitute, previous: outlines)
+      second_pass.append(*outlines || line)
+    end
 
     second_pass.join "\n"
   end
@@ -367,10 +375,11 @@ class Compiler
                 }x
   }.freeze
 
-  def process(line, directive)
-    return [line] unless (m = line.match(DIRECTIVE[directive]))
+  def process(line, directive, previous: nil)
+    return nil unless (m = line.match(DIRECTIVE[directive]))
 
-    [*send("do_#{directive}", m).fmt(prefix: m[:lead]), '']
+    out = send("do_#{directive}", m).fmt(prefix: m[:lead])
+    previous ? ['', *out] : out
   end
 
   def do_include(match) # rubocop:disable Metrics/AbcSize

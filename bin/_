@@ -2956,7 +2956,6 @@ zip._unpack_.zst() {
 	zstdcat -f "$in" >"$temp_file" && mv "$temp_file" "$out"
 }
 
-
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		['_.available']='Return if program available'
@@ -3138,7 +3137,6 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		}
 
 		._ "$@"
-
 EOF
 	}
 

@@ -1127,7 +1127,6 @@ assert._init() {
 
 assert._init
 
-
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		['t.err']='Assert failed command outputs'
@@ -1726,7 +1725,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			}
 
 			[[ $# -eq 0 ]] || .load "$@"
-
 EOF
 	}
 

@@ -894,7 +894,6 @@ tap._init() {
 
 tap._init
 
-
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		['tap.err']='Mark stdin lines as an error output'
@@ -921,7 +920,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['todo']='tap.todo'
 		['version']='tap.version'
 	)
-
 
 	# main - Application
 
@@ -991,7 +989,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			"$fun" "${args[@]}"
 		fi
 	}
-
 	.main() {
 		.dispatch "$@"
 	}

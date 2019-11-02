@@ -25,6 +25,7 @@
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/
 	#/command/
+
 	.source() {
 		echo "_SELF=$(self.path)"
 		echo
@@ -35,6 +36,7 @@ EOF
 	}
 
 	#:lib/main.sh
+
 	.main() {
 		if ! .interactive && [[ $# -eq 0 ]]; then
 			.source
