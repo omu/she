@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# Compile shell files, that is, include (selected) code snippets and do substitutions via simple directives.
+# Compile shell files, i.e. include (selected) code snippets and do substitutions via simple directives.
 # Note that, this is not a full-fledged implementation (i.e. no nested inclusions).
 #
 # See src/* for examples.
@@ -132,7 +132,7 @@ class Source
   class Block
     using Fmt
 
-    attr_reader :lines, :doc, :label
+    attr_reader :lines, :doc, :desc
 
     def initialize(lines)
       @lines = parse(lines)
@@ -163,10 +163,10 @@ class Source
         [(]
       /x.freeze
 
-      attr_reader :fun, :label
+      attr_reader :fun, :desc
 
       def convey_from_doc_block(doc_block)
-        %i[doc label].each { |attribute| send("#{attribute}=", doc_block.send(attribute)) }
+        %i[doc desc].each { |attribute| send("#{attribute}=", doc_block.send(attribute)) }
       end
 
       def private?
@@ -175,7 +175,7 @@ class Source
 
       protected
 
-      attr_writer :doc, :fun, :label
+      attr_writer :doc, :fun, :desc
 
       def parse(lines)
         if (m = lines.first.match(PATTERN))
@@ -193,10 +193,10 @@ class Source
           [#]
           \s+
         )
-        (?<label>.*)
+        (?<desc>.*)
       /x.freeze
 
-      attr_reader :label
+      attr_reader :desc
 
       def doc
         lines.join("\n").strip
@@ -208,11 +208,11 @@ class Source
 
       protected
 
-      attr_writer :label
+      attr_writer :desc
 
       def parse(lines)
         if (m = lines.first.match(PATTERN))
-          self.label = m[:label]
+          self.desc = m[:desc]
         end
 
         lines
@@ -273,7 +273,7 @@ class Source
   end
 end
 
-class Catalog
+class Library
   Error = Class.new StandardError
 
   def initialize(paths = nil)
@@ -300,7 +300,7 @@ class Catalog
         next unless block.is_a?(Source::Block::Fun)
         next unless commands.key? block.fun
 
-        symbols << { fun: block.fun, label: block.label, cmd: commands[block.fun] }
+        symbols << { fun: block.fun, desc: block.desc, cmd: commands[block.fun] }
       end
     end
 
@@ -321,13 +321,13 @@ class Compiler
 
   Error = Class.new StandardError
 
-  attr_reader :inlines, :catalog
+  attr_reader :inlines, :library
 
-  def initialize(inlines, catalog:, commands: nil, substitutions: nil)
+  def initialize(inlines, library:, commands: nil, substitutions: nil)
     @inlines       = inlines.map(&:chomp)
     @commands      = commands      || {}
     @substitutions = substitutions || {}
-    @catalog       = catalog
+    @library       = library
   end
 
   def compile # rubocop:disable Metrics/MethodLength
@@ -349,7 +349,7 @@ class Compiler
   end
 
   def exports
-    catalog.export(commands)
+    library.export(commands)
   end
 
   private
@@ -384,7 +384,7 @@ class Compiler
 
   def do_include(match) # rubocop:disable Metrics/AbcSize
     parsed = parse_include(match[:arg])
-    src    = catalog.src parsed[:path]
+    src    = library.src parsed[:path]
 
     return src.rawlines if parsed[:funs].empty?
 
@@ -460,48 +460,48 @@ module Main
     end
 
     # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
-    def help_lines(catalog, sections)
+    def collect_helps(library, sections)
       result = {}
 
       max_command_lengths = []
-      max_label_lengths   = []
+      max_desc_lengths    = []
 
       sections.each do |section|
-        export = catalog.export COMMANDS[section]
+        export = library.export COMMANDS[section]
 
-        max_command_lengths << export.map { |h| h[:cmd].length   }.max
-        max_label_lengths   << export.map { |h| h[:label].length }.max
+        max_command_lengths << export.map { |h| h[:cmd].length  }.max
+        max_desc_lengths    << export.map { |h| h[:desc].length }.max
 
         result[section] = export.sort_by { |h| h[:cmd] }.map do |h|
-          { cmd: h[:cmd], label: h[:label] }
+          { cmd: h[:cmd], desc: h[:desc] }
         end
       end
 
-      [{ cmd: max_command_lengths.max, label: max_label_lengths.max }, result]
+      [{ cmd: max_command_lengths.max, desc: max_desc_lengths.max }, result]
     end
 
-    def markdown_table_lines(inlines:, section:, collected:, lengths:)
+    def markdown_table_lines(inlines:, section:, helps:, lengths:)
       stamp_begin = "<!-- #{section} begin -->"
       stamp_end   = "<!-- #{section} end -->"
 
-      starting = inlines.find_index stamp_begin
-      ending   = inlines.find_index stamp_end
+      starting    = inlines.find_index stamp_begin
+      ending      = inlines.find_index stamp_end
 
       return inlines if starting.nil? || ending.nil?
 
       lines = []
 
-      cmd_length, desc_length = lengths[:cmd], lengths[:label]
+      cmd_length, desc_length = lengths[:cmd], lengths[:desc]
 
       lines << format("| %-#{cmd_length}s | %-#{desc_length}s |",
                       'Command', 'Description')
       lines << format("| %-#{cmd_length}s | %-#{desc_length}s |",
                       '-' * cmd_length, '-' * desc_length)
 
-      collected[section].each do |h|
-        label, cmd = h[:label], h[:cmd]
+      helps[section].each do |h|
+        desc, cmd = h[:desc], h[:cmd]
 
-        lines << format("| %-#{cmd_length}s | %-#{desc_length}s |", cmd, label)
+        lines << format("| %-#{cmd_length}s | %-#{desc_length}s |", cmd, desc)
       end
 
       [
@@ -514,39 +514,39 @@ module Main
   end
 
   SUBSTITUTIONS = {
-    'help'    => proc { |compiler| bash_array_lines(compiler.exports, '_help',    :fun, :label) },
-    'command' => proc { |compiler| bash_array_lines(compiler.exports, '_command', :cmd, :fun)   }
+    'help'    => proc { |compiler| bash_array_lines(compiler.exports, '_help',    :fun, :desc) },
+    'command' => proc { |compiler| bash_array_lines(compiler.exports, '_command', :cmd, :fun)  }
   }.freeze
 
-  def self.call(src, dst, catalog: Catalog.new, commands:)
+  def self.call(src, dst, library: Library.new, commands:)
     File.write(dst, Compiler.compile(File.readlines(src),
-                                     catalog: catalog, substitutions: SUBSTITUTIONS, commands: commands))
+                                     library: library, substitutions: SUBSTITUTIONS, commands: commands))
   rescue Compiler::Error => e
     abort 'E: ' + e.message
   end
 
-  def self.doc(dst, sections:, catalog:)
+  def self.doc(dst, sections:, library:)
     inlines = File.readlines(dst).map(&:chomp)
 
-    lengths, collected = help_lines(catalog, sections)
+    lengths, helps = collect_helps(library, sections)
 
     sections.each do |section|
       inlines = markdown_table_lines(inlines: inlines, section: section,
-                                     collected: collected, lengths: lengths)
+                                     helps: helps, lengths: lengths)
     end
 
     inlines.join("\n").chomp + "\n"
   end
 end
 
-PRG = %w[_ t tap].freeze
+BIN = %w[_ t tap].freeze
 
-def deps(prg)
+def deps(bin)
   deps = []
 
-  deps.append("src/#{prg}")
+  deps.append("src/#{bin}")
 
-  companion = "src/#{prg}.sh"
+  companion = "src/#{bin}.sh"
   deps.append(companion) if File.exist? companion
 
   deps.append(*Dir['lib/*.sh'])
@@ -555,35 +555,35 @@ def deps(prg)
   deps
 end
 
-PRG.each do |prg|
-  file "bin/#{prg}" => deps(prg) do |task|
+BIN.each do |bin|
+  file "bin/#{bin}" => deps(bin) do |task|
     src, dst = task.prerequisites.first, task.name
 
     mkdir_p File.dirname(dst)
-    Main.(src, dst, commands: COMMANDS[prg])
+    Main.(src, dst, commands: COMMANDS[bin])
     chmod '+x', dst
 
     sh 'bash', '-n', dst
     sh 'shellcheck', dst
   end
 
-  desc "Generate #{prg}"
-  task prg.to_sym => "bin/#{prg}"
+  desc "Generate #{bin}"
+  task bin.to_sym => "bin/#{bin}"
 end
 
 desc 'Generate programs'
-task generate: PRG
+task generate: BIN
 
 desc 'Update documentation'
-task doc: [*PRG.map { |prg| "bin/#{prg}" }, __FILE__] do
+task :doc do
   dst     = 'README.md'
-  catalog = Catalog.new Dir['lib/*.sh', 'src/*.sh']
-  File.write dst, Main.doc(dst, sections: %w[_ t tap], catalog: catalog)
+  library = Library.new Dir['lib/*.sh', 'src/*.sh']
+  File.write dst, Main.doc(dst, sections: %w[_ t tap], library: library)
 end
 
 desc 'Clean'
 task :clean do
-  rm_f(PRG.map { |prg| "bin/#{prg}" })
+  rm_f(BIN.map { |bin| "bin/#{bin}" })
 end
 
 task default: :generate
