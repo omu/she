@@ -342,11 +342,11 @@ TODO
 - [ ] README asgari dokümantasyonu
 - [X] Komut tablosu (README'de)
 - [ ] BENİOKU
-- [.] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
+- [X] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
 - [.] scripts aracının yeni sürümü
 - [ ] etc'nin durumu
 - [X] ui ve color desteği
 - [X] test alt yapısı
 - [X] test gözden geçirme
 - [X] refactor t
-- [ ] refactor Rakefile
+- [X] refactor Rakefile
