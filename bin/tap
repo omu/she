@@ -742,6 +742,21 @@ tap.out() {
 tap.plan() {
 	# shellcheck disable=2192
 	local -A _=(
+		[total]=$NIL
+
+		[.help]='total=NUM'
+	)
+
+	flag.parse
+
+	echo "1..${_[total]}"
+	echo
+}
+
+# Print TAP summary
+tap.shutdown() {
+	# shellcheck disable=2192
+	local -A _=(
 		[failure]=$NIL
 		[skip]=0
 		[success]=$NIL
@@ -753,28 +768,10 @@ tap.plan() {
 
 	flag.parse
 
-	echo "1..${_[total]}"
-	echo
 	echo "# ${_[success]} test(s) succeeded, ${_[failure]} test(s) failed, ${_[skip]} test(s) skipped."
 	echo "# There are ${_[todo]} todo test(s) waiting to be done."
 }
 
-# Print TAP summary
-tap.shutdown() {
-	# shellcheck disable=2192
-	local -A _=(
-		[total]=$NIL
-		[success]=$NIL
-		[failure]=$NIL
-		[duration]=$NIL
-
-		[.help]='total=NUM success=NUM failure=NUM duration=SECONDS'
-	)
-
-	flag.parse
-
-	:
-}
 
 # Print TAP skip
 tap.skip() {
@@ -815,6 +812,7 @@ tap.startup() {
 	local file=$1
 
 	echo "# Running tests in $file"
+	echo
 }
 
 # Print TAP success

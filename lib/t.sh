@@ -96,11 +96,13 @@ t.go() {
 
 	! .callable test.shutdown || test.shutdown
 
-	tap plan total="${_test_[current]:-}" \
-		 success="${_test_[success]:-}" \
-		 failure="${_test_[failure]:-0}" \
-		 todo="${_test_[todo]:-0}" \
-		 skip="${_test_[skip]:-0}"
+	tap plan total="${_test_[current]:-}"
+
+	tap shutdown total="${_test_[current]:-}" \
+		     success="${_test_[success]:-}" \
+		     failure="${_test_[failure]:-0}" \
+		     todo="${_test_[todo]:-0}" \
+		     skip="${_test_[skip]:-0}"
 }
 
 # t - Protected functions

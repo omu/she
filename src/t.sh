@@ -16,3 +16,5 @@ t() {
 }
 
 [[ $# -eq 0 ]] || .load "$@"
+
+tap startup "${BASH_SOURCE[1]}"
