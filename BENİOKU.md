@@ -349,3 +349,4 @@ TODO
 - [X] test alt yapısı
 - [X] test gözden geçirme
 - [X] refactor t
+- [ ] refactor Rakefile
