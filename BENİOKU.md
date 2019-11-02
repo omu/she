@@ -348,4 +348,4 @@ TODO
 - [X] ui ve color desteği
 - [X] test alt yapısı
 - [X] test gözden geçirme
-- [ ] refactor t
+- [X] refactor t
