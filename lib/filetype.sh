@@ -80,14 +80,15 @@ filetype.shebang_() {
 
 	filetype.is._interpretable_ "$file" || return 1
 
-	local shebang
+	# shellcheck disable=2034
+	local filetype_shebang_string
 
-	shebang=$(head -n 1 "$file")
-	shebang=${shebang#\#!}
-	shebang=${shebang# }
+	filetype_shebang_string_=$(head -n 1 "$file")
+	filetype_shebang_string_=${filetype_shebang_string_#\#!}
+	filetype_shebang_string_=${filetype_shebang_string_# }
 
 	# shellcheck disable=2034,2206
-	filetype_shebang_=($shebang)
+	filetype_shebang_=($filetype_shebang_string_)
 }
 
 # filetype - Private functions

@@ -195,6 +195,8 @@ file.ln() {
 file.run_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
+	[[ -f $file ]] || [[ $file =~ [.][^./]+$ ]] || file=$file.sh
+
 	filetype.is "$file" runnable || .die "File is not runnable: $file"
 
 	local -a env=()

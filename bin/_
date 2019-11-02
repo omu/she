@@ -1813,6 +1813,8 @@ file.ln() {
 file.run_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
+	[[ -f $file ]] || [[ $file =~ [.][^./]+$ ]] || file=$file.sh
+
 	filetype.is "$file" runnable || .die "File is not runnable: $file"
 
 	local -a env=()
@@ -1997,8 +1999,10 @@ git.clone_() {
 	[[ -z ${_[.branch]:-}   ]] || opt+=(--branch "${_[.branch]}")
 
 	_func_() {
-		.getting 'Cloning repository' git clone "${opt[@]}" "$url" clone
-		file.do_ copy clone "$dst"
+		local repo=${url##*/}; repo=${repo%.*}
+
+		.getting 'Cloning repository' git clone "${opt[@]}" "$url" "$repo"
+		file.do_ copy "$repo" "$dst"
 	}
 
 	temp.inside _func_
@@ -2721,14 +2725,15 @@ filetype.shebang_() {
 
 	filetype.is._interpretable_ "$file" || return 1
 
-	local shebang
+	# shellcheck disable=2034
+	local filetype_shebang_string
 
-	shebang=$(head -n 1 "$file")
-	shebang=${shebang#\#!}
-	shebang=${shebang# }
+	filetype_shebang_string_=$(head -n 1 "$file")
+	filetype_shebang_string_=${filetype_shebang_string_#\#!}
+	filetype_shebang_string_=${filetype_shebang_string_# }
 
 	# shellcheck disable=2034,2206
-	filetype_shebang_=($shebang)
+	filetype_shebang_=($filetype_shebang_string_)
 }
 
 # filetype - Private functions
