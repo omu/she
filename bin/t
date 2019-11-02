@@ -980,52 +980,6 @@ t.go() {
 
 # t - Protected functions
 
-t._assert() {
-	local assert=assert.${FUNCNAME[1]#*.}
-
-	local -a args
-
-	while [[ $# -gt 0 ]]; do
-		if [[ $1 = '--' ]]; then
-			shift
-			break
-		fi
-
-		args+=("$1")
-		shift
-	done
-
-	_test_[current]=$((${_test_[current]:-0} + 1))
-
-	local current=${_test_[current]} message
-
-	if [[ ${1:-} =~ [sS][kK][iI][pP]\S* ]]; then
-		shift; message="$*"
-
-		tap skip test="$message" number="$current"
-		_test_[skip]=$((${_test_[skip]:-0} + 1))
-		_test_[success]=$((${_test_[success]:-0} + 1))
-	elif [[ ${1:-} =~ [tT][oO][dD][oO]\S* ]]; then
-		shift; message="$*"
-
-		tap todo test="$message" number="$current"
-		_test_[todo]=$((${_test_[todo]:-0} + 1))
-		_test_[failure]=$((${_test_[failure]:-0} + 1))
-	else
-		message="$*"
-
-		local -a err
-
-		if "$assert" err "${args[@]}"; then
-			tap success test="$message" number="$current"
-			_test_[success]=$((${_test_[success]:-0} + 1))
-		else
-			tap failure test="$message" number="$current" "${err[@]}"
-			_test_[failure]=$((${_test_[failure]:-0} + 1))
-		fi
-	fi
-}
-
 assert.err() {
 	local -n assert_err_=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -1118,13 +1072,63 @@ assert.unlike() {
 	[[ ! $got =~ $expected ]]
 }
 
+t._assert() {
+	local assert=assert.${FUNCNAME[1]#*.}
+
+	local -a args
+
+	while [[ $# -gt 0 ]]; do
+		if [[ $1 = '--' ]]; then
+			shift
+			break
+		fi
+
+		args+=("$1")
+		shift
+	done
+
+	_test_[current]=$((${_test_[current]:-0} + 1))
+
+	local current=${_test_[current]} message
+
+	if [[ ${1:-} =~ [sS][kK][iI][pP]\S* ]]; then
+		shift; message="$*"
+
+		tap skip test="$message" number="$current"
+		_test_[skip]=$((${_test_[skip]:-0} + 1))
+		_test_[success]=$((${_test_[success]:-0} + 1))
+	elif [[ ${1:-} =~ [tT][oO][dD][oO]\S* ]]; then
+		shift; message="$*"
+
+		tap todo test="$message" number="$current"
+		_test_[todo]=$((${_test_[todo]:-0} + 1))
+		_test_[failure]=$((${_test_[failure]:-0} + 1))
+	else
+		message="$*"
+
+		local -a err
+
+		if "$assert" err "${args[@]}"; then
+			tap success test="$message" number="$current"
+			_test_[success]=$((${_test_[success]:-0} + 1))
+		else
+			tap failure test="$message" number="$current" "${err[@]}"
+			_test_[failure]=$((${_test_[failure]:-0} + 1))
+		fi
+	fi
+}
+
+t._reset() {
+	_test_[current]=0
+	_test_[start]=$SECONDS
+}
+
 # assert - Init
 
 assert._init() {
-	declare -Ag _test_=(
-		[current]=0
-		[start]=$SECONDS
-	)
+	declare -Ag _test_=()
+
+	t._reset
 }
 
 assert._init
@@ -1562,52 +1566,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 			# t - Protected functions
 
-			t._assert() {
-				local assert=assert.${FUNCNAME[1]#*.}
-
-				local -a args
-
-				while [[ $# -gt 0 ]]; do
-					if [[ $1 = '--' ]]; then
-						shift
-						break
-					fi
-
-					args+=("$1")
-					shift
-				done
-
-				_test_[current]=$((${_test_[current]:-0} + 1))
-
-				local current=${_test_[current]} message
-
-				if [[ ${1:-} =~ [sS][kK][iI][pP]\S* ]]; then
-					shift; message="$*"
-
-					tap skip test="$message" number="$current"
-					_test_[skip]=$((${_test_[skip]:-0} + 1))
-					_test_[success]=$((${_test_[success]:-0} + 1))
-				elif [[ ${1:-} =~ [tT][oO][dD][oO]\S* ]]; then
-					shift; message="$*"
-
-					tap todo test="$message" number="$current"
-					_test_[todo]=$((${_test_[todo]:-0} + 1))
-					_test_[failure]=$((${_test_[failure]:-0} + 1))
-				else
-					message="$*"
-
-					local -a err
-
-					if "$assert" err "${args[@]}"; then
-						tap success test="$message" number="$current"
-						_test_[success]=$((${_test_[success]:-0} + 1))
-					else
-						tap failure test="$message" number="$current" "${err[@]}"
-						_test_[failure]=$((${_test_[failure]:-0} + 1))
-					fi
-				fi
-			}
-
 			assert.err() {
 				local -n assert_err_=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -1700,13 +1658,63 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				[[ ! $got =~ $expected ]]
 			}
 
+			t._assert() {
+				local assert=assert.${FUNCNAME[1]#*.}
+
+				local -a args
+
+				while [[ $# -gt 0 ]]; do
+					if [[ $1 = '--' ]]; then
+						shift
+						break
+					fi
+
+					args+=("$1")
+					shift
+				done
+
+				_test_[current]=$((${_test_[current]:-0} + 1))
+
+				local current=${_test_[current]} message
+
+				if [[ ${1:-} =~ [sS][kK][iI][pP]\S* ]]; then
+					shift; message="$*"
+
+					tap skip test="$message" number="$current"
+					_test_[skip]=$((${_test_[skip]:-0} + 1))
+					_test_[success]=$((${_test_[success]:-0} + 1))
+				elif [[ ${1:-} =~ [tT][oO][dD][oO]\S* ]]; then
+					shift; message="$*"
+
+					tap todo test="$message" number="$current"
+					_test_[todo]=$((${_test_[todo]:-0} + 1))
+					_test_[failure]=$((${_test_[failure]:-0} + 1))
+				else
+					message="$*"
+
+					local -a err
+
+					if "$assert" err "${args[@]}"; then
+						tap success test="$message" number="$current"
+						_test_[success]=$((${_test_[success]:-0} + 1))
+					else
+						tap failure test="$message" number="$current" "${err[@]}"
+						_test_[failure]=$((${_test_[failure]:-0} + 1))
+					fi
+				fi
+			}
+
+			t._reset() {
+				_test_[current]=0
+				_test_[start]=$SECONDS
+			}
+
 			# assert - Init
 
 			assert._init() {
-				declare -Ag _test_=(
-					[current]=0
-					[start]=$SECONDS
-				)
+				declare -Ag _test_=()
+
+				t._reset
 			}
 
 			assert._init
