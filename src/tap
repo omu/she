@@ -1,8 +1,10 @@
 #:lib/!.sh
-#:lib/flag.sh
+
 #:lib/color.sh
+#:lib/flag.sh
 #:lib/ui.sh
-#:lib/tap.sh
+
+#:cmd/tap.sh
 
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/

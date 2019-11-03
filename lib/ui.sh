@@ -1,139 +1,5 @@
 # ui.sh - UI functions
 
-# Print bug message and exit failure
-ui.bug() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.bug "$@"
-}
-
-# Print message and exit success
-ui.bye() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.bye "$@"
-}
-
-# Print message and run command
-ui.calling() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.calling "$@"
-}
-
-# Print warning message
-ui.cry() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.cry "$@"
-}
-
-# Print error message and exit failure
-ui.die() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.die "$@"
-}
-
-# Print message indicating a download and run command
-ui.getting() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.getting "$@"
-}
-
-# Print info message
-ui.hmm() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.hmm "$@"
-}
-
-# Print not ok message
-ui.notok() {
-	local -A _=(
-		[.help]='STRING'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.notok "$@"
-}
-
-# Print ok message
-ui.ok() {
-	local -A _=(
-		[.help]='STRING'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.ok "$@"
-}
-
-# Print a busy message run command
-ui.running() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.calling "$@"
-}
-
-# Print message on stderr
-ui.say() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.say "$@"
-}
-
-# ui - Protected functions
-
 ui.out() {
 	local name=${1:-default}
 	shift || true
@@ -148,10 +14,8 @@ ui.out() {
 	echo -en "$reset "
 }
 
-# ui - Private functions
-
 # shellcheck disable=2154
-ui._echo() {
+ui.echo() {
 	[[ $# -gt 0 ]] || return 0
 
 	local message=$1
@@ -172,7 +36,7 @@ ui._echo() {
 # ui - Init
 
 # shellcheck disable=2034,2154
-ui._init() {
+ui.init_() {
 	declare -Ag _sign _sign_color _text_color
 
 	# Style
@@ -194,17 +58,17 @@ ui._init() {
 
 	color.expand _sign_color _text_color
 
-	.bug()     { ui._echo "$@" >&2; exit 127; }
-	.bye()     { ui._echo "$@" >&2; exit 0;   }
-	.calling() { ui._echo "$1" >&2; "${@:2}"; }
-	.cry()     { ui._echo "$@" >&2;           }
-	.die()     { ui._echo "$@" >&2; exit 1;   }
-	.getting() { ui._echo "$1" >&2; "${@:2}"; }
-	.hmm()     { ui._echo "$@" >&2;           }
-	.notok()   { ui._echo "$@" >&2;           }
-	.ok()      { ui._echo "$@" >&2;           }
-	.running() { ui._echo "$1" >&2; "${@:2}"; }
-	.say()     { ui._echo "$@" >&2;           }
+	.bug()     { ui.echo "$@" >&2; exit 127; }
+	.bye()     { ui.echo "$@" >&2; exit 0;   }
+	.calling() { ui.echo "$1" >&2; "${@:2}"; }
+	.cry()     { ui.echo "$@" >&2;           }
+	.die()     { ui.echo "$@" >&2; exit 1;   }
+	.getting() { ui.echo "$1" >&2; "${@:2}"; }
+	.hmm()     { ui.echo "$@" >&2;           }
+	.notok()   { ui.echo "$@" >&2;           }
+	.ok()      { ui.echo "$@" >&2;           }
+	.running() { ui.echo "$1" >&2; "${@:2}"; }
+	.say()     { ui.echo "$@" >&2;           }
 }
 
-ui._init
+ui.init_

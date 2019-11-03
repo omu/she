@@ -1,7 +1,7 @@
 # _.sh - Required functions
 
 # Return if program available
-_.available() {
+:available() {
 	local -A _=(
 		[.help]='PROGRAM'
 		[.argc]=1
@@ -13,7 +13,7 @@ _.available() {
 }
 
 # Return if first argument found in remaining arguments
-_.contains() {
+:contains() {
 	local -A _=(
 		[.help]='NEEDLE HAYSTACK'
 		[.argc]=2-
@@ -25,7 +25,7 @@ _.contains() {
 }
 
 # Return if any of the files expired
-_.expired() {
+:expired() {
 	local -A _=(
 		[-expiry]=3
 
@@ -39,7 +39,7 @@ _.expired() {
 }
 
 # Ensure the given command succeeds
-_.must() {
+:must() {
 	local -A _=(
 		[.help]='MESSAGE ARGS...|-- ARGS...'
 		[.argc]=2-
@@ -52,7 +52,7 @@ _.must() {
 }
 
 # Try to run any file or url
-_.run() {
+:run() {
 	local -A _=(
 		[.help]='FILE|URL'
 		[.argc]=1
@@ -72,7 +72,7 @@ _.run() {
 }
 
 # Ignore error if the given command fails
-_.should() {
+:should() {
 	local -A _=(
 		[.help]='MESSAGE ARGS...|-- ARGS...'
 		[.argc]=2-
@@ -86,7 +86,7 @@ _.should() {
 
 # _ - Init
 
-_._init() {
+:init_() {
 	# Default variable as a hash
 	declare -gA _=()
 
@@ -112,4 +112,4 @@ _._init() {
 	unset -f "${FUNCNAME[0]}"
 }
 
-_._init
+:init_

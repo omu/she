@@ -6,92 +6,6 @@
 #
 # See src/* for examples.
 
-# rubocop:disable Style/TrailingCommaInHashLiteral,Layout/AlignHash
-COMMANDS = {
-  '_' => {
-    '_.available'   => 'available',
-    'bin.install'   => 'bin install',
-    'bin.run'       => 'bin run',
-    'bin.use'       => 'bin use',
-    'deb.add'       => 'deb add',
-    'deb.install'   => 'deb install',
-    'deb.installed' => 'deb installed',
-    'deb.missings'  => 'deb missings',
-    'deb.uninstall' => 'deb uninstall',
-    'deb.update'    => 'deb update',
-    'deb.using'     => 'deb using',
-    '_.expired'     => 'expired',
-    'file.install'  => 'file install',
-    'filetype.any'  => 'filetype any',
-    'filetype.is'   => 'filetype is',
-    'filetype.mime' => 'filetype mime',
-    'http.any'      => 'http any',
-    'http.get'      => 'http get',
-    'http.is'       => 'http is',
-    '_.must'        => 'must',
-    'os.any'        => 'os any',
-    'os.codename'   => 'os codename',
-    'os.dist'       => 'os dist',
-    'os.is'         => 'os is',
-    '_.run'         => 'run',
-    'self.install'  => 'self install',
-    'self.name'     => 'self name',
-    'self.path'     => 'self path',
-    'self.src'      => 'self src',
-    'self.version'  => 'self version',
-    '_.should'      => 'should',
-    'src.enter'     => 'enter',
-    'src.install'   => 'src install',
-    'src.use'       => 'src use',
-    'temp.inside'   => 'temp inside',
-    'text.fix'      => 'text fix',
-    'text.unfix'    => 'text unfix',
-    'ui.bug'        => 'bug',
-    'ui.calling'    => 'ui calling',
-    'ui.cry'        => 'cry',
-    'ui.die'        => 'die',
-    'ui.getting'    => 'ui getting',
-    'ui.hmm'        => 'ui info',
-    'ui.notok'      => 'ui notok',
-    'ui.ok'         => 'ui ok',
-    'ui.running'    => 'ui running',
-    'ui.say'        => 'say',
-    'url.any'       => 'url any',
-    'url.is'        => 'url is',
-    'virt.any'      => 'virt any',
-    'virt.is'       => 'virt is',
-    'virt.which'    => 'virt which',
-    'zip.unpack'    => 'unzip',
-  },
-  't' => {
-    't.err'         => 'err',
-    't.fail'        => 'fail',
-    't.go'          => 'go',
-    't.is'          => 'is',
-    't.isnt'        => 'isnt',
-    't.like'        => 'like',
-    't.notok'       => 'notok',
-    't.ok'          => 'ok',
-    't.out'         => 'out',
-    't.pass'        => 'pass',
-    't.temp'        => 'temp',
-    't.unlike'      => 'unlike',
-  },
-  'tap' => {
-    'tap.err'       => 'err',
-    'tap.failure'   => 'failure',
-    'tap.out'       => 'out',
-    'tap.plan'      => 'plan',
-    'tap.shutdown'  => 'shutdown',
-    'tap.skip'      => 'skip',
-    'tap.startup'   => 'startup',
-    'tap.success'   => 'success',
-    'tap.todo'      => 'todo',
-    'tap.version'   => 'version',
-  },
-}.freeze
-# rubocop:enable Style/TrailingCommaInHashLiteral,Layout/AlignHash
-
 module Fmt
   DEFAULT_FMT_OPTIONS = {
     space: "\t", indent: 0, prefix: nil, suffix: nil, trim: true
@@ -171,6 +85,14 @@ class Source
 
       def private?
         fun.match?(/(^[._]|[._]$|\b_)/)
+      end
+
+      def cmd?
+        fun.match?(':') && !fun.match?('_')
+      end
+
+      def cmd
+        fun.split(':').reject(&:empty?).join(' ')
       end
 
       protected
@@ -292,15 +214,14 @@ class Library
     sources[path]
   end
 
-  def export(commands = {})
+  def export
     symbols = []
 
     sources.values.map(&:blocks).each do |blocks|
       blocks.each do |block|
-        next unless block.is_a?(Source::Block::Fun)
-        next unless commands.key? block.fun
+        next unless block.is_a?(Source::Block::Fun) && block.cmd?
 
-        symbols << { fun: block.fun, desc: block.desc, cmd: commands[block.fun] }
+        symbols << { fun: block.fun, desc: block.desc, cmd: block.cmd }
       end
     end
 
@@ -323,11 +244,10 @@ class Compiler
 
   attr_reader :inlines, :library
 
-  def initialize(inlines, library:, commands: nil, substitutions: nil)
+  def initialize(inlines, substitutions: nil)
     @inlines       = inlines.map(&:chomp)
-    @commands      = commands      || {}
     @substitutions = substitutions || {}
-    @library       = library
+    @library       = Library.new
   end
 
   def compile # rubocop:disable Metrics/MethodLength
@@ -348,14 +268,13 @@ class Compiler
     second_pass.join "\n"
   end
 
-  def exports
-    library.export(commands)
+  def export
+    library.export
   end
 
   private
 
-  attr_reader :substitutions, :commands
-  attr_writer :exports
+  attr_reader :substitutions
 
   DIRECTIVE = {
     include:    /
@@ -439,12 +358,6 @@ class Compiler
 
     result
   end
-
-  class << self
-    def compile(*args, **options)
-      new(*args, **options).compile
-    end
-  end
 end
 
 module Main
@@ -453,26 +366,24 @@ module Main
   class << self
     private
 
-    def bash_array_lines(exports, variable, lhs, rhs)
-      pairs = exports.sort_by { |h| h[lhs] }.map { |h| "['#{h[lhs]}']='#{h[rhs]}'" }
+    def bash_array_lines(export, variable, lhs, rhs)
+      pairs = export.sort_by { |h| h[lhs] }.map { |h| "['#{h[lhs]}']='#{h[rhs]}'" }
 
       ["declare -Ag #{variable}=(", *pairs.fmt(indent: 1), ')']
     end
 
     # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
-    def collect_helps(library, sections)
+    def collect_helps(commands)
       result = {}
 
       max_command_lengths = []
       max_desc_lengths    = []
 
-      sections.each do |section|
-        export = library.export COMMANDS[section]
-
+      commands.each do |cmd, export|
         max_command_lengths << export.map { |h| h[:cmd].length  }.max
         max_desc_lengths    << export.map { |h| h[:desc].length }.max
 
-        result[section] = export.sort_by { |h| h[:cmd] }.map do |h|
+        result[cmd] = export.sort_by { |h| h[:cmd] }.map do |h|
           { cmd: h[:cmd], desc: h[:desc] }
         end
       end
@@ -514,24 +425,25 @@ module Main
   end
 
   SUBSTITUTIONS = {
-    'help'    => proc { |compiler| bash_array_lines(compiler.exports, '_help',    :fun, :desc) },
-    'command' => proc { |compiler| bash_array_lines(compiler.exports, '_command', :cmd, :fun)  }
+    'help'    => proc { |compiler| bash_array_lines(compiler.export, '_help',    :fun, :desc) },
+    'command' => proc { |compiler| bash_array_lines(compiler.export, '_command', :cmd, :fun)  }
   }.freeze
 
-  def self.call(src, dst, library: Library.new, commands:)
-    File.write(dst, Compiler.compile(File.readlines(src),
-                                     library: library, substitutions: SUBSTITUTIONS, commands: commands))
+  def self.call(src, dst)
+    Compiler.new(File.readlines(src), substitutions: SUBSTITUTIONS).tap do |compiler|
+      File.write dst, compiler.compile
+    end
   rescue Compiler::Error => e
     abort 'E: ' + e.message
   end
 
-  def self.doc(dst, sections:, library:)
+  def self.doc(dst, commands)
     inlines = File.readlines(dst).map(&:chomp)
 
-    lengths, helps = collect_helps(library, sections)
+    lengths, helps = collect_helps(commands)
 
-    sections.each do |section|
-      inlines = markdown_table_lines(inlines: inlines, section: section,
+    commands.keys.each do |cmd|
+      inlines = markdown_table_lines(inlines: inlines, section: cmd,
                                      helps: helps, lengths: lengths)
     end
 
@@ -541,44 +453,23 @@ end
 
 BIN = %w[_ t tap].freeze
 
-def deps(bin)
-  deps = []
+desc 'Generate'
+task :generate do
+  commands = {}
 
-  deps.append("src/#{bin}")
-
-  companion = "src/#{bin}.sh"
-  deps.append(companion) if File.exist? companion
-
-  deps.append(*Dir['lib/*.sh'])
-  deps.append(__FILE__)
-
-  deps
-end
-
-BIN.each do |bin|
-  file "bin/#{bin}" => deps(bin) do |task|
-    src, dst = task.prerequisites.first, task.name
+  BIN.each do |bin|
+    src, dst = "src/#{bin}", "bin/#{bin}"
 
     mkdir_p File.dirname(dst)
-    Main.(src, dst, commands: COMMANDS[bin])
+    commands[bin] = Main.(src, dst).export
     chmod '+x', dst
 
     sh 'bash', '-n', dst
     sh 'shellcheck', dst
   end
 
-  desc "Generate #{bin}"
-  task bin.to_sym => "bin/#{bin}"
-end
-
-desc 'Generate programs'
-task generate: BIN
-
-desc 'Update documentation'
-task :doc do
-  dst     = 'README.md'
-  library = Library.new Dir['lib/*.sh', 'src/*.sh']
-  File.write dst, Main.doc(dst, sections: %w[_ t tap], library: library)
+  doc = 'README.md'
+  File.write doc, Main.doc(doc, commands)
 end
 
 desc 'Clean'

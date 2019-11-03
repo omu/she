@@ -350,3 +350,4 @@ TODO
 - [X] test gözden geçirme
 - [X] refactor t
 - [X] refactor Rakefile
+- [ ] cmd refactor

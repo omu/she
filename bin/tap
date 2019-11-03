@@ -177,6 +177,111 @@
 
 .prelude
 
+# color.sh - Colors
+
+color.code() {
+	local name="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local code="${_color[$name]:-}"
+
+	[[ -n $code ]] || .bug "No such color: $name"
+
+	echo -en "$code"
+}
+
+color.echo() {
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local code reset
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -e "${code}${*}${reset}"
+}
+
+color.expand() {
+	while [[ $# -gt 0 ]]; do
+		local -n color_expand_=${1?missing argument}
+		shift
+
+		local key value
+		for key in "${!color_expand_[@]}"; do
+			value=${color_expand_[$key]}
+
+			color_expand_[$key]=${_color[$value]}
+		done
+	done
+}
+
+color.out() {
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local code reset
+
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -en "$code"
+	.out
+	echo -en "$reset"
+}
+
+color.setup() {
+	while [[ $# -gt 0 ]]; do
+		local key=${1%%=*}; value=${1#*=}
+
+		if [[ -n ${_color[$value]:-} ]]; then
+			_color[$key]=${_color[$value]}
+		else
+			_color[$key]=$value
+		fi
+
+		shift
+	done
+}
+
+# color - Init
+
+# shellcheck disable=2034
+color.init_() {
+	declare -Ag _color=(
+		# Basic colors with variants - prefix +: bold, prefix -: dim, suffix -: reverse
+
+		[black]='\e[38;5;8m'          [+black]='\e[1m\e[38;5;8m'     [-black]='\e[38;5;0m'
+		[black-]='\e[48;5;8m'         [+black-]='\e[1m\e[48;5;8m'    [-black-]='\e[48;5;0m'
+
+		[blue]='\e[38;5;12m'          [+blue]='\e[1m\e[38;5;12m'     [-blue]='\e[38;5;4m'
+		[blue-]='\e[48;5;12m'         [+blue-]='\e[1m\e[48;5;12m'    [-blue-]='\e[48;5;4m'
+
+		[cyan]='\e[38;5;14m'          [+cyan]='\e[1m\e[38;5;14m'     [-cyan]='\e[38;5;6m'
+		[cyan-]='\e[48;5;14m'         [+cyan-]='\e[1m\e[48;5;14m'    [-cyan-]='\e[48;5;6m'
+
+		[green]='\e[38;5;10m'         [+green]='\e[1m\e[38;5;10m'    [-green]='\e[38;5;2m'
+		[green-]='\e[48;5;10m'        [+green-]='\e[1m\e[48;5;10m'   [-green-]='\e[48;5;2m'
+
+		[magenta]='\e[38;5;13m'       [+magenta]='\e[1m\e[38;5;13m'  [-magenta]='\e[38;5;5m'
+		[magenta-]='\e[48;5;13m'      [+magenta-]='\e[1m\e[48;5;13m' [-magenta-]='\e[48;5;5m'
+
+		[red]='\e[38;5;9m'            [+red]='\e[1m\e[38;5;9m'       [-red]='\e[38;5;1m'
+		[red-]='\e[48;5;9m'           [+red-]='\e[1m\e[48;5;9m'      [-red-]='\e[48;5;1m'
+
+		[white]='\e[38;5;15m'         [+white]='\e[1m\e[38;5;15m'    [-white]='\e[38;5;7m'
+		[white-]='\e[48;5;15m'        [+white-]='\e[1m\e[48;5;15m'   [-white-]='\e[48;5;7m'
+
+		[yellow]='\e[38;5;11m'        [+yellow]='\e[1m\e[38;5;11m'   [-yellow]='\e[38;5;3m'
+		[yellow-]='\e[48;5;11m'       [+yellow-]='\e[1m\e[48;5;11m'  [-yellow-]='\e[48;5;3m'
+
+		# Attributes
+
+		[bold]='\e[1m'                [dark]='\e[2m'                 [underlined]='\e[4m'
+		[blink]='\e[5m'               [reverse]='\e[7m'              [reset]='\e[0m'
+
+		# Priority aliases
+		[high]='\e[1m'                [medium]=''                    [low]='\e[2m'
+	)
+}
+
+color.init_
+
 # flag.sh - Flag handling
 
 flag.args_() {
@@ -378,246 +483,7 @@ flag._init() {
 
 flag._init
 
-# color.sh - Colors
-
-color.code() {
-	local name="${1?${FUNCNAME[0]}: missing argument}"; shift
-	local code="${_color[$name]:-}"
-
-	[[ -n $code ]] || .bug "No such color: $name"
-
-	echo -en "$code"
-}
-
-color.echo() {
-	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	local code reset
-	code=$(color.code "$color")
-	reset=$(color.code reset)
-
-	echo -e "${code}${*}${reset}"
-}
-
-color.expand() {
-	while [[ $# -gt 0 ]]; do
-		local -n color_expand_=${1?missing argument}
-		shift
-
-		local key value
-		for key in "${!color_expand_[@]}"; do
-			value=${color_expand_[$key]}
-
-			color_expand_[$key]=${_color[$value]}
-		done
-	done
-}
-
-color.out() {
-	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	local code reset
-
-	code=$(color.code "$color")
-	reset=$(color.code reset)
-
-	echo -en "$code"
-	.out
-	echo -en "$reset"
-}
-
-color.setup() {
-	while [[ $# -gt 0 ]]; do
-		local key=${1%%=*}; value=${1#*=}
-
-		if [[ -n ${_color[$value]:-} ]]; then
-			_color[$key]=${_color[$value]}
-		else
-			_color[$key]=$value
-		fi
-
-		shift
-	done
-}
-
-# color - Init
-
-# shellcheck disable=2034
-color._init() {
-	declare -Ag _color=(
-		# Basic colors with variants - prefix +: bold, prefix -: dim, suffix -: reverse
-
-		[black]='\e[38;5;8m'          [+black]='\e[1m\e[38;5;8m'     [-black]='\e[38;5;0m'
-		[black-]='\e[48;5;8m'         [+black-]='\e[1m\e[48;5;8m'    [-black-]='\e[48;5;0m'
-
-		[blue]='\e[38;5;12m'          [+blue]='\e[1m\e[38;5;12m'     [-blue]='\e[38;5;4m'
-		[blue-]='\e[48;5;12m'         [+blue-]='\e[1m\e[48;5;12m'    [-blue-]='\e[48;5;4m'
-
-		[cyan]='\e[38;5;14m'          [+cyan]='\e[1m\e[38;5;14m'     [-cyan]='\e[38;5;6m'
-		[cyan-]='\e[48;5;14m'         [+cyan-]='\e[1m\e[48;5;14m'    [-cyan-]='\e[48;5;6m'
-
-		[green]='\e[38;5;10m'         [+green]='\e[1m\e[38;5;10m'    [-green]='\e[38;5;2m'
-		[green-]='\e[48;5;10m'        [+green-]='\e[1m\e[48;5;10m'   [-green-]='\e[48;5;2m'
-
-		[magenta]='\e[38;5;13m'       [+magenta]='\e[1m\e[38;5;13m'  [-magenta]='\e[38;5;5m'
-		[magenta-]='\e[48;5;13m'      [+magenta-]='\e[1m\e[48;5;13m' [-magenta-]='\e[48;5;5m'
-
-		[red]='\e[38;5;9m'            [+red]='\e[1m\e[38;5;9m'       [-red]='\e[38;5;1m'
-		[red-]='\e[48;5;9m'           [+red-]='\e[1m\e[48;5;9m'      [-red-]='\e[48;5;1m'
-
-		[white]='\e[38;5;15m'         [+white]='\e[1m\e[38;5;15m'    [-white]='\e[38;5;7m'
-		[white-]='\e[48;5;15m'        [+white-]='\e[1m\e[48;5;15m'   [-white-]='\e[48;5;7m'
-
-		[yellow]='\e[38;5;11m'        [+yellow]='\e[1m\e[38;5;11m'   [-yellow]='\e[38;5;3m'
-		[yellow-]='\e[48;5;11m'       [+yellow-]='\e[1m\e[48;5;11m'  [-yellow-]='\e[48;5;3m'
-
-		# Attributes
-
-		[bold]='\e[1m'                [dark]='\e[2m'                 [underlined]='\e[4m'
-		[blink]='\e[5m'               [reverse]='\e[7m'              [reset]='\e[0m'
-
-		# Priority aliases
-		[high]='\e[1m'                [medium]=''                    [low]='\e[2m'
-	)
-}
-
-color._init
-
 # ui.sh - UI functions
-
-# Print bug message and exit failure
-ui.bug() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.bug "$@"
-}
-
-# Print message and exit success
-ui.bye() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.bye "$@"
-}
-
-# Print message and run command
-ui.calling() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.calling "$@"
-}
-
-# Print warning message
-ui.cry() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.cry "$@"
-}
-
-# Print error message and exit failure
-ui.die() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.die "$@"
-}
-
-# Print message indicating a download and run command
-ui.getting() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.getting "$@"
-}
-
-# Print info message
-ui.hmm() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.hmm "$@"
-}
-
-# Print not ok message
-ui.notok() {
-	local -A _=(
-		[.help]='STRING'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.notok "$@"
-}
-
-# Print ok message
-ui.ok() {
-	local -A _=(
-		[.help]='STRING'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.ok "$@"
-}
-
-# Print a busy message run command
-ui.running() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.calling "$@"
-}
-
-# Print message on stderr
-ui.say() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.say "$@"
-}
-
-# ui - Protected functions
 
 ui.out() {
 	local name=${1:-default}
@@ -633,10 +499,8 @@ ui.out() {
 	echo -en "$reset "
 }
 
-# ui - Private functions
-
 # shellcheck disable=2154
-ui._echo() {
+ui.echo() {
 	[[ $# -gt 0 ]] || return 0
 
 	local message=$1
@@ -657,7 +521,7 @@ ui._echo() {
 # ui - Init
 
 # shellcheck disable=2034,2154
-ui._init() {
+ui.init_() {
 	declare -Ag _sign _sign_color _text_color
 
 	# Style
@@ -679,32 +543,32 @@ ui._init() {
 
 	color.expand _sign_color _text_color
 
-	.bug()     { ui._echo "$@" >&2; exit 127; }
-	.bye()     { ui._echo "$@" >&2; exit 0;   }
-	.calling() { ui._echo "$1" >&2; "${@:2}"; }
-	.cry()     { ui._echo "$@" >&2;           }
-	.die()     { ui._echo "$@" >&2; exit 1;   }
-	.getting() { ui._echo "$1" >&2; "${@:2}"; }
-	.hmm()     { ui._echo "$@" >&2;           }
-	.notok()   { ui._echo "$@" >&2;           }
-	.ok()      { ui._echo "$@" >&2;           }
-	.running() { ui._echo "$1" >&2; "${@:2}"; }
-	.say()     { ui._echo "$@" >&2;           }
+	.bug()     { ui.echo "$@" >&2; exit 127; }
+	.bye()     { ui.echo "$@" >&2; exit 0;   }
+	.calling() { ui.echo "$1" >&2; "${@:2}"; }
+	.cry()     { ui.echo "$@" >&2;           }
+	.die()     { ui.echo "$@" >&2; exit 1;   }
+	.getting() { ui.echo "$1" >&2; "${@:2}"; }
+	.hmm()     { ui.echo "$@" >&2;           }
+	.notok()   { ui.echo "$@" >&2;           }
+	.ok()      { ui.echo "$@" >&2;           }
+	.running() { ui.echo "$1" >&2; "${@:2}"; }
+	.say()     { ui.echo "$@" >&2;           }
 }
 
-ui._init
+ui.init_
 
 # tap.sh - TAP functions
 
 # Mark stdin lines as an error output
-tap.err() {
+tap:err() {
 	local -A _; flag.parse
 
 	sed 's:^:# err> :' | color.out +red
 }
 
 # Print TAP failure
-tap.failure() {
+tap:failure() {
 	# shellcheck disable=2192
 	local -A _=(
 		[test]=$NIL
@@ -732,14 +596,14 @@ tap.failure() {
 }
 
 # Mark stdin lines as a successful output
-tap.out() {
+tap:out() {
 	local -A _; flag.parse
 
 	sed 's:^:# out> :' | color.out +green
 }
 
 # Print TAP plan
-tap.plan() {
+tap:plan() {
 	# shellcheck disable=2192
 	local -A _=(
 		[total]=$NIL
@@ -754,7 +618,7 @@ tap.plan() {
 }
 
 # Print TAP summary
-tap.shutdown() {
+tap:shutdown() {
 	# shellcheck disable=2192
 	local -A _=(
 		[failure]=$NIL
@@ -774,7 +638,7 @@ tap.shutdown() {
 
 
 # Print TAP skip
-tap.skip() {
+tap:skip() {
 	# shellcheck disable=2192
 	local -A _=(
 		[test]=$NIL
@@ -800,7 +664,7 @@ tap.skip() {
 }
 
 # Print TAP start
-tap.startup() {
+tap:startup() {
 	# shellcheck disable=2192
 	local -A _=(
 		[.help]='[FILE]'
@@ -816,7 +680,7 @@ tap.startup() {
 }
 
 # Print TAP success
-tap.success() {
+tap:success() {
 	# shellcheck disable=2192
 	local -A _=(
 		[test]=$NIL
@@ -838,7 +702,7 @@ tap.success() {
 }
 
 # Print TAP version
-tap.version() {
+tap:version() {
 	local -A _=(
 		[.argc]=0
 	)
@@ -848,7 +712,7 @@ tap.version() {
 }
 
 # Print TAP todo
-tap.todo() {
+tap:todo() {
 	# shellcheck disable=2192
 	local -A _=(
 		[test]=$NIL
@@ -880,43 +744,43 @@ tap.todo() {
 
 # tap - Protected functions
 
-tap.stack() {
+tap:stack_() {
 	sed 's:^:# :' | color.out yellow
 }
 
 # tap - Init
 
-tap._init() {
+tap:init_() {
 	readonly _TAP_VERSION_=13
 }
 
-tap._init
+tap:init_
 
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
-		['tap.err']='Mark stdin lines as an error output'
-		['tap.failure']='Print TAP failure'
-		['tap.out']='Mark stdin lines as a successful output'
-		['tap.plan']='Print TAP plan'
-		['tap.shutdown']='Print TAP summary'
-		['tap.skip']='Print TAP skip'
-		['tap.startup']='Print TAP start'
-		['tap.success']='Print TAP success'
-		['tap.todo']='Print TAP todo'
-		['tap.version']='Print TAP version'
+		['tap:err']='Mark stdin lines as an error output'
+		['tap:failure']='Print TAP failure'
+		['tap:out']='Mark stdin lines as a successful output'
+		['tap:plan']='Print TAP plan'
+		['tap:shutdown']='Print TAP summary'
+		['tap:skip']='Print TAP skip'
+		['tap:startup']='Print TAP start'
+		['tap:success']='Print TAP success'
+		['tap:todo']='Print TAP todo'
+		['tap:version']='Print TAP version'
 	)
 
 	declare -Ag _command=(
-		['err']='tap.err'
-		['failure']='tap.failure'
-		['out']='tap.out'
-		['plan']='tap.plan'
-		['shutdown']='tap.shutdown'
-		['skip']='tap.skip'
-		['startup']='tap.startup'
-		['success']='tap.success'
-		['todo']='tap.todo'
-		['version']='tap.version'
+		['tap err']='tap:err'
+		['tap failure']='tap:failure'
+		['tap out']='tap:out'
+		['tap plan']='tap:plan'
+		['tap shutdown']='tap:shutdown'
+		['tap skip']='tap:skip'
+		['tap startup']='tap:startup'
+		['tap success']='tap:success'
+		['tap todo']='tap:todo'
+		['tap version']='tap:version'
 	)
 
 	# main - Application

@@ -1,57 +1,57 @@
 # t.sh - Test functions
 
 # Assert failed command outputs
-t.err() {
-	t._assert "$@"
+t:err() {
+	t:assert_ "$@"
 }
 
 # Return failure
-t.fail() {
-	t._assert "$@"
+t:fail() {
+	t:assert_ "$@"
 }
 
 # Assert actual value equals to the expected
-t.is() {
-	t._assert "$@"
+t:is() {
+	t:assert_ "$@"
 }
 
 # Assert got value not equals to the expected
-t.isnt() {
-	t._assert "$@"
+t:isnt() {
+	t:assert_ "$@"
 }
 
 # Assert got value matches with the expected
-t.like() {
-	t._assert "$@"
+t:like() {
+	t:assert_ "$@"
 }
 
 # Assert command fails
-t.notok() {
-	t._assert "$@"
+t:notok() {
+	t:assert_ "$@"
 }
 
 # Assert command succeeds
-t.ok() {
-	t._assert "$@"
+t:ok() {
+	t:assert_ "$@"
 }
 
 # Assert successful command outputs
-t.out() {
-	t._assert "$@"
+t:out() {
+	t:assert_ "$@"
 }
 
 # Return success
-t.pass() {
-	t._assert "$@"
+t:pass() {
+	t:assert_ "$@"
 }
 
 # Assert got value not matches with the expected
-t.unlike() {
-	t._assert "$@"
+t:unlike() {
+	t:assert_ "$@"
 }
 
 # Create and chdir to temp directory
-t.temp() {
+t:temp() {
 	local tempdir
 
 	if [[ -n ${PWD[tmp]:-} ]]; then
@@ -70,7 +70,7 @@ t.temp() {
 
 # Run all test suites defined so far
 # shellcheck disable=2034
-t.go() {
+t:go() {
 	local -a _t_go_tests_
 
 	mapfile -t _t_go_tests_ < <(
@@ -107,99 +107,7 @@ t.go() {
 
 # t - Protected functions
 
-assert.err() {
-	local -n assert_err_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=2034
-	assert_err_=("$(
-		hope -success=false "$@"
-	)")
-}
-
-assert.fail() {
-	false
-}
-
-assert.is() {
-	local -n assert_is_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local got=${1?${FUNCNAME[0]}: missing argument};      shift
-	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=2034
-	assert_is_="Got '$got' where expected '$expected'"
-
-	[[ $got = "$expected" ]]
-}
-
-assert.isnt() {
-	local -n assert_isnt_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local got=${1?${FUNCNAME[0]}: missing argument};      shift
-	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=2034
-	assert_isnt_=("Got unexpected '$got'")
-
-	[[ $got != "$expected" ]]
-}
-
-assert.like() {
-	local -n assert_like_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local got=${1?${FUNCNAME[0]}: missing argument};      shift
-	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=2034
-	assert_like_=("Got '$got' where expected to match with '$expected'")
-
-	[[ $got =~ $expected ]]
-}
-
-assert.notok() {
-	local -n assert_notok_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=2034
-	assert_notok_="Command expected to fail but succeeded: $*"
-
-	! eval -- "$@"
-}
-
-# shellcheck disable=2034
-assert.ok() {
-	local -n assert_ok_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	assert_ok_="Command expected to succeed but failed: $*"
-
-	eval -- "$@"
-}
-
-assert.out() {
-	local -n assert_out_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=2034
-	assert_out_=("$(
-		hope -success=true "$@"
-	)")
-}
-
-assert.pass() {
-	true
-}
-
-assert.unlike() {
-	local -n assert_unlike_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local got=${1?${FUNCNAME[0]}: missing argument};      shift
-	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=2034
-	assert_unlike_=("Got '$got' where expected to unmatch with '$expected'")
-
-	[[ ! $got =~ $expected ]]
-}
-
-t._assert() {
+t:assert_() {
 	local assert=assert.${FUNCNAME[1]#*.}
 
 	local -a args
@@ -245,17 +153,17 @@ t._assert() {
 	fi
 }
 
-t._reset() {
+t:reset_() {
 	_test_[current]=0
 	_test_[start]=$SECONDS
 }
 
 # assert - Init
 
-assert._init() {
+t:init_() {
 	declare -Ag _test_=()
 
-	t._reset
+	t:reset_
 }
 
-assert._init
+t:init_

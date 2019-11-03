@@ -177,6 +177,525 @@
 
 .prelude
 
+# Libraries
+
+# array.sh - Array functions
+
+# Return if array contains the given element
+array.contains() {
+	local -n array_contains_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    element=${1?${FUNCNAME[0]}: missing argument};         shift
+
+	.contains "$element" "${array_contains_[@]}"
+}
+
+# Duplicate array
+array.dup() {
+	local -n array_dup_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n array_dup_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!array_dup_rhs_[@]}"; do
+		# shellcheck disable=2034
+		array_dup_lhs_[$key]=${array_dup_rhs_[$key]}
+	done
+}
+
+# Join array with the given separator
+array.join() {
+	local IFS=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	echo "$*"
+}
+
+# color.sh - Colors
+
+color.code() {
+	local name="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local code="${_color[$name]:-}"
+
+	[[ -n $code ]] || .bug "No such color: $name"
+
+	echo -en "$code"
+}
+
+color.echo() {
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local code reset
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -e "${code}${*}${reset}"
+}
+
+color.expand() {
+	while [[ $# -gt 0 ]]; do
+		local -n color_expand_=${1?missing argument}
+		shift
+
+		local key value
+		for key in "${!color_expand_[@]}"; do
+			value=${color_expand_[$key]}
+
+			color_expand_[$key]=${_color[$value]}
+		done
+	done
+}
+
+color.out() {
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local code reset
+
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -en "$code"
+	.out
+	echo -en "$reset"
+}
+
+color.setup() {
+	while [[ $# -gt 0 ]]; do
+		local key=${1%%=*}; value=${1#*=}
+
+		if [[ -n ${_color[$value]:-} ]]; then
+			_color[$key]=${_color[$value]}
+		else
+			_color[$key]=$value
+		fi
+
+		shift
+	done
+}
+
+# color - Init
+
+# shellcheck disable=2034
+color.init_() {
+	declare -Ag _color=(
+		# Basic colors with variants - prefix +: bold, prefix -: dim, suffix -: reverse
+
+		[black]='\e[38;5;8m'          [+black]='\e[1m\e[38;5;8m'     [-black]='\e[38;5;0m'
+		[black-]='\e[48;5;8m'         [+black-]='\e[1m\e[48;5;8m'    [-black-]='\e[48;5;0m'
+
+		[blue]='\e[38;5;12m'          [+blue]='\e[1m\e[38;5;12m'     [-blue]='\e[38;5;4m'
+		[blue-]='\e[48;5;12m'         [+blue-]='\e[1m\e[48;5;12m'    [-blue-]='\e[48;5;4m'
+
+		[cyan]='\e[38;5;14m'          [+cyan]='\e[1m\e[38;5;14m'     [-cyan]='\e[38;5;6m'
+		[cyan-]='\e[48;5;14m'         [+cyan-]='\e[1m\e[48;5;14m'    [-cyan-]='\e[48;5;6m'
+
+		[green]='\e[38;5;10m'         [+green]='\e[1m\e[38;5;10m'    [-green]='\e[38;5;2m'
+		[green-]='\e[48;5;10m'        [+green-]='\e[1m\e[48;5;10m'   [-green-]='\e[48;5;2m'
+
+		[magenta]='\e[38;5;13m'       [+magenta]='\e[1m\e[38;5;13m'  [-magenta]='\e[38;5;5m'
+		[magenta-]='\e[48;5;13m'      [+magenta-]='\e[1m\e[48;5;13m' [-magenta-]='\e[48;5;5m'
+
+		[red]='\e[38;5;9m'            [+red]='\e[1m\e[38;5;9m'       [-red]='\e[38;5;1m'
+		[red-]='\e[48;5;9m'           [+red-]='\e[1m\e[48;5;9m'      [-red-]='\e[48;5;1m'
+
+		[white]='\e[38;5;15m'         [+white]='\e[1m\e[38;5;15m'    [-white]='\e[38;5;7m'
+		[white-]='\e[48;5;15m'        [+white-]='\e[1m\e[48;5;15m'   [-white-]='\e[48;5;7m'
+
+		[yellow]='\e[38;5;11m'        [+yellow]='\e[1m\e[38;5;11m'   [-yellow]='\e[38;5;3m'
+		[yellow-]='\e[48;5;11m'       [+yellow-]='\e[1m\e[48;5;11m'  [-yellow-]='\e[48;5;3m'
+
+		# Attributes
+
+		[bold]='\e[1m'                [dark]='\e[2m'                 [underlined]='\e[4m'
+		[blink]='\e[5m'               [reverse]='\e[7m'              [reset]='\e[0m'
+
+		# Priority aliases
+		[high]='\e[1m'                [medium]=''                    [low]='\e[2m'
+	)
+}
+
+color.init_
+
+deb.add_key() {
+	local artifact=
+
+	if [[ ! -d $HOME/.gnupg ]]; then
+		artifact=$HOME/.gnupg
+
+		mkdir "$artifact" && chmod 700 "$artifact"
+	fi
+
+	local err
+	deb.add_key_ "$@"  || err=$? && err=$?
+
+	[[ -z ${artifact:-} ]] || rm -rf "$artifact"
+
+	return "$err"
+}
+
+deb.update() {
+	if .expired 60 /var/cache/apt/pkgcache.bin; then
+		.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
+
+		.getting 'Updating package index' apt-get update -y
+	fi
+}
+
+deb.install() {
+	[[ $# -gt 0 ]] || return 0
+
+	deb.update
+
+	.getting 'Installing packages' apt-get install --yes --no-install-recommends "$@"
+}
+
+deb.installed() {
+	local package="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	[[ -n "$(dpkg-query -W -f='${Installed-Size}' "$package" 2>/dev/null ||:)" ]]
+}
+
+deb.install_manual() {
+	[[ $# -gt 0 ]] || return 0
+
+	deb.update
+
+	local url
+
+	for url; do
+		local deb
+
+		file.download "$url" deb
+
+		dpkg-deb --info "$deb" &>/dev/null || .die "Not a valid Debian package: $url"
+		dpkg -i -- "$deb" 2>/dev/null || true
+		apt-get -y install --no-install-recommends --fix-broken
+
+		rm -f -- "$deb"
+	done
+}
+
+deb.dist_added() {
+	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	grep -qE "^deb.*\bdebian.org\b.*\b$dist\b" /etc/apt/*.list /etc/apt/sources.list.d/*.list
+}
+
+deb.dist_valid() {
+	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	http.is http://ftp.debian.org/debian/dists/"$dist"/ OK
+}
+
+deb.missings() {
+	local -n deb_missings_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local package
+	for package; do
+		# shellcheck disable=2016
+		deb.installed "$package" || deb_missings_+=("$package")
+	done
+}
+
+deb.uninstall() {
+	[[ $# -gt 0 ]] || return 0
+
+	local -a packages=()
+
+	deb.missings packages "$@"
+	[[ ${#packages[@]} -gt 0 ]] || return 0
+
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
+
+	apt-get purge -y "${packages[@]}"
+
+	.should -- apt-get autoremove -y
+	.should -- apt-get autoclean -y
+}
+
+# deb - Private functions
+
+deb.add_key_() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local temp_file
+	temp.file temp_file
+
+	http.get "$url" >"$temp_file" || .die "Couldn't get key file: $url"
+
+	local -a questioned_fingerprints installed_fingerprints
+
+	mapfile -t questioned_fingerprints < <(
+		gpg -nq --import --import-options import-show --with-colons "$temp_file" |
+		awk -F: '$1 == "fpr" { print $10 }' 2>/dev/null
+	)
+
+	# shellcheck disable=2034
+	mapfile -t installed_fingerprints < <(
+		apt-key adv --list-public-keys --with-fingerprint --with-colon |
+		awk -F: '$1 == "fpr" { print $10 }' 2>/dev/null
+	)
+
+	local fingerprint unfound
+	for fingerprint in "${questioned_fingerprints[@]}"; do
+		if ! .contains "$fingerprint" "${installed_fingerprints[@]}"; then
+			unfound=$fingerprint
+			break
+		fi
+	done
+
+	if [[ -n ${unfound:-} ]]; then
+		.running 'Adding APT key'
+		apt-key add "$temp_file"
+	fi
+
+	temp.clean temp_file
+}
+
+# defer.sh - Deferred functions
+
+# Register files/directories to clean up at exit
+.clean() {
+	[[ -v _defer_initialized_ ]] || .defer
+
+	_defer_clean_+=("$@")
+}
+
+# Trap defer setup
+# shellcheck disable=2120
+.defer() {
+	if [[ -v _defer_initialized_ ]]; then
+		return
+	else
+		_defer_initialized_=true
+
+		declare -ag _defer_clean_=()
+
+		if [[ -n $(builtin trap -p 2>/dev/null) ]]; then
+			.cry 'Trap already taken.'
+
+			return
+		fi
+	fi
+
+	local -a signals=("$@")
+	[[ $# -gt 0 ]] || signals=(EXIT HUP INT KILL QUIT TERM)
+
+	local signal
+	for signal in "${signals[@]}"; do
+		# shellcheck disable=2064
+		builtin trap "_defer_ $signal" "$signal"
+	done
+
+	# Prevent using trap
+	trap() {
+		.bug 'Using trap is forbidden; please use defer.* functions.'
+	}
+
+	# shellcheck disable=2139
+	alias .untrap="trap - ${signals[*]}"
+
+	_defer_() {
+		local -r SIG=$1 ERR=$?
+
+		local -a _defer_funcs_
+
+		mapfile -t _defer_funcs_ < <(
+			shopt -s extdebug
+
+			declare -F | grep 'declare -f defer[.]' | awk '{ print $3 }' |
+			while read -r func; do declare -F "$func"; done |
+			sort -t' ' -k2 -n | awk '
+				$1 !~ /defer[.]early|defer[.]late/ {
+					print $1
+				}
+			'
+		)
+
+		! .callable defer.early || defer.early
+
+		local func
+		for func in "${_defer_funcs_[@]}"; do
+			"$func" || [[ $SIG = INT ]] || [[ $SIG = QUIT ]] || .cry "Deferred function failed: $func"
+		done
+
+		if [[ -v _defer_clean_ ]] && [[ "${#_defer_clean_[@]}" -gt 0 ]]; then
+			rm -rf -- "${_defer_clean_[@]}"
+		fi
+
+		! .callable defer.late || defer.late
+
+		builtin trap - EXIT
+
+		if [[ $SIG = INT ]] || [[ $SIG = QUIT ]]; then
+			builtin trap - "$SIG"; kill -s "$SIG" "$$"
+		fi
+
+		return "$ERR"
+	}
+
+	readonly -f _defer_
+}
+
+# file.sh - File related operations
+
+file.download() {
+	local    url=${1?${FUNCNAME[0]}: missing argument};                shift
+	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local download
+	temp.file download
+
+	.getting "Downloading $url"
+	.must -- http.get "$url" >"$download"
+	.must -- chmod 644 "$download"
+
+	# shellcheck disable=2034
+	file_download_dst_=$download
+}
+
+file.enter() {
+	local dir=${1:-}
+
+	[[ -n $dir ]] || return 0
+
+	if [[ -d $dir ]]; then
+		.must -- cd "$dir"
+	else
+		dir=${dir%/*}
+		[[ -d $dir ]] || .die "No path found to enter: $dir"
+		.must -- cd "$dir"
+	fi
+}
+
+file.ln() {
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	src=$(realpath -m --relative-base "${dst%/*}" "$src")
+	.must -- ln -sf "$src" "$dst"
+}
+
+file.run() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ -f $file ]] || [[ $file =~ [.][^./]+$ ]] || file=$file.sh
+
+	filetype.runnable "$file" || .die "File is not runnable: $file"
+
+	local -a env=()
+	flag.env_ env
+
+	local -a argv=(env "${env[@]}")
+
+	if [[ ! -x "$file" ]]; then
+		if filetype.interpretable "$file"; then
+			local -a shebang
+			filetype.shebang "$file" shebang
+
+			# shellcheck disable=2206
+			argv+=("${shebang[@]}")
+		fi
+	fi
+
+	argv+=("$file")
+
+	"${argv[@]}"
+}
+
+# filetype.sh - Filetype detection
+
+filetype.compressed() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime; mime=$(file --mime-type --brief "$file")
+
+	case $mime in
+	application/gzip|application/zip|application/x-xz|application/x-bzip2|application/x-zstd)
+		local zip=$mime; zip=${zip##*/}; zip=${zip##*-}
+
+		return 0 ;;
+	*)
+		return 1 ;;
+	esac
+}
+
+filetype.executable() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime encoding
+
+	IFS='; ' read -r mime encoding < <(file --mime --brief "$file")
+
+	if [[ $encoding =~ binary$ ]]; then
+		if [[ $mime  =~ -executable$ ]]; then
+			return 0
+		fi
+	fi
+
+	return 1
+}
+
+filetype.interpretable() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime encoding
+
+	IFS='; ' read -r mime encoding < <(file --mime --brief "$file")
+
+	if [[ ! $encoding =~ binary$ ]]; then
+		if head -n 1 "$file" | grep -q '^#!'; then
+			return 0
+		fi
+	fi
+
+	return 1
+}
+
+filetype.mime() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	file --mime-type --brief "$file"
+}
+
+filetype.mimez() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	file --mime-type --brief --uncompress-noreport "$file"
+}
+
+filetype.runnable() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime encoding
+
+	IFS='; ' read -r mime encoding < <(file --mime --brief "$file")
+
+	if [[ $encoding =~ binary$ ]]; then
+		if [[ $mime  =~ -executable$ ]]; then
+			return 0
+		fi
+	else
+		if head -n 1 "$file" | grep -q '^#!'; then
+			return 0
+		fi
+	fi
+
+	return 1
+}
+
+filetype.shebang() {
+	local    file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n lib_filetype_shebang_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	# shellcheck disable=2034
+	local lib_filetype_shebang_string
+
+	lib_filetype_shebang_string_=$(head -n 1 "$file")
+	lib_filetype_shebang_string_=${lib_filetype_shebang_string_#\#!}
+	lib_filetype_shebang_string_=${lib_filetype_shebang_string_# }
+
+	# shellcheck disable=2034,2206
+	lib_filetype_shebang_=($lib_filetype_shebang_string_)
+}
+
 # flag.sh - Flag handling
 
 flag.args_() {
@@ -378,562 +897,150 @@ flag._init() {
 
 flag._init
 
-# _.sh - Required functions
+# git.sh - Git functions
 
-# Return if program available
-_.available() {
-	local -A _=(
-		[.help]='PROGRAM'
-		[.argc]=1
-	)
+git.default_branch() {
+	git.must.sane
 
-	flag.parse
-
-	.available "$@"
+	git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'
 }
 
-# Return if first argument found in remaining arguments
-_.contains() {
-	local -A _=(
-		[.help]='NEEDLE HAYSTACK'
-		[.argc]=2-
-	)
-
-	flag.parse
-
-	.contains "$@"
+git.is.clean() {
+	git rev-parse --verify HEAD >/dev/null &&
+	git update-index -q --ignore-submodules --refresh &&
+	git diff-files --quiet --ignore-submodules &&
+	git diff-index --cached --quiet --ignore-submodules HEAD --
 }
 
-# Return if any of the files expired
-_.expired() {
-	local -A _=(
-		[-expiry]=3
+git.is.git() {
+	local path=${1:-.}
 
-		[.help]='[-expiry=MINUTES] FILE...'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.expired "${_[-expiry]}" "$@"
+	[[ -d $path/.git ]] && git rev-parse --resolve-git-dir "$path/.git" &>/dev/null
 }
 
-# Ensure the given command succeeds
-_.must() {
-	local -A _=(
-		[.help]='MESSAGE ARGS...|-- ARGS...'
-		[.argc]=2-
-		[.dash]=true
-	)
-
-	flag.parse
-
-	.must "$@"
+git.must.clean() {
+	# shellcheck disable=2128
+	git.is.clean || .die "Must be a clean git work tree: $PWD"
 }
 
-# Try to run any file or url
-_.run() {
-	local -A _=(
-		[.help]='FILE|URL'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	local url=$1
-
-	if url.any "$url" web local; then
-		file.run "$url"
-	elif url.is "$url" src; then
-		src.run "$url"
-	else
-		.die "Unsupported URL type: $url"
-	fi
+git.must.sane() {
+	# shellcheck disable=2128
+	git rev-parse --is-inside-work-tree &>/dev/null || .die "Must be inside a git work tree: $PWD"
+	# shellcheck disable=2128
+	git rev-parse --verify HEAD >/dev/null          || .die "Unverified git HEAD: $PWD"
 }
 
-# Ignore error if the given command fails
-_.should() {
-	local -A _=(
-		[.help]='MESSAGE ARGS...|-- ARGS...'
-		[.argc]=2-
-		[.dash]=true
-	)
+git.switch() {
+	local branch=${1:-}
 
-	flag.parse
+	[[ -n $branch ]] || branch=$(git.default_branch)
 
-	.should "$@"
+	git checkout --quiet "$branch"
 }
 
-# _ - Init
+git.top() {
+	git.must.sane
 
-_._init() {
-	# Default variable as a hash
-	declare -gA _=()
+	.must -- cd "$(git.topdir)"
+}
 
-	# shellcheck disable=2034
+git.topdir() {
+	local dir
 
-	# Core environment
-	if [[ ${EUID:-} -eq 0 ]]; then
-		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
-		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
-		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
-	else
-		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
-		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
-		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
+	dir=$(git rev-parse --git-dir) && dir=$(cd "$dir" && pwd)/ && echo "${dir%%/.git/*}"
+}
 
-		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
-		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
-		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
+# http.sh - HTTP functions
+
+http.get() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $url =~ ^[^:]+:// ]] || url=https://$url
+
+	curl -fsSL "$url"
+}
+
+http.is() {
+	local url=${1?${FUNCNAME[0]}: missing argument};  shift
+	local code=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local response
+	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
+
+	if [[ ${code,,} = ok ]]; then
+		code=200
 	fi
 
-	export PATH="$_RUN"/bin:"$PATH"
-
-	unset -f "${FUNCNAME[0]}"
+	[[ $response = "$code" ]]
 }
 
-_._init
+# os.sh - OS related functions
 
-# color.sh - Colors
+os.any() {
+	local feature
 
-color.code() {
-	local name="${1?${FUNCNAME[0]}: missing argument}"; shift
-	local code="${_color[$name]:-}"
-
-	[[ -n $code ]] || .bug "No such color: $name"
-
-	echo -en "$code"
-}
-
-color.echo() {
-	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	local code reset
-	code=$(color.code "$color")
-	reset=$(color.code reset)
-
-	echo -e "${code}${*}${reset}"
-}
-
-color.expand() {
-	while [[ $# -gt 0 ]]; do
-		local -n color_expand_=${1?missing argument}
-		shift
-
-		local key value
-		for key in "${!color_expand_[@]}"; do
-			value=${color_expand_[$key]}
-
-			color_expand_[$key]=${_color[$value]}
-		done
+	for feature; do
+		if os.is "$feature"; then
+			return 0
+		fi
 	done
+
+	return 1
 }
 
-color.out() {
-	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	local code reset
-
-	code=$(color.code "$color")
-	reset=$(color.code reset)
-
-	echo -en "$code"
-	.out
-	echo -en "$reset"
+os.codename() {
+	lsb_release -sc
 }
 
-color.setup() {
-	while [[ $# -gt 0 ]]; do
-		local key=${1%%=*}; value=${1#*=}
+os.dist() {
+	# shellcheck disable=1091
+	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
+}
 
-		if [[ -n ${_color[$value]:-} ]]; then
-			_color[$key]=${_color[$value]}
-		else
-			_color[$key]=$value
+os.is() {
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local func=os.is."${feature}"
+
+	if .callable "$func"; then
+		"$func"
+	else
+		local dist
+		dist=$(os.dist)
+
+		if [[ $dist = "$feature" ]]; then
+			return 0
 		fi
 
-		shift
-	done
-}
+		local codename
+		codename=$(os.codename)
 
-# color - Init
+		if [[ $codename = "$feature" ]]; then
+			return 0
+		fi
 
-# shellcheck disable=2034
-color._init() {
-	declare -Ag _color=(
-		# Basic colors with variants - prefix +: bold, prefix -: dim, suffix -: reverse
-
-		[black]='\e[38;5;8m'          [+black]='\e[1m\e[38;5;8m'     [-black]='\e[38;5;0m'
-		[black-]='\e[48;5;8m'         [+black-]='\e[1m\e[48;5;8m'    [-black-]='\e[48;5;0m'
-
-		[blue]='\e[38;5;12m'          [+blue]='\e[1m\e[38;5;12m'     [-blue]='\e[38;5;4m'
-		[blue-]='\e[48;5;12m'         [+blue-]='\e[1m\e[48;5;12m'    [-blue-]='\e[48;5;4m'
-
-		[cyan]='\e[38;5;14m'          [+cyan]='\e[1m\e[38;5;14m'     [-cyan]='\e[38;5;6m'
-		[cyan-]='\e[48;5;14m'         [+cyan-]='\e[1m\e[48;5;14m'    [-cyan-]='\e[48;5;6m'
-
-		[green]='\e[38;5;10m'         [+green]='\e[1m\e[38;5;10m'    [-green]='\e[38;5;2m'
-		[green-]='\e[48;5;10m'        [+green-]='\e[1m\e[48;5;10m'   [-green-]='\e[48;5;2m'
-
-		[magenta]='\e[38;5;13m'       [+magenta]='\e[1m\e[38;5;13m'  [-magenta]='\e[38;5;5m'
-		[magenta-]='\e[48;5;13m'      [+magenta-]='\e[1m\e[48;5;13m' [-magenta-]='\e[48;5;5m'
-
-		[red]='\e[38;5;9m'            [+red]='\e[1m\e[38;5;9m'       [-red]='\e[38;5;1m'
-		[red-]='\e[48;5;9m'           [+red-]='\e[1m\e[48;5;9m'      [-red-]='\e[48;5;1m'
-
-		[white]='\e[38;5;15m'         [+white]='\e[1m\e[38;5;15m'    [-white]='\e[38;5;7m'
-		[white-]='\e[48;5;15m'        [+white-]='\e[1m\e[48;5;15m'   [-white-]='\e[48;5;7m'
-
-		[yellow]='\e[38;5;11m'        [+yellow]='\e[1m\e[38;5;11m'   [-yellow]='\e[38;5;3m'
-		[yellow-]='\e[48;5;11m'       [+yellow-]='\e[1m\e[48;5;11m'  [-yellow-]='\e[48;5;3m'
-
-		# Attributes
-
-		[bold]='\e[1m'                [dark]='\e[2m'                 [underlined]='\e[4m'
-		[blink]='\e[5m'               [reverse]='\e[7m'              [reset]='\e[0m'
-
-		# Priority aliases
-		[high]='\e[1m'                [medium]=''                    [low]='\e[2m'
-	)
-}
-
-color._init
-
-# ui.sh - UI functions
-
-# Print bug message and exit failure
-ui.bug() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.bug "$@"
-}
-
-# Print message and exit success
-ui.bye() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.bye "$@"
-}
-
-# Print message and run command
-ui.calling() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.calling "$@"
-}
-
-# Print warning message
-ui.cry() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.cry "$@"
-}
-
-# Print error message and exit failure
-ui.die() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.die "$@"
-}
-
-# Print message indicating a download and run command
-ui.getting() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.getting "$@"
-}
-
-# Print info message
-ui.hmm() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.hmm "$@"
-}
-
-# Print not ok message
-ui.notok() {
-	local -A _=(
-		[.help]='STRING'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.notok "$@"
-}
-
-# Print ok message
-ui.ok() {
-	local -A _=(
-		[.help]='STRING'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.ok "$@"
-}
-
-# Print a busy message run command
-ui.running() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	.calling "$@"
-}
-
-# Print message on stderr
-ui.say() {
-	local -A _=(
-		[.help]='MESSAGE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	.say "$@"
-}
-
-# ui - Protected functions
-
-ui.out() {
-	local name=${1:-default}
-	shift || true
-
-	local sign=${_sign[$name]}
-
-	# shellcheck disable=2154
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	echo -en "${sign_color}${sign}${reset} "
-	.out "$@"
-	echo -en "$reset "
-}
-
-# ui - Private functions
-
-# shellcheck disable=2154
-ui._echo() {
-	[[ $# -gt 0 ]] || return 0
-
-	local message=$1
-
-	local name=${FUNCNAME[1]#*.}
-
-	local sign=${_sign[$name]}
-
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	if [[ -n ${sign:-} ]]; then
-		echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
-	else
-		echo -e "${text_color}${message}${reset}"
+		return 1
 	fi
 }
 
-# ui - Init
-
-# shellcheck disable=2034,2154
-ui._init() {
-	declare -Ag _sign _sign_color _text_color
-
-	# Style
-
-	_sign[ask]='?';     _sign_color[ask]=+yellow;    _text_color[ask]=high
-	_sign[bug]='✖';     _sign_color[bug]=red;        _text_color[bug]=high
-	_sign[cry]='!';     _sign_color[cry]=+yellow;    _text_color[cry]=medium
-	_sign[die]='✗';     _sign_color[die]=+red;       _text_color[die]=high
-	_sign[hmm]='ℹ';     _sign_color[hmm]=-yellow;    _text_color[hmm]=low
-	_sign[say]='' ;     _sign_color[say]=+white;     _text_color[say]=medium
-
-	_sign[notok]='✗';   _sign_color[notok]=+red;     _text_color[notok]=high
-	_sign[ok]='✓';      _sign_color[ok]=+green;      _text_color[ok]=high
-
-	_sign[calling]='>'; _sign_color[calling]=+cyan;  _text_color[calling]=high
-	_sign[getting]='↓'; _sign_color[getting]=+cyan;  _text_color[getting]=low
-	_sign[running]='∙'; _sign_color[running]=+cyan;  _text_color[running]=low
-	_sign[default]='∙'; _sign_color[default]=+white; _text_color[default]=medium
-
-	color.expand _sign_color _text_color
-
-	.bug()     { ui._echo "$@" >&2; exit 127; }
-	.bye()     { ui._echo "$@" >&2; exit 0;   }
-	.calling() { ui._echo "$1" >&2; "${@:2}"; }
-	.cry()     { ui._echo "$@" >&2;           }
-	.die()     { ui._echo "$@" >&2; exit 1;   }
-	.getting() { ui._echo "$1" >&2; "${@:2}"; }
-	.hmm()     { ui._echo "$@" >&2;           }
-	.notok()   { ui._echo "$@" >&2;           }
-	.ok()      { ui._echo "$@" >&2;           }
-	.running() { ui._echo "$1" >&2; "${@:2}"; }
-	.say()     { ui._echo "$@" >&2;           }
+os.is.proxmox() {
+	.available pveversion && uname -a | grep -q -i pve
 }
 
-ui._init
-
-# self.sh - Functions related to program itself
-
-# Install self
-self.install() {
-	# shellcheck disable=2192,2128
-	local -A _=(
-		[-prefix]="$_USR"/bin
-		[-name]=$PROGNAME
-
-		[.help]=
-		[.argc]=0
-	)
-
-	flag.parse
-
-	_[1]=$(self.path)
-
-	bin.install_
+os.is.sid() {
+	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
 }
 
-# Print self name
-self.name() {
-	local -A _; flag.parse
-
-	# shellcheck disable=2128
-	echo "$PROGNAME"
+os.is.stable() {
+	! os.is.unstable
 }
 
-# Print self path
-self.path() {
-	local -A _; flag.parse
-
-	local self
-
-	self=${BASH_SOURCE[0]}
-	case $self in
-	./*) readlink -f "$self" ;;
-	/*)  echo "$self" ;;
-	*)   readlink -f "$(command -v "$self")" ;;
-	esac
+os.is.unstable() {
+	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
 }
 
-# Print self source
-self.src() {
-	local path
-
-	path=$(self.path)
-	if .interactive; then
-		echo "$path"
-	else
-		echo "builtin source '$path'"
-	fi
-}
-
-# Print self version
-self.version() {
-	local -A _; flag.parse
-
-	echo 0.0
-}
-
-# string.sh - String manipulation
-
-string.delete_prefix() {
-	string.has_prefix_deleted "$@" || :
-}
-
-string.delete_suffix() {
-	string.has_suffix_deleted "$@" || :
-}
-
-string.has_prefix_deleted() {
-	local -n string_has_prefix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    prefix=${1?${FUNCNAME[0]}: missing argument};                     shift
-
-	if [[ $string_has_prefix_deleted_ =~ ^$prefix ]]; then
-		string_has_prefix_deleted_=${string_has_prefix_deleted_#$prefix}
-
-		return 0
-	fi
-
-	return 1
-}
-
-string.has_suffix_deleted() {
-	local -n string_has_suffix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    suffix=${1?${FUNCNAME[0]}: missing argument};                     shift
-
-	if [[ $string_has_suffix_deleted_ =~ $suffix$ ]]; then
-		string_has_suffix_deleted_=${string_has_suffix_deleted_%$suffix}
-
-		return 0
-	fi
-
-	return 1
-}
-
-# array.sh - Array functions
-
-# Return if array contains the given element
-array.contains() {
-	local -n array_contains_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    element=${1?${FUNCNAME[0]}: missing argument};         shift
-
-	.contains "$element" "${array_contains_[@]}"
-}
-
-# Duplicate array
-array.dup() {
-	local -n array_dup_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local -n array_dup_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!array_dup_rhs_[@]}"; do
-		# shellcheck disable=2034
-		array_dup_lhs_[$key]=${array_dup_rhs_[$key]}
-	done
-}
-
-# Join array with the given separator
-array.join() {
-	local IFS=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	echo "$*"
+os.is.testing() {
+	os.is.unstable
 }
 
 # path.sh - Path management
@@ -1070,89 +1177,73 @@ path.suffixize() {
 	printf -v path_suffixize_ "%s/%s${suffix}%s" "${_[.dir]:-.}" "${_[.name]}" "${_[.dotext]}"
 }
 
-# defer.sh - Deferred functions
+# self.sh - Functions related to program itself
 
-# Register files/directories to clean up at exit
-.clean() {
-	[[ -v _defer_initialized_ ]] || .defer
-
-	_defer_clean_+=("$@")
+self.name() {
+	# shellcheck disable=2128
+	echo "$PROGNAME"
 }
 
-# Trap defer setup
-# shellcheck disable=2120
-.defer() {
-	if [[ -v _defer_initialized_ ]]; then
-		return
+self.path() {
+	local self
+
+	self=${BASH_SOURCE[0]}
+	case $self in
+	./*) readlink -f "$self" ;;
+	/*)  echo "$self" ;;
+	*)   readlink -f "$(command -v "$self")" ;;
+	esac
+}
+
+self.src() {
+	local path
+
+	path=$(self.path)
+	if .interactive; then
+		echo "$path"
 	else
-		_defer_initialized_=true
+		echo "builtin source '$path'"
+	fi
+}
 
-		declare -ag _defer_clean_=()
+self.version() {
+	echo "${VERSION:-}"
+}
 
-		if [[ -n $(builtin trap -p 2>/dev/null) ]]; then
-			.cry 'Trap already taken.'
+# string.sh - String manipulation
 
-			return
-		fi
+string.delete_prefix() {
+	string.has_prefix_deleted "$@" || :
+}
+
+string.delete_suffix() {
+	string.has_suffix_deleted "$@" || :
+}
+
+string.has_prefix_deleted() {
+	local -n string_has_prefix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    prefix=${1?${FUNCNAME[0]}: missing argument};                     shift
+
+	if [[ $string_has_prefix_deleted_ =~ ^$prefix ]]; then
+		string_has_prefix_deleted_=${string_has_prefix_deleted_#$prefix}
+
+		return 0
 	fi
 
-	local -a signals=("$@")
-	[[ $# -gt 0 ]] || signals=(EXIT HUP INT KILL QUIT TERM)
+	return 1
+}
 
-	local signal
-	for signal in "${signals[@]}"; do
-		# shellcheck disable=2064
-		builtin trap "_defer_ $signal" "$signal"
-	done
+string.has_suffix_deleted() {
+	local -n string_has_suffix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    suffix=${1?${FUNCNAME[0]}: missing argument};                     shift
 
-	# Prevent using trap
-	trap() {
-		.bug 'Using trap is forbidden; please use defer.* functions.'
-	}
+	if [[ $string_has_suffix_deleted_ =~ $suffix$ ]]; then
+		string_has_suffix_deleted_=${string_has_suffix_deleted_%$suffix}
 
-	# shellcheck disable=2139
-	alias .untrap="trap - ${signals[*]}"
+		return 0
+	fi
 
-	_defer_() {
-		local -r SIG=$1 ERR=$?
-
-		local -a _defer_funcs_
-
-		mapfile -t _defer_funcs_ < <(
-			shopt -s extdebug
-
-			declare -F | grep 'declare -f defer[.]' | awk '{ print $3 }' |
-			while read -r func; do declare -F "$func"; done |
-			sort -t' ' -k2 -n | awk '
-				$1 !~ /defer[.]early|defer[.]late/ {
-					print $1
-				}
-			'
-		)
-
-		! .callable defer.early || defer.early
-
-		local func
-		for func in "${_defer_funcs_[@]}"; do
-			"$func" || [[ $SIG = INT ]] || [[ $SIG = QUIT ]] || .cry "Deferred function failed: $func"
-		done
-
-		if [[ -v _defer_clean_ ]] && [[ "${#_defer_clean_[@]}" -gt 0 ]]; then
-			rm -rf -- "${_defer_clean_[@]}"
-		fi
-
-		! .callable defer.late || defer.late
-
-		builtin trap - EXIT
-
-		if [[ $SIG = INT ]] || [[ $SIG = QUIT ]]; then
-			builtin trap - "$SIG"; kill -s "$SIG" "$$"
-		fi
-
-		return "$ERR"
-	}
-
-	readonly -f _defer_
+	return 1
 }
 
 # temp.sh - Functions involving temporary directories or files
@@ -1209,117 +1300,155 @@ temp.inside() {
 	rm -rf -- "$temp_inside_"
 }
 
-# os.sh - OS related functions
+# text.sh - Text blob manipulations
 
-# Assert any OS feature
-os.any() {
-	local -A _=(
-		[.help]='FEATURE...'
-		[.argc]=1-
-	)
+text.fix() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local mark=${1:-_}
 
-	flag.parse
+	.must 'Input from stdin required' .piped
+	.must "No such file: $file" [[ -f "$file" ]]
 
-	local feature
+	text.unfix "$file" "$mark"
 
-	for feature; do
-		if os._is "$feature"; then
-			return 0
-		fi
-	done
-
-	return 1
+	{
+		echo "# begin $mark"
+		cat
+		echo "# END $mark"
+	} >>"$file"
 }
 
-# Print distribution codename
-os.codename() {
-	local -A _; flag.parse
+text.unfix() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local mark=${1:-_}
 
-	lsb_release -sc
+	.must "No such file: $file" [[ -f "$file" ]]
+
+	grep -qE "#\s+(begin|end)\s+$mark" "$file" || return 0
+	.must "No such file or file is not writable: $file" [[ -w "$file" ]]
+	sed -i "/begin $mark/,/end $mark/d" "$file"
 }
 
-# Print distribution name
-os.dist() {
-	local -A _; flag.parse
+# ui.sh - UI functions
 
-	# shellcheck disable=1091
-	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
+ui.out() {
+	local name=${1:-default}
+	shift || true
+
+	local sign=${_sign[$name]}
+
+	# shellcheck disable=2154
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	echo -en "${sign_color}${sign}${reset} "
+	.out "$@"
+	echo -en "$reset "
 }
 
-# Assert OS feature
-os.is() {
-	local -A _=(
-		[.help]='FEATURE'
-		[.argc]=1
-	)
+# shellcheck disable=2154
+ui.echo() {
+	[[ $# -gt 0 ]] || return 0
 
-	flag.parse
+	local message=$1
 
-	os._is "$@"
-}
+	local name=${FUNCNAME[1]#*.}
 
-# os - Private functions
+	local sign=${_sign[$name]}
 
-os._is() {
-	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
 
-	local func=os.is._"${feature}"
-
-	if .callable "$func"; then
-		"$func"
+	if [[ -n ${sign:-} ]]; then
+		echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
 	else
-		local dist
-		dist=$(os.dist)
-
-		if [[ $dist = "$feature" ]]; then
-			return 0
-		fi
-
-		local codename
-		codename=$(os.codename)
-
-		if [[ $codename = "$feature" ]]; then
-			return 0
-		fi
-
-		return 1
+		echo -e "${text_color}${message}${reset}"
 	fi
 }
 
-os.is._proxmox() {
-	.available pveversion && uname -a | grep -q -i pve
+# ui - Init
+
+# shellcheck disable=2034,2154
+ui.init_() {
+	declare -Ag _sign _sign_color _text_color
+
+	# Style
+
+	_sign[ask]='?';     _sign_color[ask]=+yellow;    _text_color[ask]=high
+	_sign[bug]='✖';     _sign_color[bug]=red;        _text_color[bug]=high
+	_sign[cry]='!';     _sign_color[cry]=+yellow;    _text_color[cry]=medium
+	_sign[die]='✗';     _sign_color[die]=+red;       _text_color[die]=high
+	_sign[hmm]='ℹ';     _sign_color[hmm]=-yellow;    _text_color[hmm]=low
+	_sign[say]='' ;     _sign_color[say]=+white;     _text_color[say]=medium
+
+	_sign[notok]='✗';   _sign_color[notok]=+red;     _text_color[notok]=high
+	_sign[ok]='✓';      _sign_color[ok]=+green;      _text_color[ok]=high
+
+	_sign[calling]='>'; _sign_color[calling]=+cyan;  _text_color[calling]=high
+	_sign[getting]='↓'; _sign_color[getting]=+cyan;  _text_color[getting]=low
+	_sign[running]='∙'; _sign_color[running]=+cyan;  _text_color[running]=low
+	_sign[default]='∙'; _sign_color[default]=+white; _text_color[default]=medium
+
+	color.expand _sign_color _text_color
+
+	.bug()     { ui.echo "$@" >&2; exit 127; }
+	.bye()     { ui.echo "$@" >&2; exit 0;   }
+	.calling() { ui.echo "$1" >&2; "${@:2}"; }
+	.cry()     { ui.echo "$@" >&2;           }
+	.die()     { ui.echo "$@" >&2; exit 1;   }
+	.getting() { ui.echo "$1" >&2; "${@:2}"; }
+	.hmm()     { ui.echo "$@" >&2;           }
+	.notok()   { ui.echo "$@" >&2;           }
+	.ok()      { ui.echo "$@" >&2;           }
+	.running() { ui.echo "$1" >&2; "${@:2}"; }
+	.say()     { ui.echo "$@" >&2;           }
 }
 
-os.is._sid() {
-	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-}
+ui.init_
 
-os.is._stable() {
-	! os.is._unstable
-}
+# url.sh - URL processing
 
-os.is._unstable() {
-	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-}
+url.type() {
+	local    url=${1?${FUNCNAME[0]}: missing argument};       shift
+	local -n url_type_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-os.is._testing() {
-	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+	url_type_=none
+
+	if [[ $url =~ ^(/|[.]/) ]]; then
+		url_type_=local
+		return
+	fi
+
+	if [[ $url =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
+		# shellcheck disable=2034
+		url_type_=src
+		return
+	fi
+
+	if [[ ! $url =~ ^([^:]+://) ]]; then
+		# shellcheck disable=2034
+		url_type_=local
+		return
+	fi
+
+	if [[ $url =~ ^(http|https):// ]]; then
+		# shellcheck disable=2034
+		url_type_=web
+		return
+	fi
+
+	if [[ $url =~ ^(git|git[+]ssh|ssh):// ]]; then
+		# shellcheck disable=2034
+		url_type_=src
+		return
+	fi
 }
 
 # virt.sh - Virtualization functions
 
-# Assert any of the virtualization types
 virt.any() {
-	local -A _=(
-		[.help]='VIRTUALIZATION...'
-		[.argc]=1-
-	)
-
-	flag.parse
-
 	local virt
+
 	for virt; do
-		local func=virt.is._"${virt}"
+		local func=virt.is."${virt}"
 
 		if .callable "$func"; then
 			"$func"
@@ -1333,18 +1462,10 @@ virt.any() {
 	return 1
 }
 
-# Assert virtualization type
 virt.is() {
-	local -A _=(
-		[.help]='VIRTUALIZATION'
-		[.argc]=1
-	)
+	local virt=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	flag.parse
-
-	local virt=$1
-
-	local func=virt.is._"${virt}"
+	local func=virt.is."${virt}"
 
 	if .callable "$func"; then
 		"$func"
@@ -1353,40 +1474,1498 @@ virt.is() {
 	fi
 }
 
-# Detect virtualization type
 virt.which() {
-	local -A _=(
-		[.argc]=0
-	)
-
-	flag.parse
-
 	systemd-detect-virt || true
 }
 
-# virt - Private functions
-
-virt.is._any() {
+virt.is.any() {
 	[[ -z ${CI:-} ]] || return 0
 	[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
 
 	systemd-detect-virt -q
 }
 
-virt.is._vagrant() {
-	virt.is._any || return 1
+virt.is.vagrant() {
+	virt.is.any || return 1
 
 	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
 }
 
-virt.is._physical() {
+virt.is.physical() {
 	! systemd-detect-virt -q
+}
+
+virt.is.physical() {
+	! systemd-detect-virt -q
+}
+
+zip.prep_untar_() {
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	[[ -n $out ]] || out=${in%.tar.*}
+
+	if [[ -e $out ]]; then
+		.die "Directory already exist: $out"
+	fi
+
+	.must -- mkdir -p "$out"
+}
+
+zip.prep_unzip_() {
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	[[ -n $out ]] || out=${in%.*}
+
+	if [[ -e $out ]]; then
+		.die "File already exist: $out"
+	fi
+}
+
+zip.unpack.bz2() {
+	.must 'No program found: bzcat' .available bzcat && zip.prep_unzip_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	local temp_file
+	temp.file temp_file
+
+	bzcat "$in" >"$temp_file" && mv "$temp_file" "$out"
+}
+
+zip.unpack.gz() {
+	.must 'No program found: zcat' .available zcat && zip.prep_unzip_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	zip.prep_unzip_ zcat
+
+	local temp_file
+	temp.file temp_file
+
+	zcat "$in" >"$temp_file" && mv "$temp_file" "$out"
+}
+
+zip.unpack.tar.bz2() {
+	.must 'No program found: bzip2' .available bzip2 && zip.prep_untar_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	tar --strip-components=1 -jxf "$in" -C "$out"
+}
+
+zip.unpack.tar.gz() {
+	zip.prep_untar_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	tar --strip-components=1 -zxf "$in" -C "$out"
+}
+
+zip.unpack.tar.xz() {
+	.must 'No program found: xz' .available xz && zip.prep_untar_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	tar --strip-components=1 -Jxf "$in" -C "$out"
+}
+
+zip.unpack.tar.zst() {
+	.must 'No program found: zstd' .available zstd && zip.prep_untar_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	tar --strip-components=1 --zstd -xf "$in" -C "$out"
+}
+
+zip.unpack.xz() {
+	.must 'No program found: unxz' .available unxz && zip.prep_unzip_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	local temp_file
+	temp.file temp_file
+
+	unxz "$in" >"$temp_file" && mv "$temp_file" "$out"
+}
+
+zip.unpack.zip() {
+	.must 'No program found: unzip' .available unzip && zip.prep_unzip_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	unzip -q -d "$out" "$in"
+}
+
+zip.unpack.zst() {
+	.must 'No program found: zstdcat' .available zstdcat && zip.prep_unzip_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	local temp_file
+	temp.file temp_file
+
+	zstdcat -f "$in" >"$temp_file" && mv "$temp_file" "$out"
+}
+
+# Commands
+
+# _.sh - Required functions
+
+# Return if program available
+:available() {
+	local -A _=(
+		[.help]='PROGRAM'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.available "$@"
+}
+
+# Return if first argument found in remaining arguments
+:contains() {
+	local -A _=(
+		[.help]='NEEDLE HAYSTACK'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	.contains "$@"
+}
+
+# Return if any of the files expired
+:expired() {
+	local -A _=(
+		[-expiry]=3
+
+		[.help]='[-expiry=MINUTES] FILE...'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.expired "${_[-expiry]}" "$@"
+}
+
+# Ensure the given command succeeds
+:must() {
+	local -A _=(
+		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.argc]=2-
+		[.dash]=true
+	)
+
+	flag.parse
+
+	.must "$@"
+}
+
+# Try to run any file or url
+:run() {
+	local -A _=(
+		[.help]='FILE|URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	local url=$1
+
+	if url.any "$url" web local; then
+		file.run "$url"
+	elif url.is "$url" src; then
+		src.run "$url"
+	else
+		.die "Unsupported URL type: $url"
+	fi
+}
+
+# Ignore error if the given command fails
+:should() {
+	local -A _=(
+		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.argc]=2-
+		[.dash]=true
+	)
+
+	flag.parse
+
+	.should "$@"
+}
+
+# _ - Init
+
+:init_() {
+	# Default variable as a hash
+	declare -gA _=()
+
+	# shellcheck disable=2034
+
+	# Core environment
+	if [[ ${EUID:-} -eq 0 ]]; then
+		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
+		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
+		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
+	else
+		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
+		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
+		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
+
+		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
+		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
+		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
+	fi
+
+	export PATH="$_RUN"/bin:"$PATH"
+
+	unset -f "${FUNCNAME[0]}"
+}
+
+:init_
+
+# bin.sh - Executable files
+
+# Install program to path
+bin:install() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-prefix]="$_USR"/bin
+		[-name]=
+
+		[.help]='[-name=NAME] [-prefix=DIR] URL|FILE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	bin:install_ "$@"
+}
+
+# Use program by installing to a volatile path
+bin:use() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-prefix]="$_RUN"/bin
+		[-name]=
+
+		[.help]='[-name=NAME] [-prefix=DIR] URL|FILE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	bin:install_ "$@"
+}
+
+# bin - Protected functions
+
+bin:install_() {
+	local url="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	# shellcheck disable=1007
+	local bin= temp_bin_file= temp_bin_dir=
+
+	if url.is "$url" web; then
+		file.download "$url" temp_bin_file
+		bin=$temp_bin_file
+	elif url.is "$url" local; then
+		bin=$url
+	else
+		.die "Unsupported URL: $url"
+	fi
+
+	if filetype.is "$bin" compressed; then
+		temp.dir temp_bin_dir
+
+		zip.unpack -force=true "$bin" "$temp_bin_dir"
+		bin=$temp_bin_dir
+	fi
+
+	local -a bins=()
+	bin:inspect_ "$bin" bins
+
+	[[ -n ${_[-mode]:-} ]] || _[-mode]=755
+
+	if [[ ${#bins[@]} -eq 1 ]]; then
+		local src=${bins[0]} dst=${_[-name]:-}
+
+		file.install_ "$src" "$dst"
+	elif [[ ${#bins[@]} -gt 1 ]]; then
+		[[ -n ${_[-name]:-} ]] || .die "Ambiguous usage of name argument: ${_[-name]}"
+
+		local src
+		for src in "${bins[@]}"; do
+			file.install_ "$src"
+		done
+	else
+		.die "No program found: $url"
+	fi
+
+	temp.clean temp_bin_file temp_bin_dir
+}
+
+# bin - Private functions
+
+bin:inspect_() {
+	local    bin=${1?${FUNCNAME[0]}: missing argument};          shift
+	local -n bin_inspect_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	if [[ -d $bin ]]; then
+		local file
+		for file in "$bin"/*; do
+			filetype.is "$file" runnable || continue
+			bin_inspect_+=("$file")
+		done
+	elif filetype.is "$bin" runnable; then
+		bin_inspect_+=("$bin")
+	fi
+}
+
+# deb.sh - Debian package management
+
+# Add Debian repository
+deb:add() {
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
+
+	# shellcheck disable=2192
+	local -A _=(
+		[repository]=$NIL
+		[key]=
+		[deb]=$NIL
+		[src]=
+
+		[.help]='repository=NAME deb=LINE [src=LINE] [key=URL]'
+		[.argc]=0
+	)
+
+	flag.parse
+
+	deb:add_
+}
+
+# Install Debian packages
+deb:install() {
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
+
+	# shellcheck disable=2192
+	local -A _=(
+		[repository]=
+		[key]=
+		[deb]=
+		[src]=
+
+		[-missings]=false
+		[-shiny]=false
+
+		[.help]='[-missings=BOOL] [-shiny=BOOL] [repository=NAME deb=LINE [src=LINE] [key=URL]] PACKAGE...'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	deb:install_ "$@"
+}
+
+# Print missing packages among given packages
+deb:missings() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='PACKAGE...'
+	)
+
+	flag.parse
+
+	local -a missings
+	deb.missings missings "$@"
+
+	for package in "${missings[@]}"; do
+		echo "$package"
+	done
+}
+
+# Uninstall Debian packages
+deb:uninstall() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='PACKAGE...'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	deb.uninstall "$@"
+}
+
+# Update Debian package index
+deb:update() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]=
+		[.argc]=0
+	)
+
+	flag.parse
+
+	deb.update
+}
+
+# Use given official Debian distributions
+deb:using() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='DIST...'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	deb:using_ "$@"
+}
+
+# deb - Protected functions
+
+deb:add_() {
+	local repository=${_[repository]:-}
+
+	[[ -n $repository ]] || .bug "Undefined repository."
+
+	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
+
+	[[ -z ${_[key]:-} ]] || deb.add_key "${_[key]}" || return 0
+
+	echo "deb ${_[deb]}"  >/etc/apt/sources.list.d/"$repository".list
+	[[ -z ${_[src]:-} ]] || echo "deb-src ${_[src]}" >>/etc/apt/sources.list.d/"$repository".list
+
+	.getting 'Updating package index' apt-get update -y
+}
+
+deb:install_() {
+	[[ $# -gt 0 ]] || return 0
+
+	if [[ -n ${_[repository]:-} ]]; then
+		deb.add_ repository="${_[repository]}" key="${_[key]:-}" deb="${_[deb]:-}" src="${_[src]:-}"
+	else
+		local arg
+
+		for arg in key deb src; do
+			[[ -z ${_[$arg]:-} ]] || .die "Repository required."
+		done
+	fi
+
+	local -a packages=() urls=() non_urls=() opts=()
+
+	local arg
+	for arg; do
+		local url=$arg
+
+		if url.is "$url" web; then
+			urls+=("$url")
+		elif url.is "$url" local; then
+			non_urls+=("$url")
+		else
+			.die "Unsupported URL: $url"
+		fi
+	done
+
+	if flag.true -missings; then
+		deb.missings packages "${non_urls[@]}"
+	else
+		packages=("${non_urls[@]}")
+	fi
+
+	if flag.true -shiny; then
+		local target
+
+		if os.is debian stable; then
+			target=$(os.codename)-backports
+		elif os.is debian unstable; then
+			target=experimental
+		fi
+
+		if [[ -n ${target:-} ]]; then
+			.hmm "Using $target"
+			deb:using_ "$target"
+
+			opts+=(
+				--target-release
+				"$target"
+			)
+		fi
+	fi
+
+	deb.install "${opts[@]}" "${packages[@]}"
+	deb.install_manual "${urls[@]}"
+}
+
+deb:using_() {
+	local dist
+	for dist; do
+		case $dist in
+		stable|testing|unstable|sid|experimental)
+			;;
+		*)
+			deb.dist_valid "$dist" || .cry "Skipping invalid distribution: $dist"
+			;;
+		esac
+
+		deb.dist_added "$dist" || deb:add_ repository="$dist" deb="http://ftp.debian.org/debian $dist main contrib non-free"
+	done
+}
+
+# deb - Init
+
+deb:init_() {
+	.available apt-get || .die 'Only Debian and derivatives supported.'
+
+	export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
+}
+
+deb:init_
+
+# file.sh - File related operations
+
+# Change owner, group and mode
+file:chogm() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-group]=
+		[-mode]=
+		[-owner]=
+
+		[.help]='[-group=GROUP|mode=MODE|owner=USER] URL [FILE]'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	local dst=$1
+
+	file.chogm_ "$dst"
+}
+
+# Copy file/directory to dstination creating all parents if necessary
+file:copy() {
+	file:do_args_ copy "$@"
+}
+
+# Install file from URL
+file:install() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-group]=
+		[-mode]=
+		[-owner]=
+		[-prefix]=
+		[-quiet]=
+
+		[.help]='[-group=GROUP|mode=MODE|owner=USER|prefix=DIR|quiet=BOOL] URL [FILE]'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	local url=$1 dst=${2:-${1##*/}}
+
+	file:install_ "$url" "$dst"
+}
+
+# Link file/directory to dstination creating all parents if necessary
+file:link() {
+	file:do_args_ link "$@"
+}
+
+# Move file/directory to destination creating all parents if necessary
+file:move() {
+	file:do_args_ move "$@"
+}
+
+# Run program
+file:run() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='URL|FILE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	file:run_ "$@"
+}
+
+# file - Protected functions
+
+file:chogm_() {
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ -z ${_[-mode]:-}  ]] || .must -- chmod "${_[-mode]}"  "$dst"
+	[[ -z ${_[-owner]:-} ]] || .must -- chown "${_[-owner]}" "$dst"
+	[[ -z ${_[-group]:-} ]] || .must -- chgrp "${_[-group]}" "$dst"
+}
+
+file:do_() {
+	local op=${1?${FUNCNAME[0]}: missing argument};  shift
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ -e $src ]] || .die "Source not found: $src"
+
+	file:dst_ dst
+
+	local dstdir
+	if string.has_suffix_deleted dst /; then
+		dstdir=$dst
+	else
+		dstdir=$dst
+		path.dir dstdir
+	fi
+
+	[[ $dstdir = . ]] || .must -- mkdir -p "$dstdir"
+
+	local done=$dstdir/${src##*/}
+
+	case $op in
+	copy)
+		.must -- cp -a "$src" "$dst"
+		;;
+	move)
+		.must -- mv -f "$src" "$dst"
+		;;
+	link)
+		file.ln "$src" "$dst"
+		;;
+	*)
+		.bug "Unrecognized operation: $op"
+		;;
+	esac
+
+	flag.true -quiet || .ok "$done"
+
+	file:chogm_ "$done"
+
+	_[.]=$done
+}
+
+file:do_args_() {
+	local op=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	# shellcheck disable=2192
+	local -A _=(
+		[-group]=
+		[-mode]=
+		[-owner]=
+		[-prefix]=
+
+		[.help]='[-(GROUP|MODE|OWNER|PREFIX)=VALUE] SRC [DST]'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	local src=$1 dst=$2
+
+	file:do_ "$op" "$src" "$dst"
+}
+
+file:dst_() {
+	local -n file_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ -z ${_[-prefix]:-} ]] || file_dst_=${_[-prefix]}/$file_dst_
+}
+
+file:install_() {
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	if url.is "$src" web; then
+		file.download "$src" src
+		file:do_ copy "$src" "$dst"
+		temp.clean src
+	else
+		file:do_ copy "$src" "$dst"
+	fi
+}
+
+file:run_() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	# shellcheck disable=1007
+	local file temp_file_run=
+
+	if url.is "$url" web; then
+		file.download "$url" temp_file_run
+		file=$temp_file_run
+
+		if filetype.is "$file" runnable; then
+			.must -- chmod +x "$file"
+		fi
+	elif url.is "$url" local; then
+		file=$url
+	else
+		.die "Unsupported URL: $url"
+	fi
+
+	.running 'Running file'
+
+	local err
+	file.run "$file" || err=$? && err=$?
+
+	temp.clean temp_file_run
+
+	return "$err"
+}
+
+# filetype.sh - Filetype detection
+
+# Assert any file type
+filetype:any() {
+	local -A _=(
+		[-zip]=false
+
+		[.help]='FILE [TYPE...]'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	local file=$1; shift
+
+	.must "No such file: $file" [[ -f "$file" ]]
+
+	local type
+	for type; do
+		if filetype:is_ "$type"; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+# Assert file type
+filetype:is() {
+	local -A _=(
+		[-zip]=false
+
+		[.help]='FILE TYPE'
+		[.argc]=2
+	)
+
+	flag.parse
+
+	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
+
+	filetype:is_ "$@"
+}
+
+# Print mime type
+filetype:mime() {
+	local -A _=(
+		[-zip]=false
+
+		[.help]='FILE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
+
+	if flag.true -zip; then
+		file --mime-type --brief --uncompress-noreport "$file"
+	else
+		file --mime-type --brief "$file"
+	fi
+}
+
+# filetype - Protected functions
+
+filetype:is_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local type=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local func=filetype:is:"${type}"_
+
+	.must "Unable to know type: $type" .callable "$func"
+
+	"$func" "$file" "$@"
+}
+
+filetype:shebang_() {
+	local    file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n filetype_shebang_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	filetype:is:interpretable_ "$file" || return 1
+
+	# shellcheck disable=2034
+	local filetype_shebang_string
+
+	filetype_shebang_string_=$(head -n 1 "$file")
+	filetype_shebang_string_=${filetype_shebang_string_#\#!}
+	filetype_shebang_string_=${filetype_shebang_string_# }
+
+	# shellcheck disable=2034,2206
+	filetype_shebang_=($filetype_shebang_string_)
+}
+
+# filetype - Private functions
+
+filetype:is:compressed_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime; mime=$(file --mime-type --brief "$file")
+
+	case $mime in
+	application/gzip|application/zip|application/x-xz|application/x-bzip2|application/x-zstd)
+		local zip=$mime; zip=${zip##*/}; zip=${zip##*-}
+
+		if [[ $(file --mime-type --brief --uncompress-noreport "$file") = application/x-tar ]]; then
+			_[.file.zip]=tar.$zip
+		else
+			_[.file.zip]=$zip
+		fi
+
+		return 0 ;;
+	*)
+		return 1 ;;
+	esac
+}
+
+filetype:is:executable_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	filetype:is:runnable_ "$file" || return 1
+
+	[[ ${_[.file.runnable]:-} = binary ]]
+}
+
+filetype:is:interpretable_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	filetype:is:runnable_ "$file" || return 1
+
+	[[ ${_[.file.runnable]:-} = script ]]
+}
+
+filetype:is:mime_() {
+	local file=${1?${FUNCNAME[0]}: missing argument};     shift
+	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime
+	if flag.true -zip; then
+		mime=$(file --mime-type --brief --uncompress-noreport "$file")
+	else
+		mime=$(file --mime-type --brief "$file")
+	fi
+
+	_[.file.mime]=$mime
+
+	[[ $mime = "$expected" ]]
+}
+
+filetype:is:runnable_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime encoding
+
+	IFS='; ' read -r mime encoding < <(file --mime --brief "$file")
+
+	if [[ $encoding =~ binary$ ]]; then
+		if [[ $mime  =~ -executable$ ]]; then
+			_[.file.runnable]=binary
+			return 0
+		fi
+	else
+		if head -n 1 "$file" | grep -q '^#!'; then
+			_[.file.runnable]=script
+			return 0
+		fi
+	fi
+
+	return 1
+}
+
+# git.sh - Git functions
+
+# Git pull if repository expired
+git:update() {
+	local -A _=(
+		[-expiry]=3
+
+		[.help]='[-expiry=MINUTES]'
+		[.argc]=0
+	)
+
+	flag.parse
+
+	if .expired "${_[-expiry]}" .git/FETCH_HEAD; then
+		git.must.clean
+		.getting 'Updating repository' git pull --quiet origin
+	fi
+}
+
+# git - Protected functions
+
+git:clone_() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	! git.is.exist_ "$dst" || .die "Destination already exist: $dst"
+
+	local -a opt
+
+	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
+	[[ -z ${_[.branch]:-}   ]] || opt+=(--branch "${_[.branch]}")
+
+	_func_() {
+		local repo=${url##*/}; repo=${repo%.*}
+
+		.getting 'Cloning repository' git clone "${opt[@]}" "$url" "$repo"
+		file.do_ copy "$repo" "$dst"
+	}
+
+	temp.inside _func_
+
+	unset -f _func_
+}
+
+git:dst_() {
+	file:dst_ "$@"
+}
+
+git:enter_() {
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	git.dst_ dst
+
+	[[ -d $dst ]] || .die "Destination not found: $dst"
+
+	.must -- pushd "$dst" >/dev/null
+
+	# shellcheck disable=2128
+	git.is.git . || .die "Not a git repository: $PWD"
+
+	file.enter "${_[.dir]:-}"
+}
+
+git:is:exist_() {
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	git.dst_ dst
+
+	[[ -d $dst ]]
+}
+
+git:update_() {
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	git:enter_ "$dst"
+
+	git.switch "${_[.branch]:-}"
+
+	local -i expiry=${_[-expiry]:-3}
+	if .expired "$expiry" "$(git.topdir)"/.git/FETCH_HEAD; then
+		git.must.clean
+		.getting 'Updating repository' git pull --quiet origin
+	fi
+
+	.must -- popd >/dev/null
+}
+
+# https.sh - HTTP functions
+
+# Assert HTTP response against any of the given codes
+http:any() {
+	local -A _=(
+		[.help]='URL CODE...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	local url=$1
+	shift
+
+	local response
+	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
+
+	local code
+
+	for code; do
+		http:is_ "$response" "$code"
+	done
+}
+
+# Get URL
+http:get() {
+	local -A _=(
+		[.help]='URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	http.get "$1"
+}
+
+# Assert HTTP response against the given code
+http:is() {
+	local -A _=(
+		[.help]='URL CODE'
+		[.argc]=2
+	)
+
+	flag.parse
+
+	local url=$1 code=$2
+
+	local response
+	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
+
+	http:is_ "$response" "$code"
+}
+
+# http - Protected functions
+
+http:is_() {
+	local response=${1?${FUNCNAME[0]}: missing argument}; shift
+	local code=${1?${FUNCNAME[0]}: missing argument};     shift
+
+	if [[ ${code,,} = ok ]]; then
+		code=200
+	fi
+
+	[[ $response = "$code" ]]
+}
+
+# os.sh - OS related functions
+
+# Assert any OS feature
+os:any() {
+	local -A _=(
+		[.help]='FEATURE...'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	os.any "$@"
+}
+
+# Print distribution codename
+os:codename() {
+	local -A _; flag.parse
+
+	os.codename "$@"
+}
+
+# Print distribution name
+os:dist() {
+	local -A _; flag.parse
+
+	os.dist "$@"
+}
+
+# Assert OS feature
+os:is() {
+	local -A _=(
+		[.help]='FEATURE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	os.is "$@"
+}
+
+# self.sh - Functions related to program itself
+
+# Install self
+self:install() {
+	# shellcheck disable=2192,2128
+	local -A _=(
+		[-prefix]="$_USR"/bin
+		[-name]=$PROGNAME
+
+		[.help]=
+		[.argc]=0
+	)
+
+	flag.parse
+
+	_[1]=$(self.path)
+
+	bin:install_
+}
+
+# Print self name
+self:name() {
+	local -A _; flag.parse
+
+	self.name
+}
+
+# Print self path
+self:path() {
+	local -A _; flag.parse
+
+	self.path
+}
+
+# Print self source
+self:src() {
+	local -A _; flag.parse
+
+	self.src
+}
+
+# Print self version
+self:version() {
+	local -A _; flag.parse
+
+	self.version
+}
+
+# src.sh - Source management
+
+# Get src from url and enter to the directory
+src:enter() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-expiry]=
+		[-prefix]="$_RUN"/src
+		[-shallow]=false
+
+		[.help]='[-(expiry=MINUTES|prefix=DIR|shallow=BOOL)] URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	src:install_ "$@" >/dev/null
+
+	# shellcheck disable=2128
+	echo "$PWD"
+}
+
+# Install src into a source tree
+src:install() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-expiry]=
+		[-prefix]="$_USR"/src
+
+		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	src:install_ "$@"
+}
+
+# Run src from url
+src:run() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-expiry]=-1
+		[-prefix]="$_RUN"/src
+		[-pwd]=
+		[-shallow]=false
+
+		[.help]='[-expiry=MINUTES|-prefix=DIR|-pwd=DIR|-shallow=BOOL] URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	src:install_ "$@"
+
+	src:run_ "${_[.dir]}"
+}
+
+# Install src into a volatile source tree
+src:use() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-expiry]=
+		[-prefix]="$_RUN"/src
+		[-shallow]=false
+
+		[.help]='[-(expiry=MINUTES|prefix=DIR|shallow=BOOL)] URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	src:install_ "$@"
+}
+
+# src - Protected functions
+
+src:dst_() {
+	git:dst_ "$@"
+}
+
+src:enter_() {
+	git:enter_ "$@"
+}
+
+src:exist_() {
+	git:is:exist_ "$@"
+}
+
+src:get_() {
+	git:clone_ "$@"
+}
+
+src:install_() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	url:parse_ "$url" || .die "Error parsing URL: ${_[!]}: $url"
+
+	src:plan_ || .die "Error planning URL: ${_[!]}: $url"
+
+	local src=${_[1]} dst=${_[2]:-}
+
+	if src:exist_ "$dst"; then
+		src:update_ "$dst"
+	else
+		src:get_ "$src" "$dst"
+	fi
+
+	src:enter_ "$dst"
+}
+
+src:managed_() {
+	local path=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	git.is.git "$path" && git -C "$path" config underscore.name &>/dev/null
+}
+
+src:run_() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	path.base file
+
+	.calling "$file" file:run_ "$file"
+}
+
+src:update_() {
+	git.update_ "$@"
+}
+
+src:plan_() {
+	local owner repo auth path
+
+	if [[ ! ${_[.host]} =~ ^(github.com|gitlab.com|bitbucket.com)$ ]]; then
+		_[!]='unsupported provider'
+		return 1
+	fi
+
+	path=${_[.path]:-}
+
+	if [[ ! $path =~ [^/]+/[^/]+ ]]; then
+		_[!]='incomplete url'
+		return 1
+	fi
+
+	if [[ $path =~ @.*$ ]]; then
+		_[.branch]=${path#*@}; path=${path%@*}
+		_[.path]=$path
+	fi
+
+	owner=${path%%/*}; path=${path#*/}
+
+	_[.dir]=
+	if [[ $path = */* ]]; then
+		_[.dir]=${path#*/}; path=${path%%/*}
+	fi
+
+	repo=${path%.git}
+
+	_[.name]=${_[.host]}/$owner/$repo
+
+	if [[ ${_[.proto]} == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
+		auth="${HTTPS_TOKEN}:x-oauth-basic"
+	else
+		auth=${_[.userinfo]}
+	fi
+
+	if [[ -n ${auth:-} ]]; then
+		_[1]=${_[.proto]}://$auth@${_[.name]}.git
+	else
+		_[1]=${_[.proto]}://${_[.name]}.git
+	fi
+
+	_[2]=${_[.name]}
+}
+
+# text.sh - Text blob manipulations
+
+# Append stdin content to the target file
+text:fix() {
+	local -A _=(
+		[.help]='FILE [MARK]'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	text.fix "$@"
+}
+
+# Remove appended content
+text:unfix() {
+	local -A _=(
+		[.help]='FILE [MARK]'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	text.unfix "$@"
+}
+
+# ui.sh - UI functions
+
+# Print bug message and exit failure
+ui:bug() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.bug "$@"
+}
+
+# Print message and exit success
+ui:bye() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.bye "$@"
+}
+
+# Print message and run command
+ui:calling() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+# Print warning message
+ui:cry() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.cry "$@"
+}
+
+# Print error message and exit failure
+ui:die() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.die "$@"
+}
+
+# Print message indicating a download and run command
+ui:getting() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.getting "$@"
+}
+
+# Print info message
+ui:hmm() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.hmm "$@"
+}
+
+# Print not ok message
+ui:notok() {
+	local -A _=(
+		[.help]='STRING'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.notok "$@"
+}
+
+# Print ok message
+ui:ok() {
+	local -A _=(
+		[.help]='STRING'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.ok "$@"
+}
+
+# Print a busy message run command
+ui:running() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1-
+	)
+
+	flag.parse
+
+	.calling "$@"
+}
+
+# Print message on stderr
+ui:say() {
+	local -A _=(
+		[.help]='MESSAGE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	.say "$@"
 }
 
 # url.sh - URL processing
 
 # Assert URL type
-url.any() {
+url:any() {
 	local -A _=(
 		[.help]='URL TYPE...'
 		[.argc]=2-
@@ -1397,7 +2976,7 @@ url.any() {
 	local url=$1; shift
 
 	local got=
-	url.type_ "$url" got
+	url.type "$url" got
 
 	local type
 	for type; do
@@ -1410,7 +2989,7 @@ url.any() {
 }
 
 # Assert URL type
-url.is() {
+url:is() {
 	local -A _=(
 		[.help]='URL TYPE'
 		[.argc]=2
@@ -1421,7 +3000,7 @@ url.is() {
 	local url=$1 expected=$2
 
 	local got=
-	url.type_ "$url" got
+	url.type "$url" got
 
 	[[ $expected = "$got" ]]
 }
@@ -1430,7 +3009,7 @@ url.is() {
 
 # Parse URL
 # shellcheck disable=2034
-url.parse_() {
+url:parse_() {
 	local -n url_parse_=_
 
 	if [[ ${1:-} = -A ]]; then
@@ -1509,1314 +3088,47 @@ url.parse_() {
 	url_parse_[.userinfo]=$userinfo
 }
 
-url.type_() {
-	local    url=${1?${FUNCNAME[0]}: missing argument};       shift
-	local -n url_type_=${1?${FUNCNAME[0]}: missing argument}; shift
+# virt.sh - Virtualization functions
 
-	url_type_=none
-
-	if [[ $url =~ ^(/|[.]/) ]]; then
-		url_type_=local
-		return
-	fi
-
-	if [[ $url =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
-		# shellcheck disable=2034
-		url_type_=src
-		return
-	fi
-
-	if [[ ! $url =~ ^([^:]+://) ]]; then
-		# shellcheck disable=2034
-		url_type_=local
-		return
-	fi
-
-	if [[ $url =~ ^(http|https):// ]]; then
-		# shellcheck disable=2034
-		url_type_=web
-		return
-	fi
-
-	if [[ $url =~ ^(git|git[+]ssh|ssh):// ]]; then
-		# shellcheck disable=2034
-		url_type_=src
-		return
-	fi
-}
-
-
-# https.sh - HTTP functions
-
-# Assert HTTP response against any of the given codes
-http.any() {
+# Assert any of the virtualization types
+virt:any() {
 	local -A _=(
-		[.help]='URL CODE...'
-		[.argc]=2-
-	)
-
-	flag.parse
-
-	local url=$1
-	shift
-
-	local response
-	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
-
-	local code
-
-	for code; do
-		http._is "$response" "$code"
-	done
-}
-
-# Get URL
-http.get() {
-	local -A _=(
-		[.help]='URL'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	local url=$1
-
-	[[ $url =~ ^[^:]+:// ]] || url=https://$url
-
-	curl -fsSL "$url"
-}
-
-# Assert HTTP response against the given code
-http.is() {
-	local -A _=(
-		[.help]='URL CODE'
-		[.argc]=2
-	)
-
-	flag.parse
-
-	local url=$1 code=$2
-
-	local response
-	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
-
-	http._is "$response" "$code"
-}
-
-# http - Private functions
-
-http._is() {
-	local response=${1?${FUNCNAME[0]}: missing argument}; shift
-	local code=${1?${FUNCNAME[0]}: missing argument};     shift
-
-	if [[ ${code,,} = ok ]]; then
-		code=200
-	fi
-
-	[[ $response = "$code" ]]
-}
-
-# file.sh - File related operations
-
-# Copy file/directory to dstination creating all parents if necessary
-file.copy() {
-	file._do_args_ copy "$@"
-}
-
-# Change owner, group and mode
-file.chogm() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-group]=
-		[-mode]=
-		[-owner]=
-
-		[.help]='[-group=GROUP|mode=MODE|owner=USER] URL [FILE]'
+		[.help]='VIRTUALIZATION...'
 		[.argc]=1-
 	)
 
 	flag.parse
 
-	local dst=$1
-
-	file.chogm_ "$dst"
+	virt.any "$@"
 }
 
-# Install file from URL
-file.install() {
-	# shellcheck disable=2192
+# Assert virtualization type
+virt:is() {
 	local -A _=(
-		[-group]=
-		[-mode]=
-		[-owner]=
-		[-prefix]=
-		[-quiet]=
-
-		[.help]='[-group=GROUP|mode=MODE|owner=USER|prefix=DIR|quiet=BOOL] URL [FILE]'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	local url=$1 dst=${2:-${1##*/}}
-
-	file.install_ "$url" "$dst"
-}
-
-# Link file/directory to dstination creating all parents if necessary
-file.link() {
-	file._do_args_ link "$@"
-}
-
-# Move file/directory to destination creating all parents if necessary
-file.move() {
-	file._do_args_ move "$@"
-}
-
-# Run program
-file.run() {
-	# shellcheck disable=2192
-	local -A _=(
-		[.help]='URL|FILE'
+		[.help]='VIRTUALIZATION'
 		[.argc]=1
 	)
 
 	flag.parse
 
-	# shellcheck disable=1007
-	local file temp_file_run=
-
-	if url.is "$url" web; then
-		file.download "$url" temp_file_run
-		file=$temp_file_run
-
-		if filetype.is "$file" runnable; then
-			.must -- chmod +x "$file"
-		fi
-	elif url.is "$url" local; then
-		file=$url
-	else
-		.die "Unsupported URL: $url"
-	fi
-
-	.running 'Running file'
-
-	local err
-	file.run_ "$file" || err=$? && err=$?
-
-	temp.clean temp_file_run
-
-	return "$err"
+	virt.is "$@"
 }
 
-# file - Protected functions
-
-file.enter() {
-	local dir=${1:-}
-
-	[[ -n $dir ]] || return 0
-
-	if [[ -d $dir ]]; then
-		.must -- cd "$dir"
-	else
-		dir=${dir%/*}
-		[[ -d $dir ]] || .die "No path found to enter: $dir"
-		.must -- cd "$dir"
-	fi
-}
-
-file.do_() {
-	local op=${1?${FUNCNAME[0]}: missing argument};  shift
-	local src=${1?${FUNCNAME[0]}: missing argument}; shift
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ -e $src ]] || .die "Source not found: $src"
-
-	file.dst_ dst
-
-	local dstdir
-	if string.has_suffix_deleted dst /; then
-		dstdir=$dst
-	else
-		dstdir=$dst
-		path.dir dstdir
-	fi
-
-	[[ $dstdir = . ]] || .must -- mkdir -p "$dstdir"
-
-	local done=$dstdir/${src##*/}
-
-	case $op in
-	copy)
-		.must -- cp -a "$src" "$dst"
-		;;
-	move)
-		.must -- mv -f "$src" "$dst"
-		;;
-	link)
-		file.ln "$src" "$dst"
-		;;
-	*)
-		.bug "Unrecognized operation: $op"
-		;;
-	esac
-
-	flag.true -quiet || .ok "$done"
-
-	file._chogm_ "$done"
-
-	_[.]=$done
-}
-
-file.download() {
-	local    url=${1?${FUNCNAME[0]}: missing argument};                shift
-	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local download
-	temp.file download
-
-	.getting "Downloading $url"
-	.must -- http.get "$url" >"$download"
-	.must -- chmod 644 "$download"
-
-	# shellcheck disable=2034
-	file_download_dst_=$download
-}
-
-file.dst_() {
-	local -n file_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ -z ${_[-prefix]:-} ]] || file_dst_=${_[-prefix]}/$file_dst_
-}
-
-file.install_() {
-	local src=${1?${FUNCNAME[0]}: missing argument}; shift
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	if url.is "$src" web; then
-		file.download "$src" src
-		file.do_ copy "$src" "$dst"
-		temp.clean src
-	else
-		file.do_ copy "$src" "$dst"
-	fi
-}
-
-file.ln() {
-	local src=${1?${FUNCNAME[0]}: missing argument}; shift
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	src=$(realpath -m --relative-base "${dst%/*}" "$src")
-	.must -- ln -sf "$src" "$dst"
-}
-
-file.run_() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ -f $file ]] || [[ $file =~ [.][^./]+$ ]] || file=$file.sh
-
-	filetype.is "$file" runnable || .die "File is not runnable: $file"
-
-	local -a env=()
-	flag.env_ env
-
-	local -a argv=(env "${env[@]}")
-
-	if [[ ! -x "$file" ]]; then
-		if filetype.is "$file" interpretable; then
-			local -a shebang
-			filetype.shebang_ "$file" shebang
-
-			# shellcheck disable=2206
-			argv+=("${shebang[@]}")
-		fi
-	fi
-
-	argv+=("$file")
-
-	"${argv[@]}"
-}
-
-# file - Private functions
-
-file._chogm_() {
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ -z ${_[-mode]:-}  ]] || .must -- chmod "${_[-mode]}"  "$dst"
-	[[ -z ${_[-owner]:-} ]] || .must -- chown "${_[-owner]}" "$dst"
-	[[ -z ${_[-group]:-} ]] || .must -- chgrp "${_[-group]}" "$dst"
-}
-
-file._do_args_() {
-	local op=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=2192
+# Detect virtualization type
+virt:which() {
 	local -A _=(
-		[-group]=
-		[-mode]=
-		[-owner]=
-		[-prefix]=
-
-		[.help]='[-(GROUP|MODE|OWNER|PREFIX)=VALUE] SRC [DST]'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	local src=$1 dst=$2
-
-	file.do_ "$op" "$src" "$dst"
-}
-
-# bin.sh - Executable files
-
-# Install program to path
-bin.install() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-prefix]="$_USR"/bin
-		[-name]=
-
-		[.help]='[-name=NAME] [-prefix=DIR] URL|FILE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	bin.install_ "$@"
-}
-
-# Use program by installing to a volatile path
-bin.use() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-prefix]="$_RUN"/bin
-		[-name]=
-
-		[.help]='[-name=NAME] [-prefix=DIR] URL|FILE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	bin.install_ "$@"
-}
-
-# bin - Protected functions
-
-bin.install_() {
-	local url="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	# shellcheck disable=1007
-	local bin= temp_bin_file= temp_bin_dir=
-
-	if url.is "$url" web; then
-		file.download "$url" temp_bin_file
-		bin=$temp_bin_file
-	elif url.is "$url" local; then
-		bin=$url
-	else
-		.die "Unsupported URL: $url"
-	fi
-
-	if filetype.is "$bin" compressed; then
-		temp.dir temp_bin_dir
-
-		zip.unpack -force=true "$bin" "$temp_bin_dir"
-		bin=$temp_bin_dir
-	fi
-
-	local -a bins=()
-	bin._inspect "$bin" bins
-
-	[[ -n ${_[-mode]:-} ]] || _[-mode]=755
-
-	if [[ ${#bins[@]} -eq 1 ]]; then
-		local src=${bins[0]} dst=${_[-name]:-}
-
-		file.install_ "$src" "$dst"
-	elif [[ ${#bins[@]} -gt 1 ]]; then
-		[[ -n ${_[-name]:-} ]] || .die "Ambiguous usage of name argument: ${_[-name]}"
-
-		local src
-		for src in "${bins[@]}"; do
-			file.install_ "$src"
-		done
-	else
-		.die "No program found: $url"
-	fi
-
-	temp.clean temp_bin_file temp_bin_dir
-}
-
-# bin - Private functions
-
-bin._inspect() {
-	local    bin=${1?${FUNCNAME[0]}: missing argument};          shift
-	local -n bin_inspect_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	if [[ -d $bin ]]; then
-		local file
-		for file in "$bin"/*; do
-			filetype.is "$file" runnable || continue
-			bin_inspect_+=("$file")
-		done
-	elif filetype.is "$bin" runnable; then
-		bin_inspect_+=("$bin")
-	fi
-}
-
-# git.sh - Git functions
-
-# Git pull if repository expired
-git.update() {
-	local -A _=(
-		[-expiry]=3
-
-		[.help]='[-expiry=MINUTES]'
 		[.argc]=0
 	)
 
 	flag.parse
 
-	if .expired "${_[-expiry]}" .git/FETCH_HEAD; then
-		git.must.clean
-		.getting 'Updating repository' git pull --quiet origin
-	fi
-}
-
-# git - Protected functions
-
-git.clone_() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	! git.is.exist_ "$dst" || .die "Destination already exist: $dst"
-
-	local -a opt
-
-	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
-	[[ -z ${_[.branch]:-}   ]] || opt+=(--branch "${_[.branch]}")
-
-	_func_() {
-		local repo=${url##*/}; repo=${repo%.*}
-
-		.getting 'Cloning repository' git clone "${opt[@]}" "$url" "$repo"
-		file.do_ copy "$repo" "$dst"
-	}
-
-	temp.inside _func_
-
-	unset -f _func_
-}
-
-git.default_branch() {
-	git.must.sane
-
-	git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'
-}
-
-git.dst_() {
-	file.dst_ "$@"
-}
-
-git.enter_() {
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	git.dst_ dst
-
-	[[ -d $dst ]] || .die "Destination not found: $dst"
-
-	.must -- pushd "$dst" >/dev/null
-
-	# shellcheck disable=2128
-	git.is.git . || .die "Not a git repository: $PWD"
-
-	file.enter "${_[.dir]:-}"
-}
-
-git.is.clean() {
-	git rev-parse --verify HEAD >/dev/null &&
-	git update-index -q --ignore-submodules --refresh &&
-	git diff-files --quiet --ignore-submodules &&
-	git diff-index --cached --quiet --ignore-submodules HEAD --
-}
-
-git.is.exist_() {
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	git.dst_ dst
-
-	[[ -d $dst ]]
-}
-
-git.is.git() {
-	local path=${1:-.}
-
-	[[ -d $path/.git ]] && git rev-parse --resolve-git-dir "$path/.git" &>/dev/null
-}
-
-git.must.clean() {
-	# shellcheck disable=2128
-	git.is.clean || .die "Must be a clean git work tree: $PWD"
-}
-
-git.must.sane() {
-	# shellcheck disable=2128
-	git rev-parse --is-inside-work-tree &>/dev/null || .die "Must be inside a git work tree: $PWD"
-	# shellcheck disable=2128
-	git rev-parse --verify HEAD >/dev/null          || .die "Unverified git HEAD: $PWD"
-}
-
-git.switch() {
-	local branch=${1:-}
-
-	[[ -n $branch ]] || branch=$(git.default_branch)
-
-	git checkout --quiet "$branch"
-}
-
-git.top() {
-	git.must.sane
-
-	.must -- cd "$(git.topdir)"
-}
-
-git.topdir() {
-	local dir
-
-	dir=$(git rev-parse --git-dir) && dir=$(cd "$dir" && pwd)/ && echo "${dir%%/.git/*}"
-}
-
-git.update_() {
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	git.enter_ "$dst"
-
-	git.switch "${_[.branch]:-}"
-
-	local -i expiry=${_[-expiry]:-3}
-	if .expired "$expiry" "$(git.topdir)"/.git/FETCH_HEAD; then
-		git.must.clean
-		.getting 'Updating repository' git pull --quiet origin
-	fi
-
-	.must -- popd >/dev/null
-}
-
-# src.sh - Source management
-
-# Get src from url and enter to the directory
-src.enter() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-expiry]=
-		[-prefix]="$_RUN"/src
-		[-shallow]=false
-
-		[.help]='[-(expiry=MINUTES|prefix=DIR|shallow=BOOL)] URL'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	src.install_ "$@" >/dev/null
-
-	# shellcheck disable=2128
-	echo "$PWD"
-}
-
-# Install src into a source tree
-src.install() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-expiry]=
-		[-prefix]="$_USR"/src
-
-		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	src.install_ "$@"
-}
-
-# Run src from url
-src.run() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-expiry]=-1
-		[-prefix]="$_RUN"/src
-		[-pwd]=
-		[-shallow]=false
-
-		[.help]='[-expiry=MINUTES|-prefix=DIR|-pwd=DIR|-shallow=BOOL] URL'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	src.install_ "$@"
-
-	src.run_ "${_[.dir]}"
-}
-
-# Install src into a volatile source tree
-src.use() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-expiry]=
-		[-prefix]="$_RUN"/src
-		[-shallow]=false
-
-		[.help]='[-(expiry=MINUTES|prefix=DIR|shallow=BOOL)] URL'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	src.install_ "$@"
-}
-
-# src - Protected functions
-
-src.dst_() {
-	git.dst_ "$@"
-}
-
-src.enter_() {
-	git.enter_ "$@"
-}
-
-src.exist_() {
-	git.is.exist_ "$@"
-}
-
-src.get_() {
-	git.clone_ "$@"
-}
-
-src.install_() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	url.parse_ "$url" || .die "Error parsing URL: ${_[!]}: $url"
-
-	src._plan_ || .die "Error planning URL: ${_[!]}: $url"
-
-	local src=${_[1]} dst=${_[2]:-}
-
-	if src.exist_ "$dst"; then
-		src.update_ "$dst"
-	else
-		src.get_ "$src" "$dst"
-	fi
-
-	src.enter_ "$dst"
-}
-
-src.managed_() {
-	local path=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	git.is.git "$path" && git -C "$path" config underscore.name &>/dev/null
-}
-
-src.run_() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	path.base file
-
-	.calling "$file" file.run_ "$file"
-}
-
-src.update_() {
-	git.update_ "$@"
-}
-
-# src - Private functions
-
-src._plan_() {
-	local owner repo auth path
-
-	if [[ ! ${_[.host]} =~ ^(github.com|gitlab.com|bitbucket.com)$ ]]; then
-		_[!]='unsupported provider'
-		return 1
-	fi
-
-	path=${_[.path]:-}
-
-	if [[ ! $path =~ [^/]+/[^/]+ ]]; then
-		_[!]='incomplete url'
-		return 1
-	fi
-
-	if [[ $path =~ @.*$ ]]; then
-		_[.branch]=${path#*@}; path=${path%@*}
-		_[.path]=$path
-	fi
-
-	owner=${path%%/*}; path=${path#*/}
-
-	_[.dir]=
-	if [[ $path = */* ]]; then
-		_[.dir]=${path#*/}; path=${path%%/*}
-	fi
-
-	repo=${path%.git}
-
-	_[.name]=${_[.host]}/$owner/$repo
-
-	if [[ ${_[.proto]} == https ]] && [[ -n ${HTTPS_TOKEN:-} ]]; then
-		auth="${HTTPS_TOKEN}:x-oauth-basic"
-	else
-		auth=${_[.userinfo]}
-	fi
-
-	if [[ -n ${auth:-} ]]; then
-		_[1]=${_[.proto]}://$auth@${_[.name]}.git
-	else
-		_[1]=${_[.proto]}://${_[.name]}.git
-	fi
-
-	_[2]=${_[.name]}
-}
-
-# deb.sh - Debian package management
-
-# Add Debian repository
-deb.add() {
-	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
-
-	# shellcheck disable=2192
-	local -A _=(
-		[repository]=$NIL
-		[key]=
-		[deb]=$NIL
-		[src]=
-
-		[.help]='repository=NAME deb=LINE [src=LINE] [key=URL]'
-		[.argc]=0
-	)
-
-	flag.parse
-
-	local repository=${_[repository]:-}
-
-	[[ -n $repository ]] || .bug "Undefined repository."
-
-	[[ -z ${_[key]:-} ]] || deb._key_add "${_[key]}" || return 0
-
-	echo "deb ${_[deb]}"  >/etc/apt/sources.list.d/"$repository".list
-	[[ -z ${_[src]:-} ]] || echo "deb-src ${_[src]}" >>/etc/apt/sources.list.d/"$repository".list
-
-	.getting 'Updating package index' apt-get update -y
-}
-
-# Install Debian packages
-deb.install() {
-	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
-
-	# shellcheck disable=2192
-	local -A _=(
-		[repository]=
-		[key]=
-		[deb]=
-		[src]=
-
-		[-missings]=false
-		[-shiny]=false
-
-		[.help]='[-missings=BOOL] [-shiny=BOOL] [repository=NAME deb=LINE [src=LINE] [key=URL]] PACKAGE...'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	[[ $# -gt 0 ]] || return 0
-
-	if [[ -n ${_[repository]:-} ]]; then
-		deb.add repository="${_[repository]}" key="${_[key]:-}" deb="${_[deb]:-}" src="${_[src]:-}"
-	else
-		local arg
-
-		for arg in key deb src; do
-			[[ -z ${_[$arg]:-} ]] || .die "Repository required."
-		done
-	fi
-
-	local -a opts=(
-		--yes
-		--no-install-recommends
-	)
-
-	local -a packages=() urls=() non_urls=()
-
-	local arg
-	for arg; do
-		local url=$arg
-
-		if url.is "$url" web; then
-			urls+=("$url")
-		elif url.is "$url" local; then
-			non_urls+=("$url")
-		else
-			.die "Unsupported URL: $url"
-		fi
-	done
-
-	if flag.true -missings; then
-		deb._missings packages "${non_urls[@]}"
-	else
-		packages=("${non_urls[@]}")
-	fi
-
-	if flag.true -shiny; then
-		local target
-
-		if os.is debian stable; then
-			target=$(os.codename)-backports
-		elif os.is debian unstable; then
-			target=experimental
-		fi
-
-		if [[ -n ${target:-} ]]; then
-			.hmm "Using $target"
-			deb.using "$target"
-
-			opts+=(
-				--target-release
-				"$target"
-			)
-		fi
-	fi
-
-	deb.update
-
-	[[ "${#packages[@]}" -eq 0 ]] || .getting 'Installing packages' apt-get install "${opts[@]}" "${packages[@]}"
-	[[ "${#urls[@]}" -eq 0     ]] || .running 'Installing packages' deb._install_from_urls "${urls[@]}"
-}
-
-# Print missing packages among given packages
-deb.missings() {
-	# shellcheck disable=2192
-	local -A _=(
-		[.help]='PACKAGE...'
-	)
-
-	flag.parse
-
-	local -a missings
-	deb._missings missings "$@"
-
-	for package in "${missings[@]}"; do
-		echo "$package"
-	done
-}
-
-# Uninstall Debian packages
-deb.uninstall() {
-	# shellcheck disable=2192
-	local -A _=(
-		[.help]='PACKAGE...'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	local -a packages=()
-
-	deb._missings packages "$@"
-	[[ ${#packages[@]} -gt 0 ]] || return 0
-
-	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
-
-	apt-get purge -y "${packages[@]}"
-
-	.should -- apt-get autoremove -y
-	.should -- apt-get autoclean -y
-}
-
-# Update Debian package index
-deb.update() {
-	# shellcheck disable=2192
-	local -A _=(
-		[.help]=
-		[.argc]=0
-	)
-
-	flag.parse
-
-	if .expired 60 /var/cache/apt/pkgcache.bin; then
-		.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
-
-		.getting 'Updating package index' apt-get update -y
-	fi
-}
-
-# Use given official Debian distributions
-deb.using() {
-	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
-
-	# shellcheck disable=2192
-	local -A _=(
-		[.help]='DIST...'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	local dist
-	for dist; do
-		case $dist in
-		stable|testing|unstable|sid|experimental)
-			;;
-		*)
-			deb._dist_valid "$dist" || .cry "Skipping invalid distribution: $dist"
-			;;
-		esac
-
-		deb._dist_added "$dist" || deb.add repository="$dist" deb="http://ftp.debian.org/debian $dist main contrib non-free"
-	done
-}
-
-# deb - Private functions
-
-deb._dist_added() {
-	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	grep -qE "^deb.*\bdebian.org\b.*\b$dist\b" /etc/apt/*.list /etc/apt/sources.list.d/*.list
-}
-
-deb._dist_valid() {
-	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	http.is http://ftp.debian.org/debian/dists/"$dist"/ OK
-}
-
-deb._installed() {
-	local package="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	[[ -n "$(dpkg-query -W -f='${Installed-Size}' "$package" 2>/dev/null ||:)" ]]
-}
-
-deb._install_from_urls() {
-	local url
-
-	for url; do
-		local deb
-
-		file.download "$url" deb
-
-		dpkg-deb --info "$deb" &>/dev/null || .die "Not a valid Debian package: $url"
-		dpkg -i -- "$deb" 2>/dev/null || true
-		apt-get -y install --no-install-recommends --fix-broken
-
-		rm -f -- "$deb"
-	done
-}
-
-deb._key_add() {
-	local artifact=
-
-	if [[ ! -d $HOME/.gnupg ]]; then
-		artifact=$HOME/.gnupg
-
-		mkdir "$artifact" && chmod 700 "$artifact"
-	fi
-
-	local err
-	deb._key_add_ "$@"  || err=$? && err=$?
-
-	[[ -z ${artifact:-} ]] || rm -rf "$artifact"
-
-	return "$err"
-}
-
-deb._key_add_() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local temp_file
-	temp.file temp_file
-
-	http.get "$url" >"$temp_file" || .die "Couldn't get key file: $url"
-
-	local -a questioned_fingerprints installed_fingerprints
-
-	mapfile -t questioned_fingerprints < <(
-		gpg -nq --import --import-options import-show --with-colons "$temp_file" |
-		awk -F: '$1 == "fpr" { print $10 }' 2>/dev/null
-	)
-
-	# shellcheck disable=2034
-	mapfile -t installed_fingerprints < <(
-		apt-key adv --list-public-keys --with-fingerprint --with-colon |
-		awk -F: '$1 == "fpr" { print $10 }' 2>/dev/null
-	)
-
-	local fingerprint unfound
-	for fingerprint in "${questioned_fingerprints[@]}"; do
-		if ! .contains "$fingerprint" "${installed_fingerprints[@]}"; then
-			unfound=$fingerprint
-			break
-		fi
-	done
-
-	if [[ -n ${unfound:-} ]]; then
-		.running 'Adding APT key'
-		apt-key add "$temp_file"
-	fi
-
-	temp.clean temp_file
-}
-
-deb._missings() {
-	local -n deb_missings_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local package
-	for package; do
-		# shellcheck disable=2016
-		deb._installed "$package" || deb_missings_+=("$package")
-	done
-}
-
-# deb - Init
-
-deb._init() {
-	.available apt-get || .die 'Only Debian and derivatives supported.'
-
-	export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
-}
-
-deb._init
-
-
-# text.sh - Text blob manipulations
-
-# Append stdin content to the target file
-text.fix() {
-	.must 'Input from stdin required' .piped
-
-	local -A _=(
-		[.help]='FILE [MARK]'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	local file=$1 mark=${2:-_}
-
-	.must "No such file: $file" [[ -f "$file" ]]
-
-	text._unfix "$file" "$mark"
-
-	{
-		echo "# begin $mark"
-		cat
-		echo "# END $mark"
-	} >>"$file"
-}
-
-# Remove appended content
-text.unfix() {
-	local -A _=(
-		[.help]='FILE [MARK]'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	local file=$1 mark=${2:-_}
-
-	.must "No such file: $file" [[ -f "$file" ]]
-
-	text._unfix "$file" "$mark"
-}
-
-# text - Private functions
-
-text._unfix() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-	local mark=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	grep -qE "#\s+(begin|end)\s+$mark" "$file" || return 0
-	.must "No such file or file is not writable: $file" [[ -w "$file" ]]
-	sed -i "/begin $mark/,/end $mark/d" "$file"
-}
-
-# filetype.sh - Filetype detection
-
-# Assert any file type
-filetype.any() {
-	local -A _=(
-		[-zip]=false
-
-		[.help]='FILE [TYPE...]'
-		[.argc]=2-
-	)
-
-	flag.parse
-
-	local file=$1; shift
-
-	.must "No such file: $file" [[ -f "$file" ]]
-
-	local type
-	for type; do
-		if filetype.is_ "$type"; then
-			return 0
-		fi
-	done
-
-	return 1
-}
-
-# Assert file type
-filetype.is() {
-	local -A _=(
-		[-zip]=false
-
-		[.help]='FILE TYPE'
-		[.argc]=2
-	)
-
-	flag.parse
-
-	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
-
-	filetype.is_ "$@"
-}
-
-# Print mime type
-filetype.mime() {
-	local -A _=(
-		[-zip]=false
-
-		[.help]='FILE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
-
-	if flag.true -zip; then
-		file --mime-type --brief --uncompress-noreport "$file"
-	else
-		file --mime-type --brief "$file"
-	fi
-}
-
-# filetype - Protected functions
-
-filetype.is_() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-	local type=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local func=filetype.is._"${type}"_
-
-	.must "Unable to know type: $type" .callable "$func"
-
-	"$func" "$file" "$@"
-}
-
-filetype.shebang_() {
-	local    file=${1?${FUNCNAME[0]}: missing argument}; shift
-	local -n filetype_shebang_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	filetype.is._interpretable_ "$file" || return 1
-
-	# shellcheck disable=2034
-	local filetype_shebang_string
-
-	filetype_shebang_string_=$(head -n 1 "$file")
-	filetype_shebang_string_=${filetype_shebang_string_#\#!}
-	filetype_shebang_string_=${filetype_shebang_string_# }
-
-	# shellcheck disable=2034,2206
-	filetype_shebang_=($filetype_shebang_string_)
-}
-
-# filetype - Private functions
-
-filetype.is._compressed_() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local mime; mime=$(file --mime-type --brief "$file")
-
-	case $mime in
-	application/gzip|application/zip|application/x-xz|application/x-bzip2|application/x-zstd)
-		local zip=$mime; zip=${zip##*/}; zip=${zip##*-}
-
-		if [[ $(file --mime-type --brief --uncompress-noreport "$file") = application/x-tar ]]; then
-			_[.file.zip]=tar.$zip
-		else
-			_[.file.zip]=$zip
-		fi
-
-		return 0 ;;
-	*)
-		return 1 ;;
-	esac
-}
-
-filetype.is._executable_() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	filetype.is._runnable_ "$file" || return 1
-
-	[[ ${_[.file.runnable]:-} = binary ]]
-}
-
-filetype.is._interpretable_() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	filetype.is._runnable_ "$file" || return 1
-
-	[[ ${_[.file.runnable]:-} = script ]]
-}
-
-filetype.is._mime_() {
-	local file=${1?${FUNCNAME[0]}: missing argument};     shift
-	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local mime
-	if flag.true -zip; then
-		mime=$(file --mime-type --brief --uncompress-noreport "$file")
-	else
-		mime=$(file --mime-type --brief "$file")
-	fi
-
-	_[.file.mime]=$mime
-
-	[[ $mime = "$expected" ]]
-}
-
-filetype.is._runnable_() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local mime encoding
-
-	IFS='; ' read -r mime encoding < <(file --mime --brief "$file")
-
-	if [[ $encoding =~ binary$ ]]; then
-		if [[ $mime  =~ -executable$ ]]; then
-			_[.file.runnable]=binary
-			return 0
-		fi
-	else
-		if head -n 1 "$file" | grep -q '^#!'; then
-			_[.file.runnable]=script
-			return 0
-		fi
-	fi
-
-	return 1
+	virt.which
 }
 
 # zip.sh - Compression/decompression functions
 
 # Unpack compressed file
-zip.unpack() {
+zip:unpack() {
 	local -A _=(
 		[-force]=false
 		[-clean]=false
@@ -2829,9 +3141,17 @@ zip.unpack() {
 
 	local in=$1 out=${2:-};	.must "No such file: $in" [[ -f "$in" ]]
 
+	if [[ -e $out ]]; then
+		if flag.true -force; then
+			rm -rf -- "$out"
+		else
+			.die "File already exist: $out"
+		fi
+	fi
+
 	.must "Not a compressed file of known type: $in" filetype.is_ "$in" compressed
 
-	local func=zip._unpack_.${_[.file.zip]:-}
+	local func=zip.unpack.${_[.file.zip]:-}
 
 	.must "Unsupported compressed file: $in" .callable "$func"
 
@@ -2842,232 +3162,129 @@ zip.unpack() {
 	fi
 }
 
-# zip - Private functions
-
-zip._prep_untar_() {
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	[[ -n $out ]] || out=${in%.tar.*}
-
-	if [[ -e $out ]]; then
-		if flag.true -force; then
-			rm -rf -- "$out"
-		else
-			.die "Directory already exist: $out"
-		fi
-		.must -- mkdir -p "$out"
-	else
-		.must -- mkdir -p "$out"
-	fi
-}
-
-zip._prep_unzip_() {
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	[[ -n $out ]] || out=${in%.*}
-
-	if [[ -e $out ]]; then
-		if flag.true -force; then
-			rm -rf -- "$out"
-		else
-			.die "File already exist: $out"
-		fi
-	fi
-}
-
-zip._unpack_.bz2() {
-	.must 'No program found: bzcat' .available bzcat && zip._prep_unzip_ "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	local temp_file
-	temp.file temp_file
-
-	bzcat "$in" >"$temp_file" && mv "$temp_file" "$out"
-}
-
-zip._unpack_.gz() {
-	.must 'No program found: zcat' .available zcat && zip._prep_unzip_ "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	zip._prep_unzip_ zcat
-
-	local temp_file
-	temp.file temp_file
-
-	zcat "$in" >"$temp_file" && mv "$temp_file" "$out"
-}
-
-zip._unpack_.tar.bz2() {
-	.must 'No program found: bzip2' .available bzip2 && zip._prep_untar_ "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	tar --strip-components=1 -jxf "$in" -C "$out"
-}
-
-zip._unpack_.tar.gz() {
-	zip._prep_untar_ "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	tar --strip-components=1 -zxf "$in" -C "$out"
-}
-
-zip._unpack_.tar.xz() {
-	.must 'No program found: xz' .available xz && zip._prep_untar_ "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	tar --strip-components=1 -Jxf "$in" -C "$out"
-}
-
-zip._unpack_.tar.zst() {
-	.must 'No program found: zstd' .available zstd && zip._prep_untar_ "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	tar --strip-components=1 --zstd -xf "$in" -C "$out"
-}
-
-zip._unpack_.xz() {
-	.must 'No program found: unxz' .available unxz && zip._prep_unzip_ "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	local temp_file
-	temp.file temp_file
-
-	unxz "$in" >"$temp_file" && mv "$temp_file" "$out"
-}
-
-zip._unpack_.zip() {
-	.must 'No program found: unzip' .available unzip && zip._prep_unzip_ "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	unzip -q -d "$out" "$in"
-}
-
-zip._unpack_.zst() {
-	.must 'No program found: zstdcat' .available zstdcat && zip._prep_unzip_ "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	local temp_file
-	temp.file temp_file
-
-	zstdcat -f "$in" >"$temp_file" && mv "$temp_file" "$out"
-}
-
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
-		['_.available']='Return if program available'
-		['_.expired']='Return if any of the files expired'
-		['_.must']='Ensure the given command succeeds'
-		['_.run']='Try to run any file or url'
-		['_.should']='Ignore error if the given command fails'
-		['bin.install']='Install program to path'
-		['bin.use']='Use program by installing to a volatile path'
-		['deb.add']='Add Debian repository'
-		['deb.install']='Install Debian packages'
-		['deb.missings']='Print missing packages among given packages'
-		['deb.uninstall']='Uninstall Debian packages'
-		['deb.update']='Update Debian package index'
-		['deb.using']='Use given official Debian distributions'
-		['file.install']='Install file from URL'
-		['filetype.any']='Assert any file type'
-		['filetype.is']='Assert file type'
-		['filetype.mime']='Print mime type'
-		['http.any']='Assert HTTP response against any of the given codes'
-		['http.get']='Get URL'
-		['http.is']='Assert HTTP response against the given code'
-		['os.any']='Assert any OS feature'
-		['os.codename']='Print distribution codename'
-		['os.dist']='Print distribution name'
-		['os.is']='Assert OS feature'
-		['self.install']='Install self'
-		['self.name']='Print self name'
-		['self.path']='Print self path'
-		['self.src']='Print self source'
-		['self.version']='Print self version'
-		['src.enter']='Get src from url and enter to the directory'
-		['src.install']='Install src into a source tree'
-		['src.use']='Install src into a volatile source tree'
-		['temp.inside']='Execute command in temp dir'
-		['text.fix']='Append stdin content to the target file'
-		['text.unfix']='Remove appended content'
-		['ui.bug']='Print bug message and exit failure'
-		['ui.calling']='Print message and run command'
-		['ui.cry']='Print warning message'
-		['ui.die']='Print error message and exit failure'
-		['ui.getting']='Print message indicating a download and run command'
-		['ui.hmm']='Print info message'
-		['ui.notok']='Print not ok message'
-		['ui.ok']='Print ok message'
-		['ui.running']='Print a busy message run command'
-		['ui.say']='Print message on stderr'
-		['url.any']='Assert URL type'
-		['url.is']='Assert URL type'
-		['virt.any']='Assert any of the virtualization types'
-		['virt.is']='Assert virtualization type'
-		['virt.which']='Detect virtualization type'
-		['zip.unpack']='Unpack compressed file'
+		[':available']='Return if program available'
+		[':contains']='Return if first argument found in remaining arguments'
+		[':expired']='Return if any of the files expired'
+		[':must']='Ensure the given command succeeds'
+		[':run']='Try to run any file or url'
+		[':should']='Ignore error if the given command fails'
+		['bin:install']='Install program to path'
+		['bin:use']='Use program by installing to a volatile path'
+		['deb:add']='Add Debian repository'
+		['deb:install']='Install Debian packages'
+		['deb:missings']='Print missing packages among given packages'
+		['deb:uninstall']='Uninstall Debian packages'
+		['deb:update']='Update Debian package index'
+		['deb:using']='Use given official Debian distributions'
+		['file:chogm']='Change owner, group and mode'
+		['file:copy']='Copy file/directory to dstination creating all parents if necessary'
+		['file:install']='Install file from URL'
+		['file:link']='Link file/directory to dstination creating all parents if necessary'
+		['file:move']='Move file/directory to destination creating all parents if necessary'
+		['file:run']='Run program'
+		['filetype:any']='Assert any file type'
+		['filetype:is']='Assert file type'
+		['filetype:mime']='Print mime type'
+		['git:update']='Git pull if repository expired'
+		['http:any']='Assert HTTP response against any of the given codes'
+		['http:get']='Get URL'
+		['http:is']='Assert HTTP response against the given code'
+		['os:any']='Assert any OS feature'
+		['os:codename']='Print distribution codename'
+		['os:dist']='Print distribution name'
+		['os:is']='Assert OS feature'
+		['self:install']='Install self'
+		['self:name']='Print self name'
+		['self:path']='Print self path'
+		['self:src']='Print self source'
+		['self:version']='Print self version'
+		['src:enter']='Get src from url and enter to the directory'
+		['src:install']='Install src into a source tree'
+		['src:run']='Run src from url'
+		['src:use']='Install src into a volatile source tree'
+		['text:fix']='Append stdin content to the target file'
+		['text:unfix']='Remove appended content'
+		['ui:bug']='Print bug message and exit failure'
+		['ui:bye']='Print message and exit success'
+		['ui:calling']='Print message and run command'
+		['ui:cry']='Print warning message'
+		['ui:die']='Print error message and exit failure'
+		['ui:getting']='Print message indicating a download and run command'
+		['ui:hmm']='Print info message'
+		['ui:notok']='Print not ok message'
+		['ui:ok']='Print ok message'
+		['ui:running']='Print a busy message run command'
+		['ui:say']='Print message on stderr'
+		['url:any']='Assert URL type'
+		['url:is']='Assert URL type'
+		['virt:any']='Assert any of the virtualization types'
+		['virt:is']='Assert virtualization type'
+		['virt:which']='Detect virtualization type'
+		['zip:unpack']='Unpack compressed file'
 	)
 
 	declare -Ag _command=(
-		['available']='_.available'
-		['bin install']='bin.install'
-		['bin use']='bin.use'
-		['bug']='ui.bug'
-		['cry']='ui.cry'
-		['deb add']='deb.add'
-		['deb install']='deb.install'
-		['deb missings']='deb.missings'
-		['deb uninstall']='deb.uninstall'
-		['deb update']='deb.update'
-		['deb using']='deb.using'
-		['die']='ui.die'
-		['enter']='src.enter'
-		['expired']='_.expired'
-		['file install']='file.install'
-		['filetype any']='filetype.any'
-		['filetype is']='filetype.is'
-		['filetype mime']='filetype.mime'
-		['http any']='http.any'
-		['http get']='http.get'
-		['http is']='http.is'
-		['must']='_.must'
-		['os any']='os.any'
-		['os codename']='os.codename'
-		['os dist']='os.dist'
-		['os is']='os.is'
-		['run']='_.run'
-		['say']='ui.say'
-		['self install']='self.install'
-		['self name']='self.name'
-		['self path']='self.path'
-		['self src']='self.src'
-		['self version']='self.version'
-		['should']='_.should'
-		['src install']='src.install'
-		['src use']='src.use'
-		['temp inside']='temp.inside'
-		['text fix']='text.fix'
-		['text unfix']='text.unfix'
-		['ui calling']='ui.calling'
-		['ui getting']='ui.getting'
-		['ui info']='ui.hmm'
-		['ui notok']='ui.notok'
-		['ui ok']='ui.ok'
-		['ui running']='ui.running'
-		['unzip']='zip.unpack'
-		['url any']='url.any'
-		['url is']='url.is'
-		['virt any']='virt.any'
-		['virt is']='virt.is'
-		['virt which']='virt.which'
+		['available']=':available'
+		['bin install']='bin:install'
+		['bin use']='bin:use'
+		['contains']=':contains'
+		['deb add']='deb:add'
+		['deb install']='deb:install'
+		['deb missings']='deb:missings'
+		['deb uninstall']='deb:uninstall'
+		['deb update']='deb:update'
+		['deb using']='deb:using'
+		['expired']=':expired'
+		['file chogm']='file:chogm'
+		['file copy']='file:copy'
+		['file install']='file:install'
+		['file link']='file:link'
+		['file move']='file:move'
+		['file run']='file:run'
+		['filetype any']='filetype:any'
+		['filetype is']='filetype:is'
+		['filetype mime']='filetype:mime'
+		['git update']='git:update'
+		['http any']='http:any'
+		['http get']='http:get'
+		['http is']='http:is'
+		['must']=':must'
+		['os any']='os:any'
+		['os codename']='os:codename'
+		['os dist']='os:dist'
+		['os is']='os:is'
+		['run']=':run'
+		['self install']='self:install'
+		['self name']='self:name'
+		['self path']='self:path'
+		['self src']='self:src'
+		['self version']='self:version'
+		['should']=':should'
+		['src enter']='src:enter'
+		['src install']='src:install'
+		['src run']='src:run'
+		['src use']='src:use'
+		['text fix']='text:fix'
+		['text unfix']='text:unfix'
+		['ui bug']='ui:bug'
+		['ui bye']='ui:bye'
+		['ui calling']='ui:calling'
+		['ui cry']='ui:cry'
+		['ui die']='ui:die'
+		['ui getting']='ui:getting'
+		['ui hmm']='ui:hmm'
+		['ui notok']='ui:notok'
+		['ui ok']='ui:ok'
+		['ui running']='ui:running'
+		['ui say']='ui:say'
+		['url any']='url:any'
+		['url is']='url:is'
+		['virt any']='virt:any'
+		['virt is']='virt:is'
+		['virt which']='virt:which'
+		['zip unpack']='zip:unpack'
 	)
 
 	.source() {

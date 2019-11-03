@@ -1,7 +1,7 @@
 # src.sh - Source management
 
 # Get src from url and enter to the directory
-src.enter() {
+src:enter() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=
@@ -14,14 +14,14 @@ src.enter() {
 
 	flag.parse
 
-	src.install_ "$@" >/dev/null
+	src:install_ "$@" >/dev/null
 
 	# shellcheck disable=2128
 	echo "$PWD"
 }
 
 # Install src into a source tree
-src.install() {
+src:install() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=
@@ -33,11 +33,11 @@ src.install() {
 
 	flag.parse
 
-	src.install_ "$@"
+	src:install_ "$@"
 }
 
 # Run src from url
-src.run() {
+src:run() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=-1
@@ -51,13 +51,13 @@ src.run() {
 
 	flag.parse
 
-	src.install_ "$@"
+	src:install_ "$@"
 
-	src.run_ "${_[.dir]}"
+	src:run_ "${_[.dir]}"
 }
 
 # Install src into a volatile source tree
-src.use() {
+src:use() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=
@@ -70,66 +70,64 @@ src.use() {
 
 	flag.parse
 
-	src.install_ "$@"
+	src:install_ "$@"
 }
 
 # src - Protected functions
 
-src.dst_() {
-	git.dst_ "$@"
+src:dst_() {
+	git:dst_ "$@"
 }
 
-src.enter_() {
-	git.enter_ "$@"
+src:enter_() {
+	git:enter_ "$@"
 }
 
-src.exist_() {
-	git.is.exist_ "$@"
+src:exist_() {
+	git:is:exist_ "$@"
 }
 
-src.get_() {
-	git.clone_ "$@"
+src:get_() {
+	git:clone_ "$@"
 }
 
-src.install_() {
+src:install_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	url.parse_ "$url" || .die "Error parsing URL: ${_[!]}: $url"
+	url:parse_ "$url" || .die "Error parsing URL: ${_[!]}: $url"
 
-	src._plan_ || .die "Error planning URL: ${_[!]}: $url"
+	src:plan_ || .die "Error planning URL: ${_[!]}: $url"
 
 	local src=${_[1]} dst=${_[2]:-}
 
-	if src.exist_ "$dst"; then
-		src.update_ "$dst"
+	if src:exist_ "$dst"; then
+		src:update_ "$dst"
 	else
-		src.get_ "$src" "$dst"
+		src:get_ "$src" "$dst"
 	fi
 
-	src.enter_ "$dst"
+	src:enter_ "$dst"
 }
 
-src.managed_() {
+src:managed_() {
 	local path=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.is.git "$path" && git -C "$path" config underscore.name &>/dev/null
 }
 
-src.run_() {
+src:run_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	path.base file
 
-	.calling "$file" file.run_ "$file"
+	.calling "$file" file:run_ "$file"
 }
 
-src.update_() {
+src:update_() {
 	git.update_ "$@"
 }
 
-# src - Private functions
-
-src._plan_() {
+src:plan_() {
 	local owner repo auth path
 
 	if [[ ! ${_[.host]} =~ ^(github.com|gitlab.com|bitbucket.com)$ ]]; then

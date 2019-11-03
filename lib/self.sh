@@ -1,35 +1,11 @@
 # self.sh - Functions related to program itself
 
-# Install self
-self.install() {
-	# shellcheck disable=2192,2128
-	local -A _=(
-		[-prefix]="$_USR"/bin
-		[-name]=$PROGNAME
-
-		[.help]=
-		[.argc]=0
-	)
-
-	flag.parse
-
-	_[1]=$(self.path)
-
-	bin.install_
-}
-
-# Print self name
 self.name() {
-	local -A _; flag.parse
-
 	# shellcheck disable=2128
 	echo "$PROGNAME"
 }
 
-# Print self path
 self.path() {
-	local -A _; flag.parse
-
 	local self
 
 	self=${BASH_SOURCE[0]}
@@ -40,7 +16,6 @@ self.path() {
 	esac
 }
 
-# Print self source
 self.src() {
 	local path
 
@@ -52,9 +27,6 @@ self.src() {
 	fi
 }
 
-# Print self version
 self.version() {
-	local -A _; flag.parse
-
-	echo 0.0
+	echo "${VERSION:-}"
 }

@@ -1,99 +1,6 @@
 # filetype.sh - Filetype detection
 
-# Assert any file type
-filetype.any() {
-	local -A _=(
-		[-zip]=false
-
-		[.help]='FILE [TYPE...]'
-		[.argc]=2-
-	)
-
-	flag.parse
-
-	local file=$1; shift
-
-	.must "No such file: $file" [[ -f "$file" ]]
-
-	local type
-	for type; do
-		if filetype.is_ "$type"; then
-			return 0
-		fi
-	done
-
-	return 1
-}
-
-# Assert file type
-filetype.is() {
-	local -A _=(
-		[-zip]=false
-
-		[.help]='FILE TYPE'
-		[.argc]=2
-	)
-
-	flag.parse
-
-	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
-
-	filetype.is_ "$@"
-}
-
-# Print mime type
-filetype.mime() {
-	local -A _=(
-		[-zip]=false
-
-		[.help]='FILE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
-
-	if flag.true -zip; then
-		file --mime-type --brief --uncompress-noreport "$file"
-	else
-		file --mime-type --brief "$file"
-	fi
-}
-
-# filetype - Protected functions
-
-filetype.is_() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-	local type=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local func=filetype.is._"${type}"_
-
-	.must "Unable to know type: $type" .callable "$func"
-
-	"$func" "$file" "$@"
-}
-
-filetype.shebang_() {
-	local    file=${1?${FUNCNAME[0]}: missing argument}; shift
-	local -n filetype_shebang_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	filetype.is._interpretable_ "$file" || return 1
-
-	# shellcheck disable=2034
-	local filetype_shebang_string
-
-	filetype_shebang_string_=$(head -n 1 "$file")
-	filetype_shebang_string_=${filetype_shebang_string_#\#!}
-	filetype_shebang_string_=${filetype_shebang_string_# }
-
-	# shellcheck disable=2034,2206
-	filetype_shebang_=($filetype_shebang_string_)
-}
-
-# filetype - Private functions
-
-filetype.is._compressed_() {
+filetype.compressed() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local mime; mime=$(file --mime-type --brief "$file")
@@ -102,51 +9,13 @@ filetype.is._compressed_() {
 	application/gzip|application/zip|application/x-xz|application/x-bzip2|application/x-zstd)
 		local zip=$mime; zip=${zip##*/}; zip=${zip##*-}
 
-		if [[ $(file --mime-type --brief --uncompress-noreport "$file") = application/x-tar ]]; then
-			_[.file.zip]=tar.$zip
-		else
-			_[.file.zip]=$zip
-		fi
-
 		return 0 ;;
 	*)
 		return 1 ;;
 	esac
 }
 
-filetype.is._executable_() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	filetype.is._runnable_ "$file" || return 1
-
-	[[ ${_[.file.runnable]:-} = binary ]]
-}
-
-filetype.is._interpretable_() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	filetype.is._runnable_ "$file" || return 1
-
-	[[ ${_[.file.runnable]:-} = script ]]
-}
-
-filetype.is._mime_() {
-	local file=${1?${FUNCNAME[0]}: missing argument};     shift
-	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local mime
-	if flag.true -zip; then
-		mime=$(file --mime-type --brief --uncompress-noreport "$file")
-	else
-		mime=$(file --mime-type --brief "$file")
-	fi
-
-	_[.file.mime]=$mime
-
-	[[ $mime = "$expected" ]]
-}
-
-filetype.is._runnable_() {
+filetype.executable() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local mime encoding
@@ -155,15 +24,72 @@ filetype.is._runnable_() {
 
 	if [[ $encoding =~ binary$ ]]; then
 		if [[ $mime  =~ -executable$ ]]; then
-			_[.file.runnable]=binary
-			return 0
-		fi
-	else
-		if head -n 1 "$file" | grep -q '^#!'; then
-			_[.file.runnable]=script
 			return 0
 		fi
 	fi
 
 	return 1
+}
+
+filetype.interpretable() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime encoding
+
+	IFS='; ' read -r mime encoding < <(file --mime --brief "$file")
+
+	if [[ ! $encoding =~ binary$ ]]; then
+		if head -n 1 "$file" | grep -q '^#!'; then
+			return 0
+		fi
+	fi
+
+	return 1
+}
+
+filetype.mime() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	file --mime-type --brief "$file"
+}
+
+filetype.mimez() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	file --mime-type --brief --uncompress-noreport "$file"
+}
+
+filetype.runnable() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime encoding
+
+	IFS='; ' read -r mime encoding < <(file --mime --brief "$file")
+
+	if [[ $encoding =~ binary$ ]]; then
+		if [[ $mime  =~ -executable$ ]]; then
+			return 0
+		fi
+	else
+		if head -n 1 "$file" | grep -q '^#!'; then
+			return 0
+		fi
+	fi
+
+	return 1
+}
+
+filetype.shebang() {
+	local    file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n lib_filetype_shebang_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	# shellcheck disable=2034
+	local lib_filetype_shebang_string
+
+	lib_filetype_shebang_string_=$(head -n 1 "$file")
+	lib_filetype_shebang_string_=${lib_filetype_shebang_string_#\#!}
+	lib_filetype_shebang_string_=${lib_filetype_shebang_string_# }
+
+	# shellcheck disable=2034,2206
+	lib_filetype_shebang_=($lib_filetype_shebang_string_)
 }

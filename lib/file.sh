@@ -1,155 +1,5 @@
 # file.sh - File related operations
 
-# Copy file/directory to dstination creating all parents if necessary
-file.copy() {
-	file._do_args_ copy "$@"
-}
-
-# Change owner, group and mode
-file.chogm() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-group]=
-		[-mode]=
-		[-owner]=
-
-		[.help]='[-group=GROUP|mode=MODE|owner=USER] URL [FILE]'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	local dst=$1
-
-	file.chogm_ "$dst"
-}
-
-# Install file from URL
-file.install() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-group]=
-		[-mode]=
-		[-owner]=
-		[-prefix]=
-		[-quiet]=
-
-		[.help]='[-group=GROUP|mode=MODE|owner=USER|prefix=DIR|quiet=BOOL] URL [FILE]'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	local url=$1 dst=${2:-${1##*/}}
-
-	file.install_ "$url" "$dst"
-}
-
-# Link file/directory to dstination creating all parents if necessary
-file.link() {
-	file._do_args_ link "$@"
-}
-
-# Move file/directory to destination creating all parents if necessary
-file.move() {
-	file._do_args_ move "$@"
-}
-
-# Run program
-file.run() {
-	# shellcheck disable=2192
-	local -A _=(
-		[.help]='URL|FILE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	# shellcheck disable=1007
-	local file temp_file_run=
-
-	if url.is "$url" web; then
-		file.download "$url" temp_file_run
-		file=$temp_file_run
-
-		if filetype.is "$file" runnable; then
-			.must -- chmod +x "$file"
-		fi
-	elif url.is "$url" local; then
-		file=$url
-	else
-		.die "Unsupported URL: $url"
-	fi
-
-	.running 'Running file'
-
-	local err
-	file.run_ "$file" || err=$? && err=$?
-
-	temp.clean temp_file_run
-
-	return "$err"
-}
-
-# file - Protected functions
-
-file.enter() {
-	local dir=${1:-}
-
-	[[ -n $dir ]] || return 0
-
-	if [[ -d $dir ]]; then
-		.must -- cd "$dir"
-	else
-		dir=${dir%/*}
-		[[ -d $dir ]] || .die "No path found to enter: $dir"
-		.must -- cd "$dir"
-	fi
-}
-
-file.do_() {
-	local op=${1?${FUNCNAME[0]}: missing argument};  shift
-	local src=${1?${FUNCNAME[0]}: missing argument}; shift
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ -e $src ]] || .die "Source not found: $src"
-
-	file.dst_ dst
-
-	local dstdir
-	if string.has_suffix_deleted dst /; then
-		dstdir=$dst
-	else
-		dstdir=$dst
-		path.dir dstdir
-	fi
-
-	[[ $dstdir = . ]] || .must -- mkdir -p "$dstdir"
-
-	local done=$dstdir/${src##*/}
-
-	case $op in
-	copy)
-		.must -- cp -a "$src" "$dst"
-		;;
-	move)
-		.must -- mv -f "$src" "$dst"
-		;;
-	link)
-		file.ln "$src" "$dst"
-		;;
-	*)
-		.bug "Unrecognized operation: $op"
-		;;
-	esac
-
-	flag.true -quiet || .ok "$done"
-
-	file._chogm_ "$done"
-
-	_[.]=$done
-}
-
 file.download() {
 	local    url=${1?${FUNCNAME[0]}: missing argument};                shift
 	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -165,22 +15,17 @@ file.download() {
 	file_download_dst_=$download
 }
 
-file.dst_() {
-	local -n file_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
+file.enter() {
+	local dir=${1:-}
 
-	[[ -z ${_[-prefix]:-} ]] || file_dst_=${_[-prefix]}/$file_dst_
-}
+	[[ -n $dir ]] || return 0
 
-file.install_() {
-	local src=${1?${FUNCNAME[0]}: missing argument}; shift
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	if url.is "$src" web; then
-		file.download "$src" src
-		file.do_ copy "$src" "$dst"
-		temp.clean src
+	if [[ -d $dir ]]; then
+		.must -- cd "$dir"
 	else
-		file.do_ copy "$src" "$dst"
+		dir=${dir%/*}
+		[[ -d $dir ]] || .die "No path found to enter: $dir"
+		.must -- cd "$dir"
 	fi
 }
 
@@ -192,12 +37,12 @@ file.ln() {
 	.must -- ln -sf "$src" "$dst"
 }
 
-file.run_() {
+file.run() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	[[ -f $file ]] || [[ $file =~ [.][^./]+$ ]] || file=$file.sh
 
-	filetype.is "$file" runnable || .die "File is not runnable: $file"
+	filetype.runnable "$file" || .die "File is not runnable: $file"
 
 	local -a env=()
 	flag.env_ env
@@ -205,9 +50,9 @@ file.run_() {
 	local -a argv=(env "${env[@]}")
 
 	if [[ ! -x "$file" ]]; then
-		if filetype.is "$file" interpretable; then
+		if filetype.interpretable "$file"; then
 			local -a shebang
-			filetype.shebang_ "$file" shebang
+			filetype.shebang "$file" shebang
 
 			# shellcheck disable=2206
 			argv+=("${shebang[@]}")
@@ -217,35 +62,4 @@ file.run_() {
 	argv+=("$file")
 
 	"${argv[@]}"
-}
-
-# file - Private functions
-
-file._chogm_() {
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ -z ${_[-mode]:-}  ]] || .must -- chmod "${_[-mode]}"  "$dst"
-	[[ -z ${_[-owner]:-} ]] || .must -- chown "${_[-owner]}" "$dst"
-	[[ -z ${_[-group]:-} ]] || .must -- chgrp "${_[-group]}" "$dst"
-}
-
-file._do_args_() {
-	local op=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=2192
-	local -A _=(
-		[-group]=
-		[-mode]=
-		[-owner]=
-		[-prefix]=
-
-		[.help]='[-(GROUP|MODE|OWNER|PREFIX)=VALUE] SRC [DST]'
-		[.argc]=1-
-	)
-
-	flag.parse
-
-	local src=$1 dst=$2
-
-	file.do_ "$op" "$src" "$dst"
 }

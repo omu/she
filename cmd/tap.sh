@@ -1,14 +1,14 @@
 # tap.sh - TAP functions
 
 # Mark stdin lines as an error output
-tap.err() {
+tap:err() {
 	local -A _; flag.parse
 
 	sed 's:^:# err> :' | color.out +red
 }
 
 # Print TAP failure
-tap.failure() {
+tap:failure() {
 	# shellcheck disable=2192
 	local -A _=(
 		[test]=$NIL
@@ -36,14 +36,14 @@ tap.failure() {
 }
 
 # Mark stdin lines as a successful output
-tap.out() {
+tap:out() {
 	local -A _; flag.parse
 
 	sed 's:^:# out> :' | color.out +green
 }
 
 # Print TAP plan
-tap.plan() {
+tap:plan() {
 	# shellcheck disable=2192
 	local -A _=(
 		[total]=$NIL
@@ -58,7 +58,7 @@ tap.plan() {
 }
 
 # Print TAP summary
-tap.shutdown() {
+tap:shutdown() {
 	# shellcheck disable=2192
 	local -A _=(
 		[failure]=$NIL
@@ -78,7 +78,7 @@ tap.shutdown() {
 
 
 # Print TAP skip
-tap.skip() {
+tap:skip() {
 	# shellcheck disable=2192
 	local -A _=(
 		[test]=$NIL
@@ -104,7 +104,7 @@ tap.skip() {
 }
 
 # Print TAP start
-tap.startup() {
+tap:startup() {
 	# shellcheck disable=2192
 	local -A _=(
 		[.help]='[FILE]'
@@ -120,7 +120,7 @@ tap.startup() {
 }
 
 # Print TAP success
-tap.success() {
+tap:success() {
 	# shellcheck disable=2192
 	local -A _=(
 		[test]=$NIL
@@ -142,7 +142,7 @@ tap.success() {
 }
 
 # Print TAP version
-tap.version() {
+tap:version() {
 	local -A _=(
 		[.argc]=0
 	)
@@ -152,7 +152,7 @@ tap.version() {
 }
 
 # Print TAP todo
-tap.todo() {
+tap:todo() {
 	# shellcheck disable=2192
 	local -A _=(
 		[test]=$NIL
@@ -184,14 +184,14 @@ tap.todo() {
 
 # tap - Protected functions
 
-tap.stack() {
+tap:stack_() {
 	sed 's:^:# :' | color.out yellow
 }
 
 # tap - Init
 
-tap._init() {
+tap:init_() {
 	readonly _TAP_VERSION_=13
 }
 
-tap._init
+tap:init_

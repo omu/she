@@ -1,7 +1,7 @@
 # bin.sh - Executable files
 
 # Install program to path
-bin.install() {
+bin:install() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-prefix]="$_USR"/bin
@@ -13,11 +13,11 @@ bin.install() {
 
 	flag.parse
 
-	bin.install_ "$@"
+	bin:install_ "$@"
 }
 
 # Use program by installing to a volatile path
-bin.use() {
+bin:use() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-prefix]="$_RUN"/bin
@@ -29,12 +29,12 @@ bin.use() {
 
 	flag.parse
 
-	bin.install_ "$@"
+	bin:install_ "$@"
 }
 
 # bin - Protected functions
 
-bin.install_() {
+bin:install_() {
 	local url="${1?${FUNCNAME[0]}: missing argument}"; shift
 
 	# shellcheck disable=1007
@@ -57,7 +57,7 @@ bin.install_() {
 	fi
 
 	local -a bins=()
-	bin._inspect "$bin" bins
+	bin:inspect_ "$bin" bins
 
 	[[ -n ${_[-mode]:-} ]] || _[-mode]=755
 
@@ -81,7 +81,7 @@ bin.install_() {
 
 # bin - Private functions
 
-bin._inspect() {
+bin:inspect_() {
 	local    bin=${1?${FUNCNAME[0]}: missing argument};          shift
 	local -n bin_inspect_=${1?${FUNCNAME[0]}: missing argument}; shift
 
