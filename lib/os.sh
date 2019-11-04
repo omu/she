@@ -24,7 +24,7 @@ os.dist() {
 os.is() {
 	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local func=os.is."${feature}"
+	local func=os.is."${feature//\//+}"
 
 	if .callable "$func"; then
 		"$func"
@@ -55,14 +55,18 @@ os.is.sid() {
 	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
 }
 
-os.is.stable() {
-	! os.is.unstable
+os.is.debian+sid() {
+	os.is.sid
 }
 
-os.is.unstable() {
+os.is.debian+stable() {
+	! os.is.debian+unstable
+}
+
+os.is.debian+unstable() {
 	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
 }
 
-os.is.testing() {
-	os.is.unstable
+os.is.debian+testing() {
+	os.is.debian+unstable
 }

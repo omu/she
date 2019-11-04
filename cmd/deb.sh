@@ -153,9 +153,9 @@ deb:install_() {
 	if flag.true -shiny; then
 		local target
 
-		if os.is debian stable; then
+		if os.is debian/stable; then
 			target=$(os.codename)-backports
-		elif os.is debian unstable; then
+		elif os.is debian/unstable; then
 			target=experimental
 		fi
 
