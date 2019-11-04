@@ -1,10 +1,102 @@
 Kabuk genişletmeleri
 ====================
 
-Ortam
------
+Kabuk genişletmeleri `bin` dizininde bulunan `_` ve `t` programlarından oluşur.  Bu programlar, kendi başına
+kullanılabilmekle birlikte önerilen kullanım yöntemi aşağıdaki gibidir:
 
-Kullanıcı için `XDG_*` ortam değişkenleri için öntanımlı değerler
+```sh
+. <(_)
+
+_ KOMUT... [SEÇENEK]... [ARGÜMAN]...
+```
+
+Genişletme programları `src` dizinindeki kaynak dosyalardan basit bir derleyici yoluyla üretilir.  Kaynak dosyalar `cmd`
+ve `lib` dizinlerindeki kabuk fonksiyonlarından hangilerinin kullanıldığını tanımlar.  Komutlar `cmd` dizininde bulunan
+kabuk fonksiyonlarıyla oluşturulur.  Komutlarda kullanılan tüm kitaplık fonksiyonları `lib` dizinindedir.  Genel amaçlı
+bu kitaplık fonksiyonları kabuk genişletmelerinde izlenen düzenden bağımsız olarak kopyala/yapıştır yoluyla her yerde
+kullanılabilecek genelliktedir.
+
+Stil
+----
+
+### Fonksiyonlar
+
+- Komut fonksiyonları `<modül>:<tanımlayıcı>`, kitaplık fonksiyonları `<modül>.<tanımlayıcı>` biçimindedir
+
+- İsimleri alt tireyle (`_`) sonlanan fonksiyonlar korunmuş ("protected") fonksiyonlardır
+
+- Korunmuş komut fonksiyonları tüm komut dosyalarında kullanılabilir
+
+- Korunmuş kitaplık fonksiyonları sadece tanımlandığı dosyada kullanılabilir
+
+- Kitaplık fonksiyonları komut fonksiyonları kullanamaz
+
+- Korunmuş olmayan komut fonksiyonları fonksiyon tanımından önceki satırda mutlaka dokümante edilmelidir
+
+- Korunmuş olmayan komut fonksiyonları `flag` kitaplığıyla komut arayüzü tanımlar
+
+### `_` değişkeni
+
+`_` değişkeni `flag` kitaplığı gibi kabuk programlamanın sınırlarını zorlayan veri yapısı odaklı fonksiyonlarda sözlük
+("hash") tipinde bir değişken olarak kullanılır.  Bu yapılırken:
+
+- Daima yerel kapsamda `local -A _` ile bildirim yapılır
+
+- `0` anahtarı asla kullanılmaz
+
+- `1` ve `9` arası anahtarlar (ör. `${_[1]}`, `${_[9]}`) konumsal parametreler için kullanılır
+
+- Seçeneklerde tire (`-`) ile başlayan anahtarlar kullanılır (ör. `-force`)
+
+- İç değişkenlerde nokta (`.`) ile başlayan anahtarlar kullanılır (ör. `.help`)
+
+- `.` özel anahtarı (isteğe bağlı olarak) öntanımlı dönüş değerini taşır
+
+- `!` özel anahtarı (varsa) hata iletisini taşır
+
+- Bunun dışında kalan (seçenek, iç değişken veya konumsal parametre olmayan) ve `a-z` ile başlayan tüm anahtarlar
+  değişken olarak kullanılır (ör. `variable`)
+
+Dikkat!  `_` değişkeni sadece `flag` kitaplığı (ve buna bağlı olarak) komut fonksiyonlarında kullanılmalıdır.
+
+### İsim başvuruları
+
+Özellikle dizi veya sözlük tipinde veriler üzerinde çalışması gereken fonksiyonlara değer aktarımı isim başvuruları
+ile gerçekleştirilir.
+
+```sh
+
+declare -a packages
+
+func() {
+        local -n func_packages_=${1?${FUNCNAME[0]}: missing argument}; shift
+        ...
+}
+
+func packages
+```
+
+- Başvuru değişkenleri isim çakışmalarını önlemek amacıyla (yukarıdaki örnekte görüldüğü gibi) fonksiyon ismiyle
+  öneklenerek oluşturulur ve isim daima alt tire ile sonlandırılır
+
+- Kitaplık fonksiyonlarında dönüş değeri genel olarak `$()` ile alınır.  Fakat giriş değerini değiştirerek dönen bazı
+  fonksiyonlarda değer aktarımı için isim başvurusu kullanılabilir.
+
+  ```sh
+
+  string.downcase() {
+        local -n string_downcase_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+        string_downcase=${string_downcase_,,}
+  }
+  ```
+
+`_`
+---
+
+### Ortam
+
+Kullanıcı için `XDG_*` ortam değişkenleri için öntanımlı değerler aşağıdaki gibi olmak kaydıyla:
 
 | Değişken               | Öntanımlı              |
 | ---------------------- | ---------------------- |
@@ -12,7 +104,7 @@ Kullanıcı için `XDG_*` ortam değişkenleri için öntanımlı değerler
 | `$XDG_CONFIG_HOME`     | `$HOME/.config/_`      |
 | `$XDG_CACHE_HOME`      | `$HOME/.cache/_`       |
 
-Çalışma ortamı
+Çalışma ortamı:
 
 | Tür                    | İç değişken  | Kontrol eden değişken          | Öntanımlı kullanıcı değeri                             | Öntanımlı sistem değeri
 | ---------------------- | ------------ | ------------------------------ | ------------------------------------------------------ | ------------------------------------
@@ -20,66 +112,13 @@ Kullanıcı için `XDG_*` ortam değişkenleri için öntanımlı değerler
 | Kalıcı dizin ağacı     | `_USR`       | `UNDERSCORE_PERSISTENT_PREFIX` | `$HOME/.local`                                         | `/usr/local`
 | Yapılandırma dizinleri | `_ETC`       | `UNDERSCORE_CONFIG_PATH`       | `/etc/_:/usr/local/etc/_:$XDG_CONFIG_HOME/_:$_RUN/etc` | `/etc/_:$_USR/etc/_:$_RUN/etc`
 
-Buna göre tipik dizin değerleri
+Buna göre tipik dizin değerleri:
 
 | Tür                                           | İç değişken  | Tipik kullanıcı değeri                                     | Tipik sistem değeri
 | --------------------------------------------- | ------------ | ---------------------------------------------------------- | -------------------------
 | Programlar için geçici kurulum dizini         | `_RUN/bin`   | `/run/user/1000/bin`                                       | `/run/_/bin`
 | Programlar için kalıcı kurulum dizini         | `_USR/bin`   | `~/.local/bin`                                             | `/usr/local/bin`
 | Yapılandırmalar (sondaki en yüksek öncelikli) | `_ETC`       | `/etc/_:/usr/local/etc/_:~/.config/_:/run/user/1000/_/etc` | `/etc/_:/usr/local/etc/_:/run/_/etc`
-
-Stil
-----
-
-### İşlev isimleri
-
-- İşlev isimleri `<modül>.<tanımlayıcı>` biçimindedir
-
-- Bir işlev 4 tipte olabilir
-
-  1. Komut fonksiyonları: `_ komut altkomut` şeklinde dışarı açılan komutların gerçeklemesi
-
-  2. Açık fonksiyonlar: "She" tüketicileri tarafından kitaplık düzeyinde kullanılabilen olağan fonksiyonlar
-
-  3. Alt tire değişkeni kullanan fonksiyonlar: `_` öntanımlı değişkenini kullanan fonksiyonlar
-
-  4. Kapalı fonksiyonlar: Sadece ilgili modülde kullanılabilecek fonksiyonlar
-
-- Bu tiplerde aşağıdaki sözdizimleri kullanılır
-
-  1. Fonksiyon başlığında `fonksiyon adı: açıklama` biçimiyle bildirilir
-
-  2. Özel bir biçim kullanılmaz
-
-  3. `<modül>.<tanımlayıcı>_` biçimi kullanılır
-
-  4. `<modül>._<tanımlayıcı>` biçimi kullanılır (ayrıca 3 tipinde ise `<modül>._<tanımlayıcı>_`
-
-### `_`
-
-`_` değişkeni hash tipinde dönüş değişkeni olarak kullanılır.  Bu yapılırken:
-
-- Daima yerel kapsamda `local -A _` ile bildirim yapılır
-
-- Seçeneklerde `-option` biçimi kullanılır
-
-- Internal değişkenler için `.variable` biçimi kullanılır
-
-- `0` anahtarı asla kullanılmaz
-
-- `${_[1]}`, `${_[9]}` değerleri konumsal parametreler için kullanılır
-
-- `.` değişkeni (isteğe bağlı olarak) dönüş değerini taşır (alt: `.reply` veya `_`)
-
-- `!` değişkeni (varsa) hata iletisi taşır (alt: `.error`)
-
-- Bunun dışında kalan (seçenek, ara değişken veya konumsal parametre olmayan) tüm anahtarlar değişken olarak kullanılır
-
-- Komut satırı parametrelerinin ayrıştırılmasında `flag` modülü kullanılır (`flag.parse "$@"`)
-
-### Çıktı atamaları
-
-- Sadece bang versiyon olarak backtick'ten kaçınan fonksiyonlara izin var.  Bu fonksiyonlarda girdi aynı zamanda çıktıdır.
 
 Test
 ----

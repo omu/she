@@ -35,14 +35,14 @@
 
 	local url=$1
 
-	local type=
-	url.type "$url" type
+	local kind=
+	url.kind "$url" kind
 
 	# shellcheck disable=2153
-	case $type in
+	case $kind in
 	src) .redirect src  enter "${ARGV[@]}"  ;;
 	non) .redirect file enter "${ARGV[@]}"  ;;
-	*)   .die "Unsupported URL type: $type" ;;
+	*)   .die "Unsupported URL kind: $kind" ;;
 	esac
 }
 
@@ -84,11 +84,11 @@
 
 	local url=$1
 
-	local type=
-	url.type "$url" type
+	local kind=
+	url.kind "$url" kind
 
 	# shellcheck disable=2153
-	case $type in
+	case $kind in
 	web) .redirect web  run "${ARGV[@]}" ;;
 	src) .redirect src  run "${ARGV[@]}" ;;
 	non) .redirect file run "${ARGV[@]}" ;;
