@@ -1,4 +1,4 @@
-# _.sh - Required functions
+#cmd/_ - Essential commands
 
 # Return if program available
 :available() {
@@ -84,7 +84,7 @@
 	.should "$@"
 }
 
-# _ - Init
+# cmd/_ - Init
 
 :init_() {
 	# Default variable as a hash

@@ -1,4 +1,4 @@
-# tap.sh - TAP functions
+# cmd/tap - TAP commands
 
 # Mark stdin lines as an error output
 tap:err() {
@@ -182,13 +182,7 @@ tap:todo() {
 	done | sed -u -e 's/^/# /'
 }
 
-# tap - Protected functions
-
-tap:stack_() {
-	sed 's:^:# :' | color.out yellow
-}
-
-# tap - Init
+# cmd/tap - Init
 
 tap:init_() {
 	readonly _TAP_VERSION_=13

@@ -1,4 +1,4 @@
-# file.sh - File related operations
+# cmd/file - File operations
 
 # Change owner, group and mode
 file:chogm() {
@@ -68,7 +68,7 @@ file:run() {
 	file:run_ "$@"
 }
 
-# file - Protected functions
+# cmd/file - Protected functions
 
 file:chogm_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift

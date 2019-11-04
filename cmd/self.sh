@@ -1,4 +1,4 @@
-# self.sh - Functions related to program itself
+# cmd/self - Commands related to theprogram itself
 
 # Install self
 self:install() {

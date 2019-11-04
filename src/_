@@ -5,6 +5,7 @@
 #:lib/array.sh
 #:lib/color.sh
 #:lib/deb.sh
+#:lib/debug.sh
 #:lib/defer.sh
 #:lib/file.sh
 #:lib/filetype.sh

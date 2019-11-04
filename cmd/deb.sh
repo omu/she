@@ -1,4 +1,4 @@
-# deb.sh - Debian package management
+# cmd/deb - Debian package management
 
 # Add Debian repository
 deb:add() {
@@ -189,7 +189,7 @@ deb:using_() {
 	done
 }
 
-# deb - Init
+# cmd/deb - Init
 
 deb:init_() {
 	.available apt-get || .die 'Only Debian and derivatives supported.'

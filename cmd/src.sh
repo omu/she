@@ -1,4 +1,4 @@
-# src.sh - Source management
+# cmd/src - Source management
 
 # Get src from url and enter to the directory
 src:enter() {
@@ -73,7 +73,7 @@ src:use() {
 	src:install_ "$@"
 }
 
-# src - Protected functions
+# cmd/src - Protected functions
 
 src:dst_() {
 	git:dst_ "$@"

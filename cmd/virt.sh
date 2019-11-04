@@ -1,4 +1,4 @@
-# virt.sh - Virtualization functions
+# cmd/virt - Virtualization commands
 
 # Assert any of the virtualization types
 virt:any() {

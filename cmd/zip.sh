@@ -1,4 +1,4 @@
-# zip.sh - Compression/decompression functions
+# cmd/zip - Compression/decompression commands
 
 # Unpack compressed file
 zip:unpack() {

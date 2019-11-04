@@ -1,4 +1,4 @@
-# os.sh - OS related functions
+# cmd/os - OS related commands
 
 # Assert any OS feature
 os:any() {

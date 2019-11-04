@@ -449,6 +449,33 @@ deb.add_key_() {
 	temp.clean temp_file
 }
 
+# debug - Debug functions
+
+.dbg() {
+	[[ $# -gt 0 ]] || return 0
+
+	# shellcheck disable=2178,2155
+	local -n dbg_=$1
+
+	echo "${!dbg_}"
+
+	local key
+	for key in "${!dbg_[@]}"; do
+		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
+	done | sort
+
+	echo
+}
+
+.stacktrace() {
+	local -i i=1
+
+	while [[ -n ${BASH_SOURCE[$i]:-} ]]; do
+		echo "${BASH_SOURCE[$i]}":"${BASH_LINENO[$((i-1))]}":"${FUNCNAME[$i]}"\(\)
+		i=$((i + 1))
+	done | grep -v "^${BASH_SOURCE[0]}"
+}
+
 # defer.sh - Deferred functions
 
 # Register files/directories to clean up at exit
@@ -1609,7 +1636,7 @@ zip.unpack.zst() {
 
 # Commands
 
-# _.sh - Required functions
+#cmd/_ - Essential commands
 
 # Return if program available
 :available() {
@@ -1695,7 +1722,7 @@ zip.unpack.zst() {
 	.should "$@"
 }
 
-# _ - Init
+# cmd/_ - Init
 
 :init_() {
 	# Default variable as a hash
@@ -1725,7 +1752,7 @@ zip.unpack.zst() {
 
 :init_
 
-# bin.sh - Executable files
+# cmd/bin - Commands to manage programs/scripts
 
 # Install program to path
 bin:install() {
@@ -1806,7 +1833,7 @@ bin:install_() {
 	temp.clean temp_bin_file temp_bin_dir
 }
 
-# bin - Private functions
+# cmd/bin - Protected functions
 
 bin:inspect_() {
 	local    bin=${1?${FUNCNAME[0]}: missing argument};          shift
@@ -1823,7 +1850,7 @@ bin:inspect_() {
 	fi
 }
 
-# deb.sh - Debian package management
+# cmd/deb - Debian package management
 
 # Add Debian repository
 deb:add() {
@@ -2014,7 +2041,7 @@ deb:using_() {
 	done
 }
 
-# deb - Init
+# cmd/deb - Init
 
 deb:init_() {
 	.available apt-get || .die 'Only Debian and derivatives supported.'
@@ -2024,7 +2051,7 @@ deb:init_() {
 
 deb:init_
 
-# file.sh - File related operations
+# cmd/file - File operations
 
 # Change owner, group and mode
 file:chogm() {
@@ -2094,7 +2121,7 @@ file:run() {
 	file:run_ "$@"
 }
 
-# file - Protected functions
+# cmd/file - Protected functions
 
 file:chogm_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -2216,7 +2243,7 @@ file:run_() {
 	return "$err"
 }
 
-# filetype.sh - Filetype detection
+# cmd/filetype - Filetype detection
 
 # Assert any file type
 filetype:any() {
@@ -2309,7 +2336,7 @@ filetype:shebang_() {
 	filetype_shebang_=($filetype_shebang_string_)
 }
 
-# filetype - Private functions
+# cmd/filetype - Protected functions
 
 filetype:is:compressed_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -2386,7 +2413,7 @@ filetype:is:runnable_() {
 	return 1
 }
 
-# git.sh - Git functions
+# cmd/git - Git commands
 
 # Git pull if repository expired
 git:update() {
@@ -2405,7 +2432,7 @@ git:update() {
 	fi
 }
 
-# git - Protected functions
+# cmd/git - Protected functions
 
 git:clone_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -2473,7 +2500,7 @@ git:update_() {
 	.must -- popd >/dev/null
 }
 
-# https.sh - HTTP functions
+# cmd/http - HTTP commands
 
 # Assert HTTP response against any of the given codes
 http:any() {
@@ -2526,7 +2553,7 @@ http:is() {
 	http:is_ "$response" "$code"
 }
 
-# http - Protected functions
+# cmd/http - Protected functions
 
 http:is_() {
 	local response=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -2539,7 +2566,7 @@ http:is_() {
 	[[ $response = "$code" ]]
 }
 
-# os.sh - OS related functions
+# cmd/os - OS related commands
 
 # Assert any OS feature
 os:any() {
@@ -2579,7 +2606,7 @@ os:is() {
 	os.is "$@"
 }
 
-# self.sh - Functions related to program itself
+# cmd/self - Commands related to theprogram itself
 
 # Install self
 self:install() {
@@ -2627,7 +2654,7 @@ self:version() {
 	self.version
 }
 
-# src.sh - Source management
+# cmd/src - Source management
 
 # Get src from url and enter to the directory
 src:enter() {
@@ -2702,7 +2729,7 @@ src:use() {
 	src:install_ "$@"
 }
 
-# src - Protected functions
+# cmd/src - Protected functions
 
 src:dst_() {
 	git:dst_ "$@"
@@ -2802,7 +2829,7 @@ src:plan_() {
 	_[2]=${_[.name]}
 }
 
-# text.sh - Text blob manipulations
+# cmd/text - Text manipulation commands
 
 # Append stdin content to the target file
 text:fix() {
@@ -2828,7 +2855,7 @@ text:unfix() {
 	text.unfix "$@"
 }
 
-# ui.sh - UI functions
+# cmd/ui - UI commands
 
 # Print bug message and exit failure
 ui:bug() {
@@ -2962,7 +2989,7 @@ ui:say() {
 	.say "$@"
 }
 
-# url.sh - URL processing
+# cmd/url - URL processing commands
 
 # Assert URL type
 url:any() {
@@ -3005,7 +3032,7 @@ url:is() {
 	[[ $expected = "$got" ]]
 }
 
-# url - Protected functions
+# cmd/url - Protected functions
 
 # Parse URL
 # shellcheck disable=2034
@@ -3088,7 +3115,7 @@ url:parse_() {
 	url_parse_[.userinfo]=$userinfo
 }
 
-# virt.sh - Virtualization functions
+# cmd/virt - Virtualization commands
 
 # Assert any of the virtualization types
 virt:any() {
@@ -3125,7 +3152,7 @@ virt:which() {
 	virt.which
 }
 
-# zip.sh - Compression/decompression functions
+# cmd/zip - Compression/decompression commands
 
 # Unpack compressed file
 zip:unpack() {

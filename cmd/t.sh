@@ -1,4 +1,4 @@
-# t.sh - Test functions
+# cmd/t - Testing
 
 # Assert failed command outputs
 t:err() {
@@ -105,7 +105,7 @@ t:go() {
 		     skip="${_test_[skip]:-0}"
 }
 
-# t - Protected functions
+# cmd/t - Protected functions
 
 t:assert_() {
 	local assert=assert.${FUNCNAME[1]#*.}

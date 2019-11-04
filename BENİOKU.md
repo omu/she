@@ -318,7 +318,7 @@ TODO
 
 - [.] API overhaul
   + [X] isim uzayını değerlendir
-  + [ ] public/protected/private ve cli fonksiyonlarının semantiği
+  + [X] public/protected/private ve cli fonksiyonlarının semantiği
   + [X] Fonksiyonların kısa açıklamaları
   + [X] Fonksiyonların dosya içinde sıralanması
   + [.] Stil/tutarlılık bakımı

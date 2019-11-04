@@ -1,4 +1,4 @@
-# git.sh - Git functions
+# cmd/git - Git commands
 
 # Git pull if repository expired
 git:update() {
@@ -17,7 +17,7 @@ git:update() {
 	fi
 }
 
-# git - Protected functions
+# cmd/git - Protected functions
 
 git:clone_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift

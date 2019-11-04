@@ -1,4 +1,4 @@
-# url.sh - URL processing
+# cmd/url - URL processing commands
 
 # Assert URL type
 url:any() {
@@ -41,7 +41,7 @@ url:is() {
 	[[ $expected = "$got" ]]
 }
 
-# url - Protected functions
+# cmd/url - Protected functions
 
 # Parse URL
 # shellcheck disable=2034

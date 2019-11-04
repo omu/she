@@ -1,4 +1,4 @@
-# ui.sh - UI functions
+# cmd/ui - UI commands
 
 # Print bug message and exit failure
 ui:bug() {

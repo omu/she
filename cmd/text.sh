@@ -1,4 +1,4 @@
-# text.sh - Text blob manipulations
+# cmd/text - Text manipulation commands
 
 # Append stdin content to the target file
 text:fix() {

@@ -1,4 +1,4 @@
-# https.sh - HTTP functions
+# cmd/http - HTTP commands
 
 # Assert HTTP response against any of the given codes
 http:any() {
@@ -51,7 +51,7 @@ http:is() {
 	http:is_ "$response" "$code"
 }
 
-# http - Protected functions
+# cmd/http - Protected functions
 
 http:is_() {
 	local response=${1?${FUNCNAME[0]}: missing argument}; shift

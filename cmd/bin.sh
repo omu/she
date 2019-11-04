@@ -1,4 +1,4 @@
-# bin.sh - Executable files
+# cmd/bin - Commands to manage programs/scripts
 
 # Install program to path
 bin:install() {
@@ -79,7 +79,7 @@ bin:install_() {
 	temp.clean temp_bin_file temp_bin_dir
 }
 
-# bin - Private functions
+# cmd/bin - Protected functions
 
 bin:inspect_() {
 	local    bin=${1?${FUNCNAME[0]}: missing argument};          shift

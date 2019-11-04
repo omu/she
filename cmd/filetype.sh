@@ -1,4 +1,4 @@
-# filetype.sh - Filetype detection
+# cmd/filetype - Filetype detection
 
 # Assert any file type
 filetype:any() {
@@ -91,7 +91,7 @@ filetype:shebang_() {
 	filetype_shebang_=($filetype_shebang_string_)
 }
 
-# filetype - Private functions
+# cmd/filetype - Protected functions
 
 filetype:is:compressed_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
