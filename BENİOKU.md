@@ -326,3 +326,4 @@ TODO
 - [ ] Stil bakımı son bir kez
 - [ ] README minimal olarak tamamla
 - [ ] Tüm yapıyı (policy dahil) BENİOKU'da dokümante et
+- [ ] Bootstrap betiklerini yaz
