@@ -21,7 +21,9 @@ Stil
 
 ### Fonksiyonlar
 
-- Komut fonksiyonları `<modül>:<tanımlayıcı>`, kitaplık fonksiyonları `<modül>.<tanımlayıcı>` biçimindedir
+- `cmd` dizininde bulunan komut fonksiyonları `<modül>:<tanımlayıcı>` biçimindedir
+
+- `lib` dizininde bulunan kitaplık fonksiyonları `<modül>.<tanımlayıcı>` biçimindedir
 
 - İsimleri alt tireyle (`_`) sonlanan fonksiyonlar korunmuş ("protected") fonksiyonlardır
 
