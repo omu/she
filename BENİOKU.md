@@ -316,38 +316,12 @@ Komut başarısız ve stderr/stdout çıktılarında:
 TODO
 ----
 
-- [.] API overhaul
-  + [X] isim uzayını değerlendir
-  + [X] public/protected/private ve cli fonksiyonlarının semantiği
-  + [X] Fonksiyonların kısa açıklamaları
-  + [X] Fonksiyonların dosya içinde sıralanması
-  + [.] Stil/tutarlılık bakımı
-  + [X] virtual uzayını os'tan ayır
-  + [X] her is için any ve duruma göre all ekle
-- [X] flag `--` yönetimi
-- [X] manuel test
-  + [X] ui.info için kısayol
-  + [X] bin.run ve src.run'ı seçerek çalıştıran bir run
-  + [X] expired lojiğini ters yap
-  + [X] ui.plain ile uzun çalışanları yönetiyoruz, kısayol?
-  + [X] `_[.target]` vb durumlar için genel tasarımı denetle
-  + [X] `bin.install_` yerine `bin.install -prefix=...` vs olsa daha iyi olur
-- [X] omu/debian
-  + [X] runtime/chrome
-  + [X] development/crystal
-  + [X] fixme'ler
-  + [X] tüm kullanımları gözden geçir ve test et
-- [X] blob unpack
-- [X] bin unpack desteği
-- [ ] README asgari dokümantasyonu
-- [X] Komut tablosu (README'de)
-- [ ] BENİOKU
-- [X] Mevcut provizyonlama uyumluluğu için ekleme/düzeltmeler
-- [.] scripts aracının yeni sürümü
+- [ ] omu/debian entegrasyonundaki tüm çağrıları test et
+- [ ] redirect ve usage lojiğini refaktörle
+- [ ] cmd refaktörünü satır satır denetle
+- [ ] scripts aracının yeni sürümü
 - [ ] etc'nin durumu
-- [X] ui ve color desteği
-- [X] test alt yapısı
-- [X] test gözden geçirme
-- [X] refactor t
-- [X] refactor Rakefile
-- [ ] cmd refactor
+- [ ] API'yi son bir kez elden geçir
+- [ ] Stil bakımı son bir kez
+- [ ] README minimal olarak tamamla
+- [ ] Tüm yapıyı (policy dahil) BENİOKU'da dokümante et
