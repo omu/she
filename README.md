@@ -1,8 +1,8 @@
 Shell extensions
 ================
 
-`_` commands
-------------
+`_`
+---
 
 <!-- _ begin -->
 | Command       | Description                                                          |
@@ -72,8 +72,8 @@ Shell extensions
 | zip unpack    | Unpack compressed file                                               |
 <!-- _ end -->
 
-`t` commands
-------------
+`t`
+---
 
 <!-- t begin -->
 | Command       | Description                                                          |
