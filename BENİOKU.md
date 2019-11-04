@@ -316,9 +316,10 @@ Komut başarısız ve stderr/stdout çıktılarında:
 TODO
 ----
 
-- [ ] omu/debian entegrasyonundaki tüm çağrıları test et
+- [ ] web/src/file ayrımını olgunlaştır
 - [ ] redirect ve usage lojiğini refaktörle
 - [ ] cmd refaktörünü satır satır denetle
+- [ ] omu/debian entegrasyonundaki tüm çağrıları test et
 - [ ] scripts aracının yeni sürümü
 - [ ] etc'nin durumu
 - [ ] API'yi son bir kez elden geçir
