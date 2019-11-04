@@ -17,7 +17,7 @@ Shell extensions
 | deb uninstall | Uninstall Debian packages                                            |
 | deb update    | Update Debian package index                                          |
 | deb using     | Use given official Debian distributions                              |
-| enter         | Enter to url                                                         |
+| enter         | Enter to directory or URL                                            |
 | expired       | Return if any of the files expired                                   |
 | file chogm    | Change owner, group and mode                                         |
 | file copy     | Copy file/directory to destination creating all parents if necessary |
@@ -38,16 +38,16 @@ Shell extensions
 | os codename   | Print distribution codename                                          |
 | os dist       | Print distribution name                                              |
 | os is         | Assert OS feature                                                    |
-| run           | Try to run any file or url                                           |
+| run           | Try to run file or URL                                               |
 | self install  | Install self                                                         |
 | self name     | Print self name                                                      |
 | self path     | Print self path                                                      |
 | self src      | Print self source                                                    |
 | self version  | Print self version                                                   |
 | should        | Ignore error if the given command fails                              |
-| src enter     | Get src from url and enter to the directory                          |
+| src enter     | Get src from URL and enter to the directory                          |
 | src install   | Install src into a source tree                                       |
-| src run       | Run src from url                                                     |
+| src run       | Run src from URL                                                     |
 | src use       | Install src into a volatile source tree                              |
 | text fix      | Append stdin content to the target file                              |
 | text unfix    | Remove appended content                                              |

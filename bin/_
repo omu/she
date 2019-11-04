@@ -2542,7 +2542,7 @@ self:version() {
 	.contains "$@"
 }
 
-# Enter to url
+# Enter to directory or URL
 :enter() {
 	local -A _=(
 		[.help]='DIR|URL'
@@ -2591,7 +2591,7 @@ self:version() {
 	.must "$@"
 }
 
-# Try to run any file or url
+# Try to run file or URL
 :run() {
 	local -A _=(
 		[.help]='FILE|URL'
@@ -2658,7 +2658,7 @@ self:version() {
 
 # cmd/src - Source management
 
-# Get src from url and enter to the directory
+# Get src from URL and enter to the directory
 src:enter() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -2691,7 +2691,7 @@ src:install() {
 	src:install_ "$@"
 }
 
-# Run src from url
+# Run src from URL
 src:run() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -3291,10 +3291,10 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		[':available']='Return if program available'
 		[':contains']='Return if first argument found in remaining arguments'
-		[':enter']='Enter to url'
+		[':enter']='Enter to directory or URL'
 		[':expired']='Return if any of the files expired'
 		[':must']='Ensure the given command succeeds'
-		[':run']='Try to run any file or url'
+		[':run']='Try to run file or URL'
 		[':should']='Ignore error if the given command fails'
 		['bin:install']='Install program to path'
 		['bin:use']='Use program by installing to a volatile path'
@@ -3327,9 +3327,9 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self:path']='Print self path'
 		['self:src']='Print self source'
 		['self:version']='Print self version'
-		['src:enter']='Get src from url and enter to the directory'
+		['src:enter']='Get src from URL and enter to the directory'
 		['src:install']='Install src into a source tree'
-		['src:run']='Run src from url'
+		['src:run']='Run src from URL'
 		['src:use']='Install src into a volatile source tree'
 		['text:fix']='Append stdin content to the target file'
 		['text:unfix']='Remove appended content'

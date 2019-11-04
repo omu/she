@@ -1,6 +1,6 @@
 # cmd/src - Source management
 
-# Get src from url and enter to the directory
+# Get src from URL and enter to the directory
 src:enter() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -33,7 +33,7 @@ src:install() {
 	src:install_ "$@"
 }
 
-# Run src from url
+# Run src from URL
 src:run() {
 	# shellcheck disable=2192
 	local -A _=(

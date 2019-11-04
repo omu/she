@@ -24,7 +24,7 @@
 	.contains "$@"
 }
 
-# Enter to url
+# Enter to directory or URL
 :enter() {
 	local -A _=(
 		[.help]='DIR|URL'
@@ -73,7 +73,7 @@
 	.must "$@"
 }
 
-# Try to run any file or url
+# Try to run file or URL
 :run() {
 	local -A _=(
 		[.help]='FILE|URL'
