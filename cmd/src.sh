@@ -14,10 +14,7 @@ src:enter() {
 
 	flag.parse
 
-	src:install_ "$@" >/dev/null
-
-	# shellcheck disable=2128
-	echo "$PWD"
+	src:enter_ "$@"
 }
 
 # Install src into a source tree
@@ -75,20 +72,61 @@ src:use() {
 
 # cmd/src - Protected functions
 
+src:cd_() {
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	src:dst_ dst
+
+	[[ -d $dst ]] || .die "Destination not found: $dst"
+
+	.must -- pushd "$dst" >/dev/null
+
+	# shellcheck disable=2128
+	git.is.git . || .die "Not a git repository: $PWD"
+
+	file.enter "${_[.dir]:-}"
+}
+
 src:dst_() {
-	git:dst_ "$@"
+	file:dst_ "$@"
 }
 
 src:enter_() {
-	git:enter_ "$@"
+	src:install_ "$@" >/dev/null
+
+	# shellcheck disable=2128
+	echo "$PWD"
 }
 
 src:exist_() {
-	git:is:exist_ "$@"
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	src:dst_ dst
+
+	[[ -d $dst ]]
 }
 
 src:get_() {
-	git:clone_ "$@"
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	! src:exist_ "$dst" || .die "Destination already exist: $dst"
+
+	local -a opt
+
+	[[ -z ${_[-shallow]:-} ]] || opt+=(--depth 1)
+	[[ -z ${_[.branch]:-}   ]] || opt+=(--branch "${_[.branch]}")
+
+	_func_() {
+		local repo=${url##*/}; repo=${repo%.*}
+
+		.getting 'Cloning repository' git clone "${opt[@]}" "$url" "$repo"
+		file:do_ copy "$repo" "$dst"
+	}
+
+	temp.inside _func_
+
+	unset -f _func_
 }
 
 src:install_() {
@@ -106,7 +144,7 @@ src:install_() {
 		src:get_ "$src" "$dst"
 	fi
 
-	src:enter_ "$dst"
+	src:cd_ "$dst"
 }
 
 src:managed_() {
@@ -124,7 +162,19 @@ src:run_() {
 }
 
 src:update_() {
-	git.update_ "$@"
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	src:cd_ "$dst"
+
+	git.switch "${_[.branch]:-}"
+
+	local -i expiry=${_[-expiry]:-3}
+	if .expired "$expiry" "$(git.topdir)"/.git/FETCH_HEAD; then
+		git.must.clean
+		.getting 'Updating repository' git pull --quiet origin
+	fi
+
+	.must -- popd >/dev/null
 }
 
 src:plan_() {

@@ -22,7 +22,7 @@ zip:unpack() {
 		fi
 	fi
 
-	.must "Not a compressed file of known type: $in" filetype.is_ "$in" compressed
+	.must "Not a compressed file of known type: $in" filetype.compressed "$in"
 
 	local func=zip.unpack.${_[.file.zip]:-}
 

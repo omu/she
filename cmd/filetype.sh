@@ -83,7 +83,7 @@ filetype:shebang_() {
 	# shellcheck disable=2034
 	local filetype_shebang_string
 
-	filetype_shebang_string_=$(head -n 1 "$file")
+	filetype_shebang_string_=$(head -n 1 "$file" 2>/dev/null || true)
 	filetype_shebang_string_=${filetype_shebang_string_#\#!}
 	filetype_shebang_string_=${filetype_shebang_string_# }
 
@@ -159,7 +159,7 @@ filetype:is:runnable_() {
 			return 0
 		fi
 	else
-		if head -n 1 "$file" | grep -q '^#!'; then
+		if head -n 1 "$file" | grep -q '^#!' 2>/dev/null; then
 			_[.file.runnable]=script
 			return 0
 		fi

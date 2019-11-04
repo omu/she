@@ -24,6 +24,28 @@
 	.contains "$@"
 }
 
+# Enter to url
+:enter() {
+	local -A _=(
+		[.help]='DIR|URL'
+		[.argc]=1
+	)
+
+	flag.peek
+
+	local url=$1
+
+	local type=
+	url.type "$url" type
+
+	# shellcheck disable=2153
+	case $type in
+	src) .redirect src  enter "${ARGV[@]}"  ;;
+	non) .redirect file enter "${ARGV[@]}"  ;;
+	*)   .die "Unsupported URL type: $type" ;;
+	esac
+}
+
 # Return if any of the files expired
 :expired() {
 	local -A _=(
@@ -58,17 +80,19 @@
 		[.argc]=1
 	)
 
-	flag.parse
+	flag.peek
 
 	local url=$1
 
-	if url.any "$url" web local; then
-		file.run "$url"
-	elif url.is "$url" src; then
-		src.run "$url"
-	else
-		.die "Unsupported URL type: $url"
-	fi
+	local type=
+	url.type "$url" type
+
+	# shellcheck disable=2153
+	case $type in
+	web) .redirect web  run "${ARGV[@]}" ;;
+	src) .redirect src  run "${ARGV[@]}" ;;
+	non) .redirect file run "${ARGV[@]}" ;;
+	esac
 }
 
 # Ignore error if the given command fails

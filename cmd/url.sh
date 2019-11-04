@@ -9,19 +9,7 @@ url:any() {
 
 	flag.parse
 
-	local url=$1; shift
-
-	local got=
-	url.type "$url" got
-
-	local type
-	for type; do
-		if [[ $type = "$got" ]]; then
-			return 0
-		fi
-	done
-
-	return 1
+	url.any "$@"
 }
 
 # Assert URL type
@@ -33,12 +21,7 @@ url:is() {
 
 	flag.parse
 
-	local url=$1 expected=$2
-
-	local got=
-	url.type "$url" got
-
-	[[ $expected = "$got" ]]
+	url.is "$@"
 }
 
 # cmd/url - Protected functions

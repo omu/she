@@ -310,7 +310,6 @@ flag.nil() {
 	[[ ${_[$1]:-} = "$NIL" ]]
 }
 
-# shellcheck disable=2034
 flag.parse_() {
 	if .contains -help "$@"; then
 		flag.usage_and_bye_
@@ -334,6 +333,38 @@ flag.parse_() {
 			key=$((++argc)); value=$1
 		fi
 
+		# shellcheck disable=2034
+		flag_result_["$key"]=${value:-${_["$key"]:-}}
+
+		shift
+	done
+
+	flag.load flag_result_
+
+	flag._validate_ $argc
+}
+
+flag.peek_() {
+	if .contains -help "$@"; then
+		flag.usage_and_bye_
+	fi
+
+	local -A flag_result_
+
+	local -i argc=0
+	while [[ $# -gt 0 ]]; do
+		local key value
+
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+			key=${1%%=*}; value=${1#*=}
+		elif [[ $1 == '--' ]] && [[ -z ${_[.dash]:-} ]]; then
+			shift
+			break
+		else
+			key=$((++argc)); value=$1
+		fi
+
+		# shellcheck disable=2034
 		flag_result_["$key"]=${value:-${_["$key"]:-}}
 
 		shift
@@ -442,7 +473,7 @@ flag._nils_() {
 		fi
 	done
 
-	[[ ${#required[@]} -eq 0 ]] || .die "Missing values for: ${required[*]}"
+	[[ ${#required[@]} -eq 0 ]] || .die "Value missing for: ${required[*]}"
 }
 
 flag._validate_() {
@@ -475,7 +506,10 @@ flag._init() {
 	shopt -s expand_aliases
 
 	# shellcheck disable=2142
-	alias flag.parse='flag.parse_ "$@"; local -a __a; flag.args_ __a; set -- "${__a[@]}"; unset -v __a'
+	alias flag.parse='flag.parse_ "$@"; local -a __argv__ ARGV=("$@"); flag.args_ __argv__; set -- "${__argv__[@]}"; unset -v __argv__'
+
+	# shellcheck disable=2142
+	alias flag.peek='flag.peek_ "$@"; local -a __argv__=() ARGV=("$@"); flag.args_ __argv__; set -- "${__argv__[@]}"; unset -v __argv__'
 
 	# shellcheck disable=2034
 	declare -gr NIL="\0"
@@ -1336,7 +1370,7 @@ EOF
 
 		local fun=${_command["$cmd"]}
 
-		readonly PROGNAME+=("$cmd")
+		PROGNAME+=("$cmd")
 
 		if [[ -n ${help:-} ]]; then
 			.say "${_help[$fun]:-}" ""
@@ -1345,6 +1379,30 @@ EOF
 		else
 			"$fun" "${args[@]}"
 		fi
+	}
+
+	.redirect() {
+		local -a args=("$@") try
+
+		local cmd
+		while [[ $# -gt 0 ]]; do
+			try+=("$1")
+			shift
+
+			if [[ -n ${_command[${try[*]}]:-} ]]; then
+				cmd=${try[*]}
+				args=("$@")
+			fi
+		done
+
+		[[ -n ${cmd:-} ]] || .die "No command found: $orig"
+
+		local fun=${_command["$cmd"]}
+
+		unset 'PROGNAME[${#PROGNAME[@]}-1]'
+		PROGNAME+=("$cmd")
+
+		"$fun" "${args[@]}"
 	}
 
 	.main() {

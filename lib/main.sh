@@ -56,7 +56,7 @@
 
 	local fun=${_command["$cmd"]}
 
-	readonly PROGNAME+=("$cmd")
+	PROGNAME+=("$cmd")
 
 	if [[ -n ${help:-} ]]; then
 		.say "${_help[$fun]:-}" ""
@@ -65,4 +65,28 @@
 	else
 		"$fun" "${args[@]}"
 	fi
+}
+
+.redirect() {
+	local -a args=("$@") try
+
+	local cmd
+	while [[ $# -gt 0 ]]; do
+		try+=("$1")
+		shift
+
+		if [[ -n ${_command[${try[*]}]:-} ]]; then
+			cmd=${try[*]}
+			args=("$@")
+		fi
+	done
+
+	[[ -n ${cmd:-} ]] || .die "No command found: $orig"
+
+	local fun=${_command["$cmd"]}
+
+	unset 'PROGNAME[${#PROGNAME[@]}-1]'
+	PROGNAME+=("$cmd")
+
+	"$fun" "${args[@]}"
 }

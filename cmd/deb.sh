@@ -137,7 +137,7 @@ deb:install_() {
 
 		if url.is "$url" web; then
 			urls+=("$url")
-		elif url.is "$url" local; then
+		elif url.is "$url" non; then
 			non_urls+=("$url")
 		else
 			.die "Unsupported URL: $url"

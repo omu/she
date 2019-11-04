@@ -39,7 +39,7 @@ filetype.interpretable() {
 	IFS='; ' read -r mime encoding < <(file --mime --brief "$file")
 
 	if [[ ! $encoding =~ binary$ ]]; then
-		if head -n 1 "$file" | grep -q '^#!'; then
+		if head -n 1 "$file" | grep -q '^#!' 2>/dev/null; then
 			return 0
 		fi
 	fi
@@ -71,7 +71,7 @@ filetype.runnable() {
 			return 0
 		fi
 	else
-		if head -n 1 "$file" | grep -q '^#!'; then
+		if head -n 1 "$file" | grep -q '^#!' 2>/dev/null; then
 			return 0
 		fi
 	fi
@@ -86,7 +86,7 @@ filetype.shebang() {
 	# shellcheck disable=2034
 	local lib_filetype_shebang_string
 
-	lib_filetype_shebang_string_=$(head -n 1 "$file")
+	lib_filetype_shebang_string_=$(head -n 1 "$file" 2>/dev/null || true)
 	lib_filetype_shebang_string_=${lib_filetype_shebang_string_#\#!}
 	lib_filetype_shebang_string_=${lib_filetype_shebang_string_# }
 

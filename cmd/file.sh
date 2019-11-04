@@ -19,12 +19,24 @@ file:chogm() {
 	file.chogm_ "$dst"
 }
 
-# Copy file/directory to dstination creating all parents if necessary
+# Copy file/directory to destination creating all parents if necessary
 file:copy() {
 	file:do_args_ copy "$@"
 }
 
-# Install file from URL
+# Enter file directory
+file:enter() {
+	local -A _=(
+		[.help]='FILE|DIR'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	file.enter "$@"
+}
+
+# Install src file to dst
 file:install() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -34,15 +46,13 @@ file:install() {
 		[-prefix]=
 		[-quiet]=
 
-		[.help]='[-group=GROUP|mode=MODE|owner=USER|prefix=DIR|quiet=BOOL] URL [FILE]'
-		[.argc]=1-
+		[.help]='[-group=GROUP|mode=MODE|owner=USER|prefix=DIR|quiet=BOOL] SRC DST'
+		[.argc]=2
 	)
 
 	flag.parse
 
-	local url=$1 dst=${2:-${1##*/}}
-
-	file:install_ "$url" "$dst"
+	file:install_ "$@"
 }
 
 # Link file/directory to dstination creating all parents if necessary
@@ -59,7 +69,7 @@ file:move() {
 file:run() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='URL|FILE'
+		[.help]='FILE'
 		[.argc]=1
 	)
 
@@ -152,40 +162,16 @@ file:install_() {
 	local src=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	if url.is "$src" web; then
-		file.download "$src" src
-		file:do_ copy "$src" "$dst"
-		temp.clean src
-	else
-		file:do_ copy "$src" "$dst"
-	fi
+	file:do_ copy "$src" "$dst"
 }
 
 file:run_() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	# shellcheck disable=1007
-	local file temp_file_run=
-
-	if url.is "$url" web; then
-		file.download "$url" temp_file_run
-		file=$temp_file_run
-
-		if filetype.is "$file" runnable; then
-			.must -- chmod +x "$file"
-		fi
-	elif url.is "$url" local; then
-		file=$url
-	else
-		.die "Unsupported URL: $url"
-	fi
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	.running 'Running file'
 
 	local err
 	file.run "$file" || err=$? && err=$?
-
-	temp.clean temp_file_run
 
 	return "$err"
 }

@@ -27,6 +27,9 @@ file.enter() {
 		[[ -d $dir ]] || .die "No path found to enter: $dir"
 		.must -- cd "$dir"
 	fi
+
+	# shellcheck disable=2128
+	echo "$PWD"
 }
 
 file.ln() {

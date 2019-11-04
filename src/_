@@ -25,7 +25,6 @@
 
 # Commands
 
-#:cmd/_.sh
 #:cmd/bin.sh
 #:cmd/deb.sh
 #:cmd/file.sh
@@ -34,11 +33,13 @@
 #:cmd/http.sh
 #:cmd/os.sh
 #:cmd/self.sh
+#:cmd/_.sh
 #:cmd/src.sh
 #:cmd/text.sh
 #:cmd/ui.sh
 #:cmd/url.sh
 #:cmd/virt.sh
+#:cmd/web.sh
 #:cmd/zip.sh
 
 if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then

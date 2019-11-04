@@ -43,13 +43,13 @@ bin:install_() {
 	if url.is "$url" web; then
 		file.download "$url" temp_bin_file
 		bin=$temp_bin_file
-	elif url.is "$url" local; then
+	elif url.is "$url" non; then
 		bin=$url
 	else
 		.die "Unsupported URL: $url"
 	fi
 
-	if filetype.is "$bin" compressed; then
+	if filetype.compressed "$bin"; then
 		temp.dir temp_bin_dir
 
 		zip.unpack -force=true "$bin" "$temp_bin_dir"
@@ -64,13 +64,13 @@ bin:install_() {
 	if [[ ${#bins[@]} -eq 1 ]]; then
 		local src=${bins[0]} dst=${_[-name]:-}
 
-		file.install_ "$src" "$dst"
+		file:install_ "$src" "$dst"
 	elif [[ ${#bins[@]} -gt 1 ]]; then
 		[[ -n ${_[-name]:-} ]] || .die "Ambiguous usage of name argument: ${_[-name]}"
 
 		local src
 		for src in "${bins[@]}"; do
-			file.install_ "$src"
+			file:install_ "$src"
 		done
 	else
 		.die "No program found: $url"
@@ -88,10 +88,10 @@ bin:inspect_() {
 	if [[ -d $bin ]]; then
 		local file
 		for file in "$bin"/*; do
-			filetype.is "$file" runnable || continue
+			filetype.runnable "$file" || continue
 			bin_inspect_+=("$file")
 		done
-	elif filetype.is "$bin" runnable; then
+	elif filetype.runnable "$bin"; then
 		bin_inspect_+=("$bin")
 	fi
 }

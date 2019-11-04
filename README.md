@@ -17,10 +17,12 @@ Shell extensions
 | deb uninstall | Uninstall Debian packages                                            |
 | deb update    | Update Debian package index                                          |
 | deb using     | Use given official Debian distributions                              |
+| enter         | Enter to url                                                         |
 | expired       | Return if any of the files expired                                   |
 | file chogm    | Change owner, group and mode                                         |
-| file copy     | Copy file/directory to dstination creating all parents if necessary  |
-| file install  | Install file from URL                                                |
+| file copy     | Copy file/directory to destination creating all parents if necessary |
+| file enter    | Enter file directory                                                 |
+| file install  | Install src file to dst                                              |
 | file link     | Link file/directory to dstination creating all parents if necessary  |
 | file move     | Move file/directory to destination creating all parents if necessary |
 | file run      | Run program                                                          |
@@ -65,6 +67,8 @@ Shell extensions
 | virt any      | Assert any of the virtualization types                               |
 | virt is       | Assert virtualization type                                           |
 | virt which    | Detect virtualization type                                           |
+| web install   | Install file from web                                                |
+| web run       | Run program through web                                              |
 | zip unpack    | Unpack compressed file                                               |
 <!-- _ end -->
 
