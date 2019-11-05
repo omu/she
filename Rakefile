@@ -451,30 +451,36 @@ module Main
   end
 end
 
-BIN = %w[_ t tap].freeze
+PRG = %w[_ t tap].freeze
+BIN = PRG.map { |prg| "bin/#{prg}" }.freeze
+DEP = [*Dir['cmd/*', 'lib/*', 'src/*'], __FILE__].freeze
 
-desc 'Generate'
-task :generate do
-  commands = {}
+commands = {}
 
-  BIN.each do |bin|
-    src, dst = "src/#{bin}", "bin/#{bin}"
+PRG.each do |prg|
+  src, dst = "src/#{prg}", "bin/#{prg}"
 
+  file "bin/#{prg}" => DEP do
     mkdir_p File.dirname(dst)
-    commands[bin] = Main.(src, dst).export
+    commands[prg] = Main.(src, dst).export
     chmod '+x', dst
 
     sh 'bash', '-n', dst
     sh 'shellcheck', dst
   end
+end
 
-  doc = 'README.md'
+doc = 'README.md'
+file doc => DEP do
   File.write doc, Main.doc(doc, commands)
 end
 
+desc 'Generate'
+task generate: [*BIN, 'README.md']
+
 desc 'Clean'
 task :clean do
-  rm_f(BIN.map { |bin| "bin/#{bin}" })
+  rm_f BIN
 end
 
 task default: :generate
