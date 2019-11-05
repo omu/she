@@ -1,7 +1,7 @@
 Kabuk genişletmeleri
 ====================
 
-**Bu proje Bash dışında daha genel amaçlı bir dille geliştirilmesi düşünülen bir projenin prototipidir.  Bu prototip
+**Bu proje Bash dışındaki daha genel amaçlı bir dille geliştirilmesi düşünülen bir projenin prototipidir.  Prototip
 hızlı sonuç almak ve genişletme fikrini denemek için geliştirilmiştir.  Genişletmeler kurum içinde halen kullanılmakla
 birlikte genele açık "production" kullanım için henüz uygun değildir.**
 
@@ -506,6 +506,6 @@ TODO
 - [ ] etc'nin durumu
 - [ ] API'yi son bir kez elden geçir
 - [ ] Stil bakımı son bir kez
-- [ ] README minimal olarak tamamla
-- [ ] Tüm yapıyı (policy dahil) BENİOKU'da dokümante et
+- [.] README minimal olarak tamamla
+- [X] Tüm yapıyı (policy dahil) BENİOKU'da dokümante et
 - [ ] Bootstrap betiklerini yaz
