@@ -488,12 +488,15 @@ func packages
   fonksiyonlarda değer aktarımı için isim başvurusu kullanılabilir.
 
   ```sh
-
   string.downcase() {
         local -n string_downcase_=${1?${FUNCNAME[0]}: missing argument}; shift
 
         string_downcase=${string_downcase_,,}
   }
+
+  string = 'Foo'
+  string.downcase string
+  echo "$string" #=> 'foo'
   ```
 
 TODO
