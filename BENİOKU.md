@@ -207,7 +207,8 @@ t go
   t ok ... # SKIP message
   ```
 
-- Testi başarısız olarak işaretleyerek gelecekte ilgilenileceğini vurgulamak için açıklamanın başına `TODO` (veya `todo`) ekle
+- Testi başarısız olarak işaretleyerek gelecekte ilgilenileceğini vurgulamak için açıklamanın başına `TODO` (veya
+  `todo`) ekle
 
   ```sh
   t ok ... # TODO message
