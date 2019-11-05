@@ -1,19 +1,34 @@
 Kabuk genişletmeleri
 ====================
 
+**Bu proje Bash dışında daha genel amaçlı bir dille geliştirilmesi düşünülen bir projenin prototipidir.  Bu prototip
+hızlı sonuç almak ve genişletme fikrini denemek için geliştirilmiştir.  Genişletmeler kurum içinde halen kullanılmakla
+birlikte genele açık "production" kullanım için henüz uygun değildir.**
+
 Kabuk genişletmeleri `bin` dizininde bulunan `_` alt tire çatısı ve `t` test çatısı programlarından oluşur.  Alt
 komutlar halinde tüketilen bu programların komut listesi [README](README.md)'de dokümante edilmiştir.
 
-Genişletme programları `src` dizinindeki kaynak dosyalardan basit bir derleyici yoluyla üretilir.  Kaynak dosyalar `cmd`
-ve `lib` dizinlerindeki kabuk fonksiyonlarından hangilerinin kullanıldığını tanımlar.  Komutlar `cmd` dizininde bulunan
-kabuk fonksiyonlarıyla oluşturulur.  Komutlarda kullanılan tüm kitaplık fonksiyonları `lib` dizinindedir.  Genel amaçlı
-bu kitaplık fonksiyonları kabuk genişletmelerinde izlenen düzenden bağımsız olarak kopyala/yapıştır yoluyla her yerde
-kullanılabilecek genelliktedir.
+Dosya düzeni
+------------
+
+- `src`: Genişletme programları bu dizindeki kaynak dosyalardan basit bir derleyici yoluyla üretilir.  Kaynak dosyalar
+  `cmd` ve `lib` dizinlerindeki kabuk fonksiyonlarından hangilerinin kullanıldığını tanımlar.
+
+- `cmd`: İsim uzaylarına ayrılmış komut fonksiyonları.
+
+- `lib`: İsim uzaylarına ayrılmış kitaplık fonksiyonları. Genel amaçlı bu kitaplık fonksiyonları kabuk genişletmelerinde
+  izlenen düzenden bağımsız olarak kopyala/yapıştır yoluyla her yerde kullanılabilecek genelliktedir.
+
+- `bin`: Üretilen genişletme programları ve genişletmelerde kullanılan bazı yardımcı programlar.
+
+- `test`: Testleri barındıran dizin.
+
+- `Rakefile`: Derleyici.
 
 `_`
 ---
 
-Test çatısı aşağıdaki tasarım ilkeleri ve özellikler çerçevesinde geliştirilmiştir:
+Alt tire çatısı aşağıdaki tasarım ilkeleri ve özellikler çerçevesinde geliştirilmiştir:
 
 - Tek dosyada kolay kurulum
 
@@ -168,7 +183,7 @@ t go
 
 - `t ok`/`t notok`
 
-   Verilen argümanları değerlendirerek ("eval") sonucun doğruluğuna baka
+   Verilen argümanları değerlendirerek ("eval") sonucun doğruluğuna bakar
 
 - `t is`/`t isnt`
 
@@ -188,7 +203,15 @@ t go
 
 - Testi başarılı olarak işaretleyerek atlamak için açıklamanın başına `SKIP` (veya `skip`) ekle
 
-- Testi başarısız olarak işaretleyerek TODO olduğunu vurgulamak için açıklamanın başına `TODO` (veya `todo`) ekle
+  ```sh
+  t ok ... # SKIP message
+  ```
+
+- Testi başarısız olarak işaretleyerek gelecekte ilgilenileceğini vurgulamak için açıklamanın başına `TODO` (veya `todo`) ekle
+
+  ```sh
+  t ok ... # TODO message
+  ```
 
 #### out/err
 
