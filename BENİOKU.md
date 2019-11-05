@@ -79,7 +79,7 @@ func packages
 ```
 
 - Başvuru değişkenleri isim çakışmalarını önlemek amacıyla (yukarıdaki örnekte görüldüğü gibi) fonksiyon ismiyle
-  öneklenerek oluşturulur ve isim daima alt tire ile sonlandırılır
+  ön eklenerek oluşturulur ve isim daima alt tire ile sonlandırılır
 
 - Kitaplık fonksiyonlarında dönüş değeri genel olarak `$()` ile alınır.  Fakat giriş değerini değiştirerek dönen bazı
   fonksiyonlarda değer aktarımı için isim başvurusu kullanılabilir.
@@ -353,6 +353,100 @@ Komut başarısız ve stderr/stdout çıktılarında:
 - stderr'de 1'nci satır `E: fatal error`
 - 2'nci satır `Command failed`
 - stdout'ta ilk satır `a`
+
+Geliştirme
+----------
+
+Örnek: Verilen iletiyi "NOTICE:" ön ekiyle standart hata çıktısında ("stderr") görüntüleyen bir komut ekleyelim.
+
+- Komutun adına ve hangi isim uzayında olacağına karar verilir.  Örnekteki komut kullanıcı arayüzüyle ilgili olduğundan
+  `ui` isim uzayı uygun bir seçenektir.  İsmi `notice` olarak seçtiğimiz varsayarsak komut `_ ui notice` olacaktır.
+  Örnek kullanım:
+
+  ```sh
+  $ _ ui notice 'Disk is getting full'
+  NOTICE: Disk is getting full
+  ```
+
+  Buna göre (henüz yoksa) `cmd/ui.sh` dosyası oluşturulur.
+
+- Standart hata çıktısına ileti yazmak genel bir eylem olduğundan bu işlem, örneğin `warn` gibi biri isimle `lib`
+  altında uygun bir kitaplık fonksiyonu yazarak gerçeklenebilir.  Kitaplık fonksiyonlarının düzenlenmesinde komutlarda
+  kullanılan isim uzaylarından bire bir yararlanılabilir.  Buna göre ilgili kitaplık fonksiyonunun uygun yeri
+  `lib/ui.sh` dosyasıdır.
+
+- Kitaplık fonksiyonları `<modül>.<tanımlayıcı>` biçiminde olduğundan yazılması gereken fonksiyonun adı `ui.warn` olarak
+  seçilir.  `lib/ui.sh`'taki gerçekleme aşağıdaki gibidir:
+
+  ```sh
+  ui.warn() {
+        echo >&2 "$*"
+  }
+  ```
+
+- Komut fonksiyonları `<modül>:<tanımlayıcı>` biçiminde olduğundan yazılması gereken fonksiyonun adı `ui:notice` olarak
+  seçilir.  `cmd/ui.sh`'taki ilk gerçekleme aşağıdaki gibidir:
+
+  ```sh
+  ui:notice() {
+        ui.warn "NOTICE: $*"
+  }
+  ```
+
+- Komutlar aşağıdaki koşulları sağlamalıdır:
+
+  1. Tüm komutlar listelendiğinde komut kısa bir tanımla görüntülenebilmelidir.
+
+  2. Komuta geçirilen argümanlar denetlenebilmeli ve hatalı kullanımlar yakalanabilmeli.
+
+  3. Komutla ilgili kısa yardım bilgisi alınabilmesi.
+
+- İlk koşul fonksiyona tanımdan hemen önce eklenecek kısa bir açıklama satırıyla sağlanır.  Derleyici bu kısa tanımları
+  ayrıştırarak `bin/_` programını uygun şekilde yeniden üretecektir.
+
+  ```sh
+  # Print notice on stderr
+  ui:notice() {
+        ui.warn "NOTICE: $*"
+  }
+  ```
+
+- Diğer iki koşul `flag` kitaplığı kullanılarak sağlanır.
+
+  ```sh
+  # Print notice on stderr
+  ui:notice() {
+        local -A _=(
+                [.help]='MESSAGE'
+                [.argc]=1
+        )
+
+        flag.parse
+
+        ui.warn "NOTICE: $*"
+  }
+  ```
+
+  Gerçeklemede görülen `.help` anahtarı hatalı kullanımda veya açık yardım istendiğinde komutun kullanımı
+  görüntülenirken yazdırılacak kısa yardım iletisidir.  `.argc` anahtarı ise komutun tam olarak `1` argüman
+  gerektirdiğini belirtir.
+
+  ```sh
+  $ _ ui notice
+  Usage: _ ui notice MESSAGE
+  ✗ Too few arguments
+
+  $ _ help ui notice
+  Print notice on stderr
+  Usage: _ ui notice MESSAGE
+  ```
+
+- Gerçeklemenin etkinleştirilmesi için kaynaklar yeniden derlenir (bu işlem her değişiklikte tekrarlanır)
+
+  ```sh
+  $ rake
+  ...
+  ```
 
 TODO
 ----
