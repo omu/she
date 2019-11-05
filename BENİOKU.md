@@ -1,14 +1,8 @@
 Kabuk genişletmeleri
 ====================
 
-Kabuk genişletmeleri `bin` dizininde bulunan `_` ve `t` programlarından oluşur.  Bu programlar, kendi başına
-kullanılabilmekle birlikte önerilen kullanım yöntemi aşağıdaki gibidir:
-
-```sh
-. <(_)
-
-_ KOMUT... [SEÇENEK]... [ARGÜMAN]...
-```
+Kabuk genişletmeleri `bin` dizininde bulunan `_` alt tire çatısı ve `t` test çatısı programlarından oluşur.  Alt
+komutlar halinde tüketilen bu programların komut listesi [README](README.md)'de dokümante edilmiştir.
 
 Genişletme programları `src` dizinindeki kaynak dosyalardan basit bir derleyici yoluyla üretilir.  Kaynak dosyalar `cmd`
 ve `lib` dizinlerindeki kabuk fonksiyonlarından hangilerinin kullanıldığını tanımlar.  Komutlar `cmd` dizininde bulunan
@@ -18,6 +12,22 @@ kullanılabilecek genelliktedir.
 
 `_`
 ---
+
+Test çatısı aşağıdaki tasarım ilkeleri ve özellikler çerçevesinde geliştirilmiştir:
+
+- Tek dosyada kolay kurulum
+
+- Kitaplık ve komutlar dinamik olarak üretilen kaynak kodun "source" edilerek okunmasıyla tüketiliyor
+
+- Tüm komutlar `_` kelimesi arkasına konularak program çakışmaları önleniyor
+
+Buna göre test çatısının kullanımı basitçe aşağıdaki gibidir:
+
+```sh
+. <(_)
+
+_ KOMUT... [SEÇENEK]... [ARGÜMAN]...
+```
 
 ### Ortam
 
@@ -65,7 +75,7 @@ Test çatısı aşağıdaki tasarım ilkeleri ve özellikler çerçevesinde geli
 
 - Zengin fixture ve fake olanakları olmalı
 
-Buna göre test çatısının kullanımı basitçe aşağıdaki gibidir.
+Buna göre test çatısının kullanımı basitçe aşağıdaki gibidir:
 
 ```sh
 . <(t)
@@ -73,60 +83,86 @@ Buna göre test çatısının kullanımı basitçe aşağıdaki gibidir.
 t KOMUT... -- İLETİ
 ```
 
-İki tür test modeli desteklenir: basit ve kompozit model.
+İki tür test modeli desteklenir: basit ve süitli.
 
 ### Basit model
 
+Bu modelde `test.*` formunda suit fonksiyonları yoktur, dosyanın kendisi bir süittir.
+
+Örnek:
+
 ```sh
 #!/bin/bash
 
-. <(t) [.|_|RELPATH]...
+. <(t) [DOSYA]...
 
 t ok CASE -- MSG
-```
-
-- Bu modelde `t go` ve test süiti yok, dosyanın kendisi bir süit
-
-- Süit olmamakla birlikte kabuk fonksiyonları kullanılarak modülerlik sağlanabilir
-
-- Setup işlevselliği mevcut, ama teardown yapılamaz
-
-- Her test sırasında otomatik yaratılan ve kaldırılan bir geçici dizin yapısıyla teardown'a yaklaşılabilir
-
-### Kompozit model
-
-```sh
-#!/bin/bash
-
-. <(t) [.|_|RELPATH]...
-
-test:startup() {
-      :
-}
-
-test:shutdown() {
-      :
-}
-
-test:setup() {
-      :
-}
-
-test:teardown() {
-      :
-}
-
 
 t go
 ```
 
-- Her `.t` dosyası `test:` ile başlayan fonksiyonlarla kurulan bir süit topluluğu
+- Örnekte görülen `t go` nihai raporlama için gerekir.  Dosyada test süiti bulunmadığından komut herhangi bir süit
+  çalıştırmaz.
 
-- `test:startup` ve `test:shutdown` her test dosyasında çalışan özel setup/teardown fonksiyonları
+- `. <(t> [DOSYA]...` satırında görülen "`DOSYA`"lar test çatısı etkinleştirilirken "source" edilecek kabuk dosyalarını
+  belirtir.  Göreceli dosya yolları daima test dosyasına göreceli olarak çözülür.  Bu özellik iki amaçla kullanılabilir:
 
-- `test:setup` ve `test:teardown` her test süit'te çalışan özel setup/teardown fonksiyonları
+  + Esktra test yardımcılarının yüklenmesi.
 
-- `t go` ile suit fonksiyonları sırayla veya rastgele çağrılıyor
+  + Test edilecek kabuk betiğinin yüklenmesi.
+
+  İkinci kullanım yönteminde kabuk betiğinin yükleme anında çalışmaması sağlanmalıdır.  Bu amaçla betiklerde aşağıdaki
+  standart düzenlemenin yapılması önerilir:
+
+  ```sh
+  if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
+  	main() {
+                ...
+        }
+
+        main "$@"
+  fi
+  ```
+
+### Suitli model
+
+Bu modelde `test.*` formunda süit fonksiyonları kullanılır.  Süit fonksiyonları tanımlandıktan sonra `t go` komutu ile
+çalıştırılır.
+
+```sh
+#!/bin/bash
+
+. <(t) [DOSYA]...
+
+test.startup() {
+      ...
+}
+
+test.shutdown() {
+      ...
+}
+
+test.setup() {
+      ...
+}
+
+test.teardown() {
+      ...
+}
+
+test.some_test() {
+        ...
+}
+
+t go
+```
+
+Örnekteki gerçek süit `test.some_test` fonksiyonudur, isteğe bağlı olarak tanımlanan diğer `test.*` fonksiyonlarının
+özel anlamı vardır.
+
+- `test.startup` ve `test.shutdown` her test dosyasında çalışan özel setup/teardown fonksiyonları
+
+- `test.setup` ve `test.teardown` her test süit'te çalışan özel setup/teardown fonksiyonları
 
 ### Doğrulayıcılar
 
