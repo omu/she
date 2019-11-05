@@ -45,48 +45,35 @@ Buna göre tipik dizin değerleri:
 | Programlar için kalıcı kurulum dizini         | `_USR/bin`   | `~/.local/bin`                                             | `/usr/local/bin`
 | Yapılandırmalar (sondaki en yüksek öncelikli) | `_ETC`       | `/etc/_:/usr/local/etc/_:~/.config/_:/run/user/1000/_/etc` | `/etc/_:/usr/local/etc/_:/run/_/etc`
 
-Test
-----
+`t`
+---
 
-Bash betikleri olağan bir programlama diliyle yazılan programlardan farklı.  Örneğin zengin veri yapılarına dayalı yoğun
-bir lojik yok.  Bunun yerine sistemle sürekli etkileşim var.  Mevcut birim test kitaplıkları bu etkileşimi test etmekte
-zayıf kalıyor.  Benzer şekilde genel amaçlı programlama dillerine kıyasla Bash'in ifade yetenekleri kısıtlı olduğundan
-"test edilebilir" kod yazarak örneğin "dependency injection" gibi tekniklerle test süreçlerini yönetmek zor.  Test aracı
-ister istemez betiğin gerçekleme detaylarına girebilmeli.
+Test çatısı aşağıdaki tasarım ilkeleri ve özellikler çerçevesinde geliştirilmiştir:
+
+- Her test dosyası doğrudan Bash ile çalıştırılabilir bir betik olmalı (testleri, en azından tek olarak çalıştırmak
+  için, özel bir araç gerekmemeli)
+
+- Ayrıntılı bir DSL'den kaçınılmalı
+
+- Test çatısının test edilen betik üzerinde oluşturduğu kirlilik minimize edilmeli
+
+- Test çıktıları TAP uyumlu olmalı
+
+- Tek dosya halinde kolayca kurulum yapılabilmeli
 
 - Docker veya chroot ile birinci sınıf sandbox desteği olmalı
 
 - Zengin fixture ve fake olanakları olmalı
 
-- Test edilen betiği fazla kirletmemeli
+Buna göre test çatısının kullanımı basitçe aşağıdaki gibidir.
 
-- Kurulumu ve kullanımı çok kolay olmalı (idealde tek dosya)
+```sh
+. <(t)
 
-- Test hatalarının ayıklanması sürecinde ayak bağı olmamalı (Bats kötü bir örnek)
+t KOMUT... -- İLETİ
+```
 
-- (Betiği çalıştırmak yerine source ederek) kolayca entegrasyon testi yapılabilmeli
-
-- Perl `.t` test dosyalarından esinlen
-
-- Her test dosyası doğrudan Bash ile çalıştırılabilir bir test betiği
-
-- TAP uyumlu çıktı biçimi
-
-- Tüm test yardımcıları `t` önekli
-
-- `prove` gibi (fakat tercihen Docker altında) test dosyalarını orkestra eden araç ayrı yazılacak
-
-- Testler daima `. <(t) [.|_|RELPATH]...` satırı ile başlıyor.  Opsiyonel argümanlar:
-
-  + `_`: `_` yerleşiğini yükler
-
-  + `RELPATH`: Göreceli dosya yolu verilen kabuk dosyasını yükler
-
-- İki tür test modeli destekleniyor: basit ve kompozit model
-
-  + Test dosyasında `t go` çağrısı varsa bu bir kompozit model
-
-  + İki modelin birlikte de kullanılabilir (önerdiğimiz bir pratik değil)
+İki tür test modeli desteklenir: basit ve kompozit model.
 
 ### Basit model
 
