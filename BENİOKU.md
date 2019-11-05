@@ -16,83 +16,6 @@ kabuk fonksiyonlarıyla oluşturulur.  Komutlarda kullanılan tüm kitaplık fon
 bu kitaplık fonksiyonları kabuk genişletmelerinde izlenen düzenden bağımsız olarak kopyala/yapıştır yoluyla her yerde
 kullanılabilecek genelliktedir.
 
-Stil
-----
-
-### Fonksiyonlar
-
-- `cmd` dizininde bulunan komut fonksiyonları `<modül>:<tanımlayıcı>` biçimindedir
-
-- `lib` dizininde bulunan kitaplık fonksiyonları `<modül>.<tanımlayıcı>` biçimindedir
-
-- İsimleri alt tireyle (`_`) sonlanan fonksiyonlar korunmuş ("protected") fonksiyonlardır
-
-- Korunmuş komut fonksiyonları tüm komut dosyalarında kullanılabilir
-
-- Korunmuş kitaplık fonksiyonları sadece tanımlandığı dosyada kullanılabilir
-
-- Kitaplık fonksiyonları komut fonksiyonları kullanamaz
-
-- Korunmuş olmayan komut fonksiyonları fonksiyon tanımından önceki satırda mutlaka dokümante edilmelidir
-
-- Korunmuş olmayan komut fonksiyonları `flag` kitaplığıyla komut arayüzü tanımlar
-
-### `_` değişkeni
-
-`_` değişkeni `flag` kitaplığı gibi kabuk programlamanın sınırlarını zorlayan veri yapısı odaklı fonksiyonlarda sözlük
-("hash") tipinde bir değişken olarak kullanılır.  Bu yapılırken:
-
-- Daima yerel kapsamda `local -A _` ile bildirim yapılır
-
-- `0` anahtarı asla kullanılmaz
-
-- `1` ve `9` arası anahtarlar (ör. `${_[1]}`, `${_[9]}`) konumsal parametreler için kullanılır
-
-- Seçeneklerde tire (`-`) ile başlayan anahtarlar kullanılır (ör. `-force`)
-
-- İç değişkenlerde nokta (`.`) ile başlayan anahtarlar kullanılır (ör. `.help`)
-
-- `.` özel anahtarı (isteğe bağlı olarak) öntanımlı dönüş değerini taşır
-
-- `!` özel anahtarı (varsa) hata iletisini taşır
-
-- Bunun dışında kalan (seçenek, iç değişken veya konumsal parametre olmayan) ve `a-z` ile başlayan tüm anahtarlar
-  değişken olarak kullanılır (ör. `variable`)
-
-Dikkat!  `_` değişkeni sadece `flag` kitaplığı (ve buna bağlı olarak) komut fonksiyonlarında kullanılmalıdır.
-
-### İsim başvuruları
-
-Özellikle dizi veya sözlük tipinde veriler üzerinde çalışması gereken fonksiyonlara değer aktarımı isim başvuruları
-ile gerçekleştirilir.
-
-```sh
-
-declare -a packages
-
-func() {
-        local -n func_packages_=${1?${FUNCNAME[0]}: missing argument}; shift
-        ...
-}
-
-func packages
-```
-
-- Başvuru değişkenleri isim çakışmalarını önlemek amacıyla (yukarıdaki örnekte görüldüğü gibi) fonksiyon ismiyle
-  ön eklenerek oluşturulur ve isim daima alt tire ile sonlandırılır
-
-- Kitaplık fonksiyonlarında dönüş değeri genel olarak `$()` ile alınır.  Fakat giriş değerini değiştirerek dönen bazı
-  fonksiyonlarda değer aktarımı için isim başvurusu kullanılabilir.
-
-  ```sh
-
-  string.downcase() {
-        local -n string_downcase_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-        string_downcase=${string_downcase_,,}
-  }
-  ```
-
 `_`
 ---
 
@@ -357,10 +280,11 @@ Komut başarısız ve stderr/stdout çıktılarında:
 Geliştirme
 ----------
 
-Örnek: Verilen iletiyi "NOTICE:" ön ekiyle standart hata çıktısında ("stderr") görüntüleyen bir komut ekleyelim.
+Geliştirme sürecini, verilen iletiyi "NOTICE:" ön ekiyle standart hata çıktısında ("stderr") görüntüleyen bir komut
+ekleyerek örneklendirelim.  Geliştirmede [stil](#stil) bölümünde dokümante edilen kurallara uyulmalıdır.
 
 - Komutun adına ve hangi isim uzayında olacağına karar verilir.  Örnekteki komut kullanıcı arayüzüyle ilgili olduğundan
-  `ui` isim uzayı uygun bir seçenektir.  İsmi `notice` olarak seçtiğimiz varsayarsak komut `_ ui notice` olacaktır.
+  `ui` isim uzayı uygun bir seçenektir.  İsmi `notice` olarak seçtiğimizi varsayarsak komut `_ ui notice` olacaktır.
   Örnek kullanım:
 
   ```sh
@@ -446,6 +370,83 @@ Geliştirme
   ```sh
   $ rake
   ...
+  ```
+
+Stil
+----
+
+### Fonksiyonlar
+
+- `cmd` dizininde bulunan komut fonksiyonları `<modül>:<tanımlayıcı>` biçimindedir
+
+- `lib` dizininde bulunan kitaplık fonksiyonları `<modül>.<tanımlayıcı>` biçimindedir
+
+- İsimleri alt tireyle (`_`) sonlanan fonksiyonlar korunmuş ("protected") fonksiyonlardır
+
+- Korunmuş komut fonksiyonları tüm komut dosyalarında kullanılabilir
+
+- Korunmuş kitaplık fonksiyonları sadece tanımlandığı dosyada kullanılabilir
+
+- Kitaplık fonksiyonları komut fonksiyonları kullanamaz
+
+- Korunmuş olmayan komut fonksiyonları fonksiyon tanımından önceki satırda mutlaka dokümante edilmelidir
+
+- Korunmuş olmayan komut fonksiyonları `flag` kitaplığıyla komut arayüzü tanımlar
+
+### `_` değişkeni
+
+`_` değişkeni `flag` kitaplığı gibi kabuk programlamanın sınırlarını zorlayan veri yapısı odaklı fonksiyonlarda sözlük
+("hash") tipinde bir değişken olarak kullanılır.  Bu yapılırken:
+
+- Daima yerel kapsamda `local -A _` ile bildirim yapılır
+
+- `0` anahtarı asla kullanılmaz
+
+- `1` ve `9` arası anahtarlar (ör. `${_[1]}`, `${_[9]}`) konumsal parametreler için kullanılır
+
+- Seçeneklerde tire (`-`) ile başlayan anahtarlar kullanılır (ör. `-force`)
+
+- İç değişkenlerde nokta (`.`) ile başlayan anahtarlar kullanılır (ör. `.help`)
+
+- `.` özel anahtarı (isteğe bağlı olarak) öntanımlı dönüş değerini taşır
+
+- `!` özel anahtarı (varsa) hata iletisini taşır
+
+- Bunun dışında kalan (seçenek, iç değişken veya konumsal parametre olmayan) ve `a-z` ile başlayan tüm anahtarlar
+  değişken olarak kullanılır (ör. `variable`)
+
+Dikkat!  `_` değişkeni sadece `flag` kitaplığı (ve buna bağlı olarak) komut fonksiyonlarında kullanılmalıdır.
+
+### İsim başvuruları
+
+Özellikle dizi veya sözlük tipinde veriler üzerinde çalışması gereken fonksiyonlara değer aktarımı isim başvuruları
+ile gerçekleştirilir.
+
+```sh
+
+declare -a packages
+
+func() {
+        local -n func_packages_=${1?${FUNCNAME[0]}: missing argument}; shift
+        ...
+}
+
+func packages
+```
+
+- Başvuru değişkenleri isim çakışmalarını önlemek amacıyla (yukarıdaki örnekte görüldüğü gibi) fonksiyon ismiyle
+  ön eklenerek oluşturulur ve isim daima alt tire ile sonlandırılır
+
+- Kitaplık fonksiyonlarında dönüş değeri genel olarak `$()` ile alınır.  Fakat giriş değerini değiştirerek dönen bazı
+  fonksiyonlarda değer aktarımı için isim başvurusu kullanılabilir.
+
+  ```sh
+
+  string.downcase() {
+        local -n string_downcase_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+        string_downcase=${string_downcase_,,}
+  }
   ```
 
 TODO
