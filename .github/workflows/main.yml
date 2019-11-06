@@ -17,7 +17,7 @@ jobs:
         run: |
           rake build
 
-      - name: Sanity check extensions
+      - name: Sanity check
         run: |
           bin/_ version && bin/t version
 
