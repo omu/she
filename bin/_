@@ -2621,7 +2621,7 @@ self:src() {
 
 # cmd/_ - Init
 
-:init_() {
+_:init_() {
 	# Default variable as a hash
 	declare -gA _=()
 
@@ -2647,7 +2647,7 @@ self:src() {
 	unset -f "${FUNCNAME[0]}"
 }
 
-:init_
+_:init_
 
 # cmd/src - Source management
 
@@ -3596,7 +3596,7 @@ EOF
 		if ! .interactive && [[ $# -eq 0 ]]; then
 			.source
 		else
-			.dispatch "$@"
+			.dispatch '' "$@"
 		fi
 	}
 

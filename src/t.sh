@@ -8,8 +8,8 @@ t() {
 
 	[[ $cmd =~ ^[a-z][a-z0-9-]+$ ]] || .die "Invalid command name: $cmd"
 
-	if .callable t."$cmd"; then
-		t."$cmd" "$@"
+	if .callable t:"$cmd"; then
+		t:"$cmd" "$@"
 	else
 		tap "$@"
 	fi
@@ -17,4 +17,4 @@ t() {
 
 [[ $# -eq 0 ]] || .load "$@"
 
-tap startup "${BASH_SOURCE[1]}"
+[[ -z "${BASH_SOURCE[1]:-}" ]] || tap startup "${BASH_SOURCE[1]}"

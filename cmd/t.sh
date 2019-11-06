@@ -108,7 +108,7 @@ t:go() {
 # cmd/t - Protected functions
 
 t:assert_() {
-	local assert=assert.${FUNCNAME[1]#*.}
+	local assert=assert.${FUNCNAME[1]#*:}
 
 	local -a args
 

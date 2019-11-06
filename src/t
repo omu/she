@@ -1,6 +1,8 @@
 #:lib/!.sh
 
+#:lib/assert.sh
 #:lib/color.sh
+#:lib/defer.sh
 #:lib/flag.sh
 #:lib/self.sh
 #:lib/ui.sh
@@ -17,9 +19,13 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		echo
 		sed 's/^\t\t//' <<'EOF'
 			#:lib/!.sh
+
+			#:lib/assert.sh
 			#:lib/defer.sh
 			#:lib/temp.sh: temp.dir temp.clean
+
 			#:cmd/t.sh
+
 			#:src/t.sh
 EOF
 	}

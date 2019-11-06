@@ -62,7 +62,7 @@ EOF
 		if ! .interactive && [[ $# -eq 0 ]]; then
 			.source
 		else
-			.dispatch "$@"
+			.dispatch '' "$@"
 		fi
 	}
 

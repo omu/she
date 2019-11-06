@@ -90,8 +90,10 @@ class Source
         fun.match?(':') && !fun.match?('_')
       end
 
-      def cmd
-        fun.split(':').reject(&:empty?).join(' ')
+      def cmd(prefix = nil)
+        cmd = fun.split(':').reject(&:empty?).join(' ')
+        cmd.gsub!(/^#{prefix}\s*/x, '') if prefix
+        cmd
       end
 
       protected
@@ -213,14 +215,14 @@ class Library
     sources[path]
   end
 
-  def export
+  def export(prefix = nil)
     symbols = []
 
     sources.values.map(&:blocks).each do |blocks|
       blocks.each do |block|
         next unless block.is_a?(Source::Block::Fun) && block.cmd?
 
-        symbols << { fun: block.fun, desc: block.desc, cmd: block.cmd }
+        symbols << { fun: block.fun, desc: block.desc, cmd: block.cmd(prefix) }
       end
     end
 
@@ -241,11 +243,12 @@ class Compiler
 
   Error = Class.new StandardError
 
-  attr_reader :inlines, :library
+  attr_reader :inlines, :library, :prefix
 
-  def initialize(inlines, substitutions: nil)
+  def initialize(inlines, substitutions: nil, prefix: nil)
     @inlines       = inlines.map(&:chomp)
     @substitutions = substitutions || {}
+    @prefix        = prefix
     @library       = Library.new
   end
 
@@ -268,7 +271,7 @@ class Compiler
   end
 
   def export
-    library.export
+    library.export(prefix)
   end
 
   private
@@ -365,7 +368,7 @@ module Main
   class << self
     private
 
-    def bash_array_lines(export, variable, lhs, rhs)
+    def bash_array_lines(export:, variable:, lhs:, rhs:)
       pairs = export.sort_by { |h| h[lhs] }.map { |h| "['#{h[lhs]}']='#{h[rhs]}'" }
 
       ["declare -Ag #{variable}=(", *pairs.fmt(indent: 1), ')']
@@ -424,12 +427,16 @@ module Main
   end
 
   SUBSTITUTIONS = {
-    'help'    => proc { |compiler| bash_array_lines(compiler.export, '_help',    :fun, :desc) },
-    'command' => proc { |compiler| bash_array_lines(compiler.export, '_command', :cmd, :fun)  }
+    # rubocop:disable Metrics/LineLength
+    'help'    => proc { |compiler| bash_array_lines(export: compiler.export, variable: '_help',    lhs: :fun, rhs: :desc) },
+    'command' => proc { |compiler| bash_array_lines(export: compiler.export, variable: '_command', lhs: :cmd, rhs: :fun)  }
+    # rubocop:enable Metrics/LineLength
   }.freeze
 
-  def self.call(src, dst)
-    Compiler.new(File.readlines(src), substitutions: SUBSTITUTIONS).tap do |compiler|
+  def self.call(src, dst, prefix: nil)
+    Compiler.new(File.readlines(src),
+                 substitutions: SUBSTITUTIONS,
+                 prefix:        prefix || File.basename(dst)).tap do |compiler|
       File.write dst, compiler.compile
     end
   rescue Compiler::Error => e

@@ -105,17 +105,17 @@ that can be used in shell tests.  These functions are consumed as the recommende
 <!-- t begin -->
 | Command       | Description                                                          |
 | ------------- | -------------------------------------------------------------------- |
-| t err         | Assert failed command outputs                                        |
-| t fail        | Return failure                                                       |
-| t go          | Run all test suites defined so far                                   |
-| t is          | Assert actual value equals to the expected                           |
-| t isnt        | Assert got value not equals to the expected                          |
-| t like        | Assert got value matches with the expected                           |
-| t notok       | Assert command fails                                                 |
-| t ok          | Assert command succeeds                                              |
-| t out         | Assert successful command outputs                                    |
-| t pass        | Return success                                                       |
-| t temp        | Create and chdir to temp directory                                   |
-| t unlike      | Assert got value not matches with the expected                       |
+| err           | Assert failed command outputs                                        |
+| fail          | Return failure                                                       |
+| go            | Run all test suites defined so far                                   |
+| is            | Assert actual value equals to the expected                           |
+| isnt          | Assert got value not equals to the expected                          |
+| like          | Assert got value matches with the expected                           |
+| notok         | Assert command fails                                                 |
+| ok            | Assert command succeeds                                              |
+| out           | Assert successful command outputs                                    |
+| pass          | Return success                                                       |
+| temp          | Create and chdir to temp directory                                   |
+| unlike        | Assert got value not matches with the expected                       |
 | version       | Return version                                                       |
 <!-- t end -->

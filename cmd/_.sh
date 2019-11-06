@@ -110,7 +110,7 @@
 
 # cmd/_ - Init
 
-:init_() {
+_:init_() {
 	# Default variable as a hash
 	declare -gA _=()
 
@@ -136,4 +136,4 @@
 	unset -f "${FUNCNAME[0]}"
 }
 
-:init_
+_:init_
