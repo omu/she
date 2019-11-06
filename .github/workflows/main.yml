@@ -17,11 +17,7 @@ jobs:
       - name: build
         run: |
           rake build
-
-      - name: check
-        run: |
-          bin/_ version
-          bin/t version
+          bin/_ version && bin/t version
 
   shellcheck:
     runs-on: ubuntu-latest
