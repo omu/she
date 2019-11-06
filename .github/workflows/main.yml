@@ -1,4 +1,4 @@
-name: Build and Test
+name: Build and Lint
 on: [push, pull_request]
 
 jobs:
@@ -22,17 +22,9 @@ jobs:
         run: |
           rake
 
-  ruby:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v1
-
-      - name: Rubocop checks
-        uses: gimenete/rubocop-action@1.0
-
   shellcheck:
     runs-on: ubuntu-latest
+    needs: build
 
     steps:
       - uses: actions/checkout@v1
@@ -42,6 +34,41 @@ jobs:
           sudo apt-get -y install xz-utils
           sudo bin/_ bin install https://storage.googleapis.com/shellcheck/shellcheck-latest.linux.x86_64.tar.xz
 
-      - name: Lint Shell
+      - name: Lint Shell codes
         run: |
-          shellcheck $(find -type f -and -not -path './.git/*' | xargs file --mime-type | grep text/x-shellscript$ | cut -f1 -d:)
+          rake test lang=sh
+
+  ruby:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install dependencies
+        run: |
+          gem install rubocop rubocop-performance
+
+      - name: Lint Ruby codes
+        run: |
+          rake test lang=rb
+
+  markdown:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Set up Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12
+
+      - name: Install dependencies
+        run: |
+          npm install -g markdownlint-cli
+
+      - name: Lint Markdown codes
+        run: |
+          rake test lang=md
