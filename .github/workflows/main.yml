@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - name: Set up Ruby
+      - name: Ruby
         uses: actions/setup-ruby@v1
         with:
           ruby-version: 2.6.x
@@ -24,17 +24,17 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - name: Set up Ruby
+      - name: Ruby
         uses: actions/setup-ruby@v1
         with:
           ruby-version: 2.6.x
 
-      - name: Install dependencies
+      - name: Dependencies
         run: |
           sudo apt-get -y install xz-utils
           sudo bin/_ bin install https://storage.googleapis.com/shellcheck/shellcheck-latest.linux.x86_64.tar.xz
 
-      - name: Lint Shell codes
+      - name: Lint
         run: |
           rake test lang=sh
 
@@ -45,16 +45,16 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - name: Set up Ruby
+      - name: Ruby
         uses: actions/setup-ruby@v1
         with:
           ruby-version: 2.6.x
 
-      - name: Install dependencies
+      - name: Dependencies
         run: |
           gem install rubocop rubocop-performance
 
-      - name: Lint Ruby codes
+      - name: Lint
         run: |
           rake test lang=rb
 
@@ -65,20 +65,20 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
-      - name: Set up Ruby
+      - name: Ruby
         uses: actions/setup-ruby@v1
         with:
           ruby-version: 2.6.x
 
-      - name: Set up Node
+      - name: Javascript
         uses: actions/setup-node@v1
         with:
           node-version: 12
 
-      - name: Install dependencies
+      - name: Dependencies
         run: |
           npm install -g markdownlint-cli
 
-      - name: Lint Markdown codes
+      - name: Lint
         run: |
           rake test lang=md

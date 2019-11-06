@@ -1,3 +1,6 @@
+![](https://github.com/omu/she/workflows/main/badge.svg)
+
+
 Shell extensions
 ================
 
