@@ -38,10 +38,3 @@ self:src() {
 
 	self.src
 }
-
-# Print self version
-self:version() {
-	local -A _; flag.parse
-
-	self.version
-}

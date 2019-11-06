@@ -795,8 +795,26 @@ t:init_() {
 
 t:init_
 
+# cmd/version - Print version
+
+# Return version
+:version() {
+	local -A _; flag.parse
+
+	echo "${VERSION:-}"
+}
+
+:init_() {
+	declare -gr VERSION=0.0.0
+
+	unset -f "${FUNCNAME[0]}"
+}
+
+:init_
+
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
+		[':version']='Return version'
 		['t:err']='Assert failed command outputs'
 		['t:fail']='Return failure'
 		['t:go']='Run all test suites defined so far'
@@ -824,6 +842,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['t pass']='t:pass'
 		['t temp']='t:temp'
 		['t unlike']='t:unlike'
+		['version']=':version'
 	)
 
 	.source() {

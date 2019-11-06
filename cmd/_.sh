@@ -1,4 +1,4 @@
-#cmd/_ - Essential commands
+# cmd/_ - Essential commands
 
 # Return if program available
 :available() {

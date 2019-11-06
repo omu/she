@@ -38,6 +38,7 @@
 #:cmd/text.sh
 #:cmd/ui.sh
 #:cmd/url.sh
+#:cmd/version.sh
 #:cmd/virt.sh
 #:cmd/web.sh
 #:cmd/zip.sh

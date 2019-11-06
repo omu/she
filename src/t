@@ -6,6 +6,7 @@
 #:lib/ui.sh
 
 #:cmd/t.sh
+#:cmd/version.sh
 
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/

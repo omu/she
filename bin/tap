@@ -784,8 +784,26 @@ tap:init_() {
 
 tap:init_
 
+# cmd/version - Print version
+
+# Return version
+:version() {
+	local -A _; flag.parse
+
+	echo "${VERSION:-}"
+}
+
+:init_() {
+	declare -gr VERSION=0.0.0
+
+	unset -f "${FUNCNAME[0]}"
+}
+
+:init_
+
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
+		[':version']='Return version'
 		['tap:err']='Mark stdin lines as an error output'
 		['tap:failure']='Print TAP failure'
 		['tap:out']='Mark stdin lines as a successful output'
@@ -809,6 +827,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['tap success']='tap:success'
 		['tap todo']='tap:todo'
 		['tap version']='tap:version'
+		['version']=':version'
 	)
 
 	# main - Application

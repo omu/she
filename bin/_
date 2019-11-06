@@ -2509,14 +2509,7 @@ self:src() {
 	self.src
 }
 
-# Print self version
-self:version() {
-	local -A _; flag.parse
-
-	self.version
-}
-
-#cmd/_ - Essential commands
+# cmd/_ - Essential commands
 
 # Return if program available
 :available() {
@@ -3150,6 +3143,23 @@ url:parse_() {
 	url_parse_[.userinfo]=$userinfo
 }
 
+# cmd/version - Print version
+
+# Return version
+:version() {
+	local -A _; flag.parse
+
+	echo "${VERSION:-}"
+}
+
+:init_() {
+	declare -gr VERSION=0.0.0
+
+	unset -f "${FUNCNAME[0]}"
+}
+
+:init_
+
 # cmd/virt - Virtualization commands
 
 # Assert any of the virtualization types
@@ -3296,6 +3306,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		[':must']='Ensure the given command succeeds'
 		[':run']='Try to run file or URL'
 		[':should']='Ignore error if the given command fails'
+		[':version']='Return version'
 		['bin:install']='Install program to path'
 		['bin:use']='Use program by installing to a volatile path'
 		['deb:add']='Add Debian repository'
@@ -3326,7 +3337,6 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self:name']='Print self name'
 		['self:path']='Print self path'
 		['self:src']='Print self source'
-		['self:version']='Print self version'
 		['src:enter']='Get src from URL and enter to the directory'
 		['src:install']='Install src into a source tree'
 		['src:run']='Run src from URL'
@@ -3391,7 +3401,6 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self name']='self:name'
 		['self path']='self:path'
 		['self src']='self:src'
-		['self version']='self:version'
 		['should']=':should'
 		['src enter']='src:enter'
 		['src install']='src:install'
@@ -3412,6 +3421,7 @@ if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['ui say']='ui:say'
 		['url any']='url:any'
 		['url is']='url:is'
+		['version']=':version'
 		['virt any']='virt:any'
 		['virt is']='virt:is'
 		['virt which']='virt:which'

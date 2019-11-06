@@ -1,5 +1,5 @@
 <!-- markdownlint-disable MD041 -->
-![CI](https://github.com/omu/she/workflows/Build/badge.svg)
+![CI](https://github.com/omu/she/workflows/build/badge.svg)
 [![Tohum](https://omu.sh/assets/badge/seed.svg)](https://omu.sh "Tohum proje")
 <!-- markdownlint-enable MD041 -->
 
@@ -48,7 +48,6 @@ Shell extensions
 | self name     | Print self name                                                      |
 | self path     | Print self path                                                      |
 | self src      | Print self source                                                    |
-| self version  | Print self version                                                   |
 | should        | Ignore error if the given command fails                              |
 | src enter     | Get src from URL and enter to the directory                          |
 | src install   | Install src into a source tree                                       |
@@ -69,6 +68,7 @@ Shell extensions
 | ui say        | Print message on stderr                                              |
 | url any       | Assert URL type                                                      |
 | url is        | Assert URL type                                                      |
+| version       | Return version                                                       |
 | virt any      | Assert any of the virtualization types                               |
 | virt is       | Assert virtualization type                                           |
 | virt which    | Detect virtualization type                                           |
@@ -95,4 +95,5 @@ Shell extensions
 | t pass        | Return success                                                       |
 | t temp        | Create and chdir to temp directory                                   |
 | t unlike      | Assert got value not matches with the expected                       |
+| version       | Return version                                                       |
 <!-- t end -->
