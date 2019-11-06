@@ -474,8 +474,8 @@ end
 desc 'Build'
 task build: [*BIN, 'README.md']
 
-desc 'Test'
-task :test do
+desc 'Lint'
+task :lint do
   if ENV['lang'].nil? || ENV['lang'] == 'sh'
     sh %(shellcheck $(find -type f -and -not -path './.git/*' | xargs file --mime-type | grep text/x-shellscript$ | cut -f1 -d:)) # rubocop:disable Metrics/LineLength
   end
@@ -487,5 +487,7 @@ desc 'Clean'
 task :clean do
   rm_f BIN
 end
+
+task all: %i[build lint]
 
 task default: :build

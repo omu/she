@@ -1,8 +1,5 @@
 require: rubocop-performance
 
-Documentation:
-  Enabled: false
-
 Layout/AlignHash:
   Enabled: true
   EnforcedHashRocketStyle: table
@@ -15,6 +12,8 @@ Naming/MemoizedInstanceVariableName:
   EnforcedStyleForLeadingUnderscores: optional
 
 Style/AsciiComments:
+  Enabled: false
+Style/Documentation:
   Enabled: false
 Style/FormatStringToken:
   EnforcedStyle: template
