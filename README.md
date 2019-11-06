@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD041 -->
-[![Tohum](https://omu.sh/assets/badge/seed.svg)](https://omu.sh "Tohum proje")
 ![CI](https://github.com/omu/she/workflows/Build/badge.svg)
+[![Tohum](https://omu.sh/assets/badge/seed.svg)](https://omu.sh "Tohum proje")
 <!-- markdownlint-enable MD041 -->
 
 Shell extensions
