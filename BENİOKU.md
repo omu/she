@@ -512,3 +512,15 @@ TODO
 - [X] README minimal olarak tamamla
 - [X] Tüm yapıyı (policy dahil) BENİOKU'da dokümante et
 - [ ] Bootstrap betiklerini yaz
+
+
+DRAFT
+-----
+
+### scripts
+
+```sh
+scripts foo bar
+scripts foo # https://run.omu.sh
+scripts github.com/omu/debian/lib/scripts foo bar
+```

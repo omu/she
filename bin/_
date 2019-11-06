@@ -3291,7 +3291,7 @@ zip:unpack() {
 	fi
 }
 
-if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		[':available']='Return if program available'
 		[':contains']='Return if first argument found in remaining arguments'

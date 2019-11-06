@@ -43,7 +43,7 @@
 #:cmd/web.sh
 #:cmd/zip.sh
 
-if [[ ${UNDERSCORE_SOURCE:-} = true ]] || [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
+if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/
 	#/command/
 
