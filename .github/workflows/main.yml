@@ -13,7 +13,7 @@ jobs:
         uses: actions/setup-ruby@v1
         with: { ruby-version: 2.6.x }
 
-      - name: Build shell extensions
+      - name: Build extensions
         run: |
           rake build
 
