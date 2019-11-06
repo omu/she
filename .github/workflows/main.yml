@@ -13,14 +13,9 @@ jobs:
         with:
           ruby-version: 2.6.x
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get -y install xz-utils
-          sudo bin/_ bin install https://storage.googleapis.com/shellcheck/shellcheck-latest.linux.x86_64.tar.xz
-
       - name: Build
         run: |
-          rake
+          rake build
 
   shellcheck:
     runs-on: ubuntu-latest
@@ -28,6 +23,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v1
+
+      - name: Set up Ruby
+        uses: actions/setup-ruby@v1
+        with:
+          ruby-version: 2.6.x
 
       - name: Install dependencies
         run: |
@@ -45,6 +45,11 @@ jobs:
     steps:
       - uses: actions/checkout@v1
 
+      - name: Set up Ruby
+        uses: actions/setup-ruby@v1
+        with:
+          ruby-version: 2.6.x
+
       - name: Install dependencies
         run: |
           gem install rubocop rubocop-performance
@@ -59,6 +64,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v1
+
+      - name: Set up Ruby
+        uses: actions/setup-ruby@v1
+        with:
+          ruby-version: 2.6.x
 
       - name: Set up Node
         uses: actions/setup-node@v1

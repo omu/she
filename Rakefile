@@ -471,8 +471,8 @@ file doc => DEP do
   File.write doc, Main.doc(doc, commands)
 end
 
-desc 'Generate'
-task generate: [*BIN, 'README.md']
+desc 'Build'
+task build: [*BIN, 'README.md']
 
 desc 'Test'
 task :test do
@@ -488,4 +488,4 @@ task :clean do
   rm_f BIN
 end
 
-task default: :generate
+task default: :build
