@@ -23,8 +23,11 @@ jobs:
           rake
 
   ruby:
-    - name: Rubocop checks
-      uses: gimenete/rubocop-action@1.0
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Rubocop checks
+        uses: gimenete/rubocop-action@1.0
 
   shellcheck:
     runs-on: ubuntu-latest
