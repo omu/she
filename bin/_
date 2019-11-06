@@ -1750,7 +1750,7 @@ bin:install_() {
 	if filetype.compressed "$bin"; then
 		temp.dir temp_bin_dir
 
-		zip.unpack -force=true "$bin" "$temp_bin_dir"
+		zip:unpack -force=true "$bin" "$temp_bin_dir"
 		bin=$temp_bin_dir
 	fi
 
@@ -3274,7 +3274,7 @@ zip:unpack() {
 		fi
 	fi
 
-	.must "Not a compressed file of known type: $in" filetype.compressed "$in"
+	.must "Not a compressed file of known type: $in" filetype:is:compressed_ "$in"
 
 	local func=zip.unpack.${_[.file.zip]:-}
 

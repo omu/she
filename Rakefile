@@ -1,4 +1,3 @@
-#!/usr/bin/env ruby
 # frozen_string_literal: true
 
 # Compile shell files, i.e. include (selected) code snippets and do substitutions via simple directives.
@@ -464,9 +463,6 @@ PRG.each do |prg|
     mkdir_p File.dirname(dst)
     commands[prg] = Main.(src, dst).export
     chmod '+x', dst
-
-    sh 'bash', '-n', dst
-    sh 'shellcheck', dst
   end
 end
 
@@ -477,6 +473,15 @@ end
 
 desc 'Generate'
 task generate: [*BIN, 'README.md']
+
+desc 'Test'
+task :test do
+  if ENV['lang'].nil? || ENV['lang'] == 'sh'
+    sh %(shellcheck $(find -type f -and -not -path './.git/*' | xargs file --mime-type | grep text/x-shellscript$ | cut -f1 -d:)) # rubocop:disable Metrics/LineLength
+  end
+  sh 'rubocop'           if ENV['lang'].nil? || ENV['lang'] == 'rb'
+  sh 'markdownlint *.md' if ENV['lang'].nil? || ENV['lang'] == 'md'
+end
 
 desc 'Clean'
 task :clean do

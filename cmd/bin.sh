@@ -52,7 +52,7 @@ bin:install_() {
 	if filetype.compressed "$bin"; then
 		temp.dir temp_bin_dir
 
-		zip.unpack -force=true "$bin" "$temp_bin_dir"
+		zip:unpack -force=true "$bin" "$temp_bin_dir"
 		bin=$temp_bin_dir
 	fi
 
