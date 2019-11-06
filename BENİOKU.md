@@ -107,8 +107,6 @@ Bu modelde `test.*` formunda suit fonksiyonları yoktur, dosyanın kendisi bir s
 Örnek:
 
 ```sh
-#!/bin/bash
-
 . <(t) [DOSYA]...
 
 t ok CASE -- MSG
@@ -502,6 +500,7 @@ func packages
 TODO
 ----
 
+- [X] CI yapılandırması
 - [ ] web/src/file ayrımını olgunlaştır
 - [ ] redirect ve usage lojiğini refaktörle
 - [ ] cmd refaktörünü satır satır denetle
@@ -510,6 +509,6 @@ TODO
 - [ ] etc'nin durumu
 - [ ] API'yi son bir kez elden geçir
 - [ ] Stil bakımı son bir kez
-- [.] README minimal olarak tamamla
+- [X] README minimal olarak tamamla
 - [X] Tüm yapıyı (policy dahil) BENİOKU'da dokümante et
 - [ ] Bootstrap betiklerini yaz

@@ -6,6 +6,30 @@
 Shell extensions
 ================
 
+Shell extensions (aka "she") consist of utility functions, which are bundled in
+executable scripts, developed for use in shell scripts.  The `_` script
+consists of general-purpose helpers; where as the `t` script consists of test
+helpers, that can be used in shell tests.  These functions are consumed as the
+recommended method as follows.
+
+- `_` bundle
+
+  ```sh
+  . <(_)
+
+  _ COMMAND... [OPTIONS]... [ARGUMENTS]...
+  ```
+
+- `t` bundle
+
+  ```sh
+  . <(t) [DOSYA]...
+
+  t COMMAND ARGUMENT -- MESSAGE
+
+  t go
+  ```
+
 `_`
 ---
 
