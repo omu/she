@@ -7,16 +7,18 @@ jobs:
 
     steps:
       - name: checkout
-      - uses: actions/checkout@v1
+        uses: actions/checkout@v1
 
       - name: ruby
         uses: actions/setup-ruby@v1
-        with:
-          ruby-version: 2.6.x
+        with: { ruby-version: 2.6.x }
 
       - name: build
         run: |
           rake build
+
+      - name: check
+        run: |
           bin/_ version && bin/t version
 
   shellcheck:
@@ -25,12 +27,11 @@ jobs:
 
     steps:
       - name: checkout
-      - uses: actions/checkout@v1
+        uses: actions/checkout@v1
 
       - name: ruby
         uses: actions/setup-ruby@v1
-        with:
-          ruby-version: 2.6.x
+        with: { ruby-version: 2.6.x }
 
       - name: depends
         run: |
@@ -47,12 +48,11 @@ jobs:
 
     steps:
       - name: checkout
-      - uses: actions/checkout@v1
+        uses: actions/checkout@v1
 
       - name: ruby
         uses: actions/setup-ruby@v1
-        with:
-          ruby-version: 2.6.x
+        with: { ruby-version: 2.6.x }
 
       - name: depends
         run: |
@@ -68,17 +68,15 @@ jobs:
 
     steps:
       - name: checkout
-      - uses: actions/checkout@v1
+        uses: actions/checkout@v1
 
       - name: ruby
         uses: actions/setup-ruby@v1
-        with:
-          ruby-version: 2.6.x
+        with: { ruby-version: 2.6.x }
 
       - name: javascript
         uses: actions/setup-node@v1
-        with:
-          node-version: 12
+        with: { node-version: 12 }
 
       - name: depends
         run: |
