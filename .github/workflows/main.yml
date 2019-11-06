@@ -1,4 +1,4 @@
-name: Build
+name: build
 on: [push, pull_request]
 
 jobs:
@@ -22,19 +22,20 @@ jobs:
     needs: build
 
     steps:
+      - name: checkout
       - uses: actions/checkout@v1
 
-      - name: Ruby
+      - name: ruby
         uses: actions/setup-ruby@v1
         with:
           ruby-version: 2.6.x
 
-      - name: Dependencies
+      - name: depends
         run: |
           sudo apt-get -y install xz-utils
           sudo bin/_ bin install https://storage.googleapis.com/shellcheck/shellcheck-latest.linux.x86_64.tar.xz
 
-      - name: Lint
+      - name: lint
         run: |
           rake test lang=sh
 
@@ -43,18 +44,19 @@ jobs:
     needs: build
 
     steps:
+      - name: checkout
       - uses: actions/checkout@v1
 
-      - name: Ruby
+      - name: ruby
         uses: actions/setup-ruby@v1
         with:
           ruby-version: 2.6.x
 
-      - name: Dependencies
+      - name: depends
         run: |
           gem install rubocop rubocop-performance
 
-      - name: Lint
+      - name: lint
         run: |
           rake test lang=rb
 
@@ -63,22 +65,23 @@ jobs:
     needs: build
 
     steps:
+      - name: checkout
       - uses: actions/checkout@v1
 
-      - name: Ruby
+      - name: ruby
         uses: actions/setup-ruby@v1
         with:
           ruby-version: 2.6.x
 
-      - name: Javascript
+      - name: javascript
         uses: actions/setup-node@v1
         with:
           node-version: 12
 
-      - name: Dependencies
+      - name: depends
         run: |
           npm install -g markdownlint-cli
 
-      - name: Lint
+      - name: lint
         run: |
           rake test lang=md
