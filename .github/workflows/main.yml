@@ -2,7 +2,7 @@ name: Build and Test
 on: [push, pull_request]
 
 jobs:
-  all:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -13,30 +13,30 @@ jobs:
         with:
           ruby-version: 2.6.x
 
-      - name: Set up Node
-        uses: actions/setup-node@v1
-        with:
-          node-version: 12
-
       - name: Install dependencies
         run: |
           sudo apt-get -y install xz-utils
           sudo bin/_ bin install https://storage.googleapis.com/shellcheck/shellcheck-latest.linux.x86_64.tar.xz
-          gem install rubocop
-          npm install -g markdownlint-cli
 
       - name: Build
         run: |
           rake
 
-      - name: Test Shell
-        run: |
-          rake test lang=sh
+  ruby:
+    - name: Rubocop checks
+      uses: gimenete/rubocop-action@1.0
 
-      - name: Test Ruby
-        run: |
-          rake test lang=rb
+  shellcheck:
+    runs-on: ubuntu-latest
 
-      - name: Test Markdown
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install dependencies
         run: |
-          rake test lang=md
+          sudo apt-get -y install xz-utils
+          sudo bin/_ bin install https://storage.googleapis.com/shellcheck/shellcheck-latest.linux.x86_64.tar.xz
+
+      - name: Lint Shell
+        run: |
+          shellcheck $(find -type f -and -not -path './.git/*' | xargs file --mime-type | grep text/x-shellscript$ | cut -f1 -d:)
