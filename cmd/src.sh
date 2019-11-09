@@ -17,6 +17,31 @@ src:enter() {
 	src:enter_ "$@"
 }
 
+# Run command inside src
+src:inside() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-expiry]=-1
+		[-prefix]="$_RUN"/src
+		[-pwd]=
+		[-shallow]=false
+
+		[.help]='[-expiry=MINUTES|-prefix=DIR|-pwd=DIR|-shallow=BOOL] URL COMMAND [ARG]...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	local url=$1 old_pwd=$PWD
+	shift
+
+	src:install_ "$url"
+
+	"$@"
+
+	.must -- cd "$old_pwd"
+}
+
 # Install src into a source tree
 src:install() {
 	# shellcheck disable=2192

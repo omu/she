@@ -44,11 +44,12 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | deb uninstall | Uninstall Debian packages                                            |
 | deb update    | Update Debian package index                                          |
 | deb using     | Use given official Debian distributions                              |
-| enter         | Enter to directory or URL                                            |
+| enter         | Enter to directory/URL                                               |
 | expired       | Return if any of the files expired                                   |
 | file chogm    | Change owner, group and mode                                         |
 | file copy     | Copy file/directory to destination creating all parents if necessary |
 | file enter    | Enter file directory                                                 |
+| file inside   | Run command inside directory                                         |
 | file install  | Install src file to dst                                              |
 | file link     | Link file/directory to dstination creating all parents if necessary  |
 | file move     | Move file/directory to destination creating all parents if necessary |
@@ -60,6 +61,7 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | http any      | Assert HTTP response against any of the given codes                  |
 | http get      | Get URL                                                              |
 | http is       | Assert HTTP response against the given code                          |
+| inside        | Enter to directory/URL and run command                               |
 | must          | Ensure the given command succeeds                                    |
 | os any        | Assert any OS feature                                                |
 | os codename   | Print distribution codename                                          |
@@ -72,6 +74,7 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | self src      | Print self source                                                    |
 | should        | Ignore error if the given command fails                              |
 | src enter     | Get src from URL and enter to the directory                          |
+| src inside    | Run command inside src                                               |
 | src install   | Install src into a source tree                                       |
 | src run       | Run src from URL                                                     |
 | src use       | Install src into a volatile source tree                              |

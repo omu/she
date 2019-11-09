@@ -520,7 +520,8 @@ DRAFT
 ### scripts
 
 ```sh
-scripts foo bar
-scripts foo # https://run.omu.sh
-scripts github.com/omu/debian/lib/scripts foo bar
+curl -fsSL https://x.omu.sh | bash -s -- foo bar
+x . foo bar
+
+. <(curl -fsSL https://x.omu.sh) _
 ```

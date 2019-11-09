@@ -2033,6 +2033,25 @@ file:enter() {
 	file.enter "$@"
 }
 
+# Run command inside directory
+file:inside() {
+	local -A _=(
+		[.help]='FILE|DIR COMMAND [ARGS]...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	local dir=$1 old_pwd=$PWD
+	shift
+
+	file.enter "$dir"
+
+	"$@"
+
+	.must -- cd "$old_pwd"
+}
+
 # Install src file to dst
 file:install() {
 	# shellcheck disable=2192
@@ -2535,7 +2554,7 @@ self:src() {
 	.contains "$@"
 }
 
-# Enter to directory or URL
+# Enter to directory/URL
 :enter() {
 	local -A _=(
 		[.help]='DIR|URL'
@@ -2569,6 +2588,28 @@ self:src() {
 	flag.parse
 
 	.expired "${_[-expiry]}" "$@"
+}
+
+# Enter to directory/URL and run command
+:inside() {
+	local -A _=(
+		[.help]='DIR|URL COMMAND [ARGS]...'
+		[.argc]=2-
+	)
+
+	flag.peek
+
+	local url=$1
+
+	local kind=
+	url.kind "$url" kind
+
+	# shellcheck disable=2153
+	case $kind in
+	src) .redirect src  inside "${ARGV[@]}"  ;;
+	non) .redirect file inside "${ARGV[@]}"  ;;
+	*)   .die "Unsupported URL kind: $kind" ;;
+	esac
 }
 
 # Ensure the given command succeeds
@@ -2666,6 +2707,31 @@ src:enter() {
 	flag.parse
 
 	src:enter_ "$@"
+}
+
+# Run command inside src
+src:inside() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-expiry]=-1
+		[-prefix]="$_RUN"/src
+		[-pwd]=
+		[-shallow]=false
+
+		[.help]='[-expiry=MINUTES|-prefix=DIR|-pwd=DIR|-shallow=BOOL] URL COMMAND [ARG]...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	local url=$1 old_pwd=$PWD
+	shift
+
+	src:install_ "$url"
+
+	"$@"
+
+	.must -- cd "$old_pwd"
 }
 
 # Install src into a source tree
@@ -3295,8 +3361,9 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		[':available']='Return if program available'
 		[':contains']='Return if first argument found in remaining arguments'
-		[':enter']='Enter to directory or URL'
+		[':enter']='Enter to directory/URL'
 		[':expired']='Return if any of the files expired'
+		[':inside']='Enter to directory/URL and run command'
 		[':must']='Ensure the given command succeeds'
 		[':run']='Try to run file or URL'
 		[':should']='Ignore error if the given command fails'
@@ -3312,6 +3379,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['file:chogm']='Change owner, group and mode'
 		['file:copy']='Copy file/directory to destination creating all parents if necessary'
 		['file:enter']='Enter file directory'
+		['file:inside']='Run command inside directory'
 		['file:install']='Install src file to dst'
 		['file:link']='Link file/directory to dstination creating all parents if necessary'
 		['file:move']='Move file/directory to destination creating all parents if necessary'
@@ -3332,6 +3400,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self:path']='Print self path'
 		['self:src']='Print self source'
 		['src:enter']='Get src from URL and enter to the directory'
+		['src:inside']='Run command inside src'
 		['src:install']='Install src into a source tree'
 		['src:run']='Run src from URL'
 		['src:use']='Install src into a volatile source tree'
@@ -3374,6 +3443,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['file chogm']='file:chogm'
 		['file copy']='file:copy'
 		['file enter']='file:enter'
+		['file inside']='file:inside'
 		['file install']='file:install'
 		['file link']='file:link'
 		['file move']='file:move'
@@ -3385,6 +3455,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['http any']='http:any'
 		['http get']='http:get'
 		['http is']='http:is'
+		['inside']=':inside'
 		['must']=':must'
 		['os any']='os:any'
 		['os codename']='os:codename'
@@ -3397,6 +3468,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self src']='self:src'
 		['should']=':should'
 		['src enter']='src:enter'
+		['src inside']='src:inside'
 		['src install']='src:install'
 		['src run']='src:run'
 		['src use']='src:use'

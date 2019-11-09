@@ -36,6 +36,25 @@ file:enter() {
 	file.enter "$@"
 }
 
+# Run command inside directory
+file:inside() {
+	local -A _=(
+		[.help]='FILE|DIR COMMAND [ARGS]...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	local dir=$1 old_pwd=$PWD
+	shift
+
+	file.enter "$dir"
+
+	"$@"
+
+	.must -- cd "$old_pwd"
+}
+
 # Install src file to dst
 file:install() {
 	# shellcheck disable=2192

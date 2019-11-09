@@ -24,7 +24,7 @@
 	.contains "$@"
 }
 
-# Enter to directory or URL
+# Enter to directory/URL
 :enter() {
 	local -A _=(
 		[.help]='DIR|URL'
@@ -58,6 +58,28 @@
 	flag.parse
 
 	.expired "${_[-expiry]}" "$@"
+}
+
+# Enter to directory/URL and run command
+:inside() {
+	local -A _=(
+		[.help]='DIR|URL COMMAND [ARGS]...'
+		[.argc]=2-
+	)
+
+	flag.peek
+
+	local url=$1
+
+	local kind=
+	url.kind "$url" kind
+
+	# shellcheck disable=2153
+	case $kind in
+	src) .redirect src  inside "${ARGV[@]}"  ;;
+	non) .redirect file inside "${ARGV[@]}"  ;;
+	*)   .die "Unsupported URL kind: $kind" ;;
+	esac
 }
 
 # Ensure the given command succeeds
