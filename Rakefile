@@ -5,7 +5,7 @@ BIN = %w[_ t tap].freeze
 desc 'Build'
 task :build do
   BIN.each do |bin|
-    sh "scedilla --program #{bin} --doc README.md src/#{bin} bin/#{bin}"
+    sh "scedilla --program #{bin} --doc README.md cmd/#{bin}/main.sh bin/#{bin}"
   end
 end
 
