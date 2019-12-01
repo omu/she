@@ -106,19 +106,19 @@ that can be used in shell tests.  These functions are consumed as the recommende
 ---
 
 <!-- t begin -->
-| Command       | Description                                                          |
-| ------------- | -------------------------------------------------------------------- |
-| err           | Assert failed command outputs                                        |
-| fail          | Return failure                                                       |
-| go            | Run all test suites defined so far                                   |
-| is            | Assert actual value equals to the expected                           |
-| isnt          | Assert got value not equals to the expected                          |
-| like          | Assert got value matches with the expected                           |
-| notok         | Assert command fails                                                 |
-| ok            | Assert command succeeds                                              |
-| out           | Assert successful command outputs                                    |
-| pass          | Return success                                                       |
-| temp          | Create and chdir to temp directory                                   |
-| unlike        | Assert got value not matches with the expected                       |
-| version       | Return version                                                       |
+| Command | Description                                    |
+| ------- | ---------------------------------------------- |
+| err     | Assert failed command outputs                  |
+| fail    | Return failure                                 |
+| go      | Run all test suites defined so far             |
+| is      | Assert actual value equals to the expected     |
+| isnt    | Assert got value not equals to the expected    |
+| like    | Assert got value matches with the expected     |
+| notok   | Assert command fails                           |
+| ok      | Assert command succeeds                        |
+| out     | Assert successful command outputs              |
+| pass    | Return success                                 |
+| temp    | Create and chdir to temp directory             |
+| unlike  | Assert got value not matches with the expected |
+| version | Return version                                 |
 <!-- t end -->

@@ -1,8 +1,8 @@
-#:lib/!.sh
+#=github.com/omu/home/src/sh/!.sh
 
-#:lib/color.sh
-#:lib/flag.sh
-#:lib/ui.sh
+#=github.com/omu/home/src/sh/color.sh
+#=github.com/omu/home/src/sh/flag.sh
+#=github.com/omu/home/src/sh/ui.sh
 
 #:cmd/tap.sh
 
@@ -10,7 +10,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/
 	#/command/
 
-	#:lib/main.sh
+	#=github.com/omu/home/src/sh/main.sh
 
 	.main() {
 		.dispatch "$@"

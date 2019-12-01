@@ -1,11 +1,11 @@
-#:lib/!.sh
+#=github.com/omu/home/src/sh/!.sh
 
-#:lib/assert.sh
-#:lib/color.sh
-#:lib/defer.sh
-#:lib/flag.sh
-#:lib/self.sh
-#:lib/ui.sh
+#=github.com/omu/home/src/sh/assert.sh
+#=github.com/omu/home/src/sh/color.sh
+#=github.com/omu/home/src/sh/defer.sh
+#=github.com/omu/home/src/sh/flag.sh
+#=github.com/omu/home/src/sh/self.sh
+#=github.com/omu/home/src/sh/ui.sh
 
 #:cmd/t.sh
 #:cmd/version.sh
@@ -18,11 +18,11 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		echo "readonly _SELF=$(self.path)"
 		echo
 		sed 's/^\t\t//' <<'EOF'
-			#:lib/!.sh
+			#=github.com/omu/home/src/sh/!.sh
 
-			#:lib/assert.sh
-			#:lib/defer.sh
-			#:lib/temp.sh: temp.dir temp.clean
+			#=github.com/omu/home/src/sh/assert.sh
+			#=github.com/omu/home/src/sh/defer.sh
+			#=github.com/omu/home/src/sh/temp.sh: temp.dir temp.clean
 
 			#:cmd/t.sh
 
@@ -30,7 +30,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 EOF
 	}
 
-	#:lib/main.sh
+	#=github.com/omu/home/src/sh/main.sh
 
 	.main() {
 		if ! .interactive && [[ $# -eq 0 ]]; then

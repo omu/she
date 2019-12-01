@@ -1,27 +1,27 @@
-#:lib/!.sh
+#=github.com/omu/home/src/sh/!.sh
 
 # Libraries
 
-#:lib/array.sh
-#:lib/color.sh
-#:lib/deb.sh
-#:lib/debug.sh
-#:lib/defer.sh
-#:lib/file.sh
-#:lib/filetype.sh
-#:lib/flag.sh
-#:lib/git.sh
-#:lib/http.sh
-#:lib/os.sh
-#:lib/path.sh
-#:lib/self.sh
-#:lib/string.sh
-#:lib/temp.sh
-#:lib/text.sh
-#:lib/ui.sh
-#:lib/url.sh
-#:lib/virt.sh
-#:lib/zip.sh
+#=github.com/omu/home/src/sh/array.sh
+#=github.com/omu/home/src/sh/color.sh
+#=github.com/omu/home/src/sh/deb.sh
+#=github.com/omu/home/src/sh/debug.sh
+#=github.com/omu/home/src/sh/defer.sh
+#=github.com/omu/home/src/sh/file.sh
+#=github.com/omu/home/src/sh/filetype.sh
+#=github.com/omu/home/src/sh/flag.sh
+#=github.com/omu/home/src/sh/git.sh
+#=github.com/omu/home/src/sh/http.sh
+#=github.com/omu/home/src/sh/os.sh
+#=github.com/omu/home/src/sh/path.sh
+#=github.com/omu/home/src/sh/self.sh
+#=github.com/omu/home/src/sh/string.sh
+#=github.com/omu/home/src/sh/temp.sh
+#=github.com/omu/home/src/sh/text.sh
+#=github.com/omu/home/src/sh/ui.sh
+#=github.com/omu/home/src/sh/url.sh
+#=github.com/omu/home/src/sh/virt.sh
+#=github.com/omu/home/src/sh/zip.sh
 
 # Commands
 
@@ -51,12 +51,12 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		echo "_SELF=$(self.path)"
 		echo
 		sed 's/^\t\t//' <<'EOF'
-		#:lib/!.sh: .prelude+
+		#=github.com/omu/home/src/sh/!.sh: .prelude+
 		#:src/_.sh
 EOF
 	}
 
-	#:lib/main.sh
+	#=github.com/omu/home/src/sh/main.sh
 
 	.main() {
 		if ! .interactive && [[ $# -eq 0 ]]; then
