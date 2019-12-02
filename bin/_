@@ -1474,12 +1474,6 @@ ui.init_
 
 # url.sh - URL processing
 
-url.parse() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	eval read -r "$@" < <(usl "$url" "$@")
-}
-
 url.any() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -1488,12 +1482,30 @@ url.any() {
 
 	local expected
 	for expected; do
-		if [[ $expected = "$class" ]]; then
-			return 0
-		fi
+		case $expected in
+		dir)
+			[[ -z ${class:-} ]] || return 0
+			;;
+		*)
+			[[ $expected != "${class:-}" ]] || return 0
+			;;
+		esac
 	done
 
 	return 1
+}
+
+url.id() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local id scheme
+	url.parse "$url" id scheme
+
+	if [[ ${scheme:-} = file ]] && [[ ! "$url" =~ ^/ ]]; then
+		url.parse "$PWD/$url" id
+	fi
+
+	echo "$id"
 }
 
 url.is() {
@@ -1503,7 +1515,20 @@ url.is() {
 	local class
 	url.parse "$url" class
 
-	[[ $expected = "$class" ]]
+	case $expected in
+	dir)
+		[[ -n ${class:-} ]]
+		;;
+	*)
+		[[ $expected = "${class:-}" ]]
+		;;
+	esac
+}
+
+url.parse() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	eval read -r "$@" < <(usl "$url" "$@")
 }
 
 # virt.sh - Virtualization functions
