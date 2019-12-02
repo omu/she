@@ -1512,17 +1512,7 @@ url.is() {
 	local url=${1?${FUNCNAME[0]}: missing argument};      shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local class
-	url.parse "$url" class
-
-	case $expected in
-	dir)
-		[[ -n ${class:-} ]]
-		;;
-	*)
-		[[ $expected = "${class:-}" ]]
-		;;
-	esac
+	url.any "$url" "$expected"
 }
 
 url.parse() {
