@@ -1474,15 +1474,21 @@ ui.init_
 
 # url.sh - URL processing
 
+url.parse() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	eval read -r "$@" < <(usl "$url" "$@")
+}
+
 url.any() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local got=
-	url.kind "$url" got
+	local class
+	url.parse "$url" class
 
-	local kind
-	for kind; do
-		if [[ $kind = "$got" ]]; then
+	local expected
+	for expected; do
+		if [[ $expected = "$class" ]]; then
 			return 0
 		fi
 	done
@@ -1494,39 +1500,10 @@ url.is() {
 	local url=${1?${FUNCNAME[0]}: missing argument};      shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local got=
-	url.kind "$url" got
+	local class
+	url.parse "$url" class
 
-	[[ $expected = "$got" ]]
-}
-
-url.kind() {
-	local    url=${1?${FUNCNAME[0]}: missing argument};       shift
-	local -n url_kind_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	url_kind_=non
-
-	if [[ $url =~ ^(/|[.]/) ]]; then
-		return
-	fi
-
-	if [[ $url =~ ^([^:]+://)?(github|gitlab|bitbucket)[.]com ]]; then
-		# shellcheck disable=2034
-		url_kind_=src
-		return
-	fi
-
-	if [[ $url =~ ^(http|https):// ]]; then
-		# shellcheck disable=2034
-		url_kind_=web
-		return
-	fi
-
-	if [[ $url =~ ^(git|git[+]ssh|ssh):// ]]; then
-		# shellcheck disable=2034
-		url_kind_=src
-		return
-	fi
+	[[ $expected = "$class" ]]
 }
 
 # virt.sh - Virtualization functions
@@ -2693,7 +2670,7 @@ _:init_
 # cmd/src - Source management
 
 # Get src from URL and enter to the directory
-src:enter() {
+dir:enter() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=
@@ -2706,11 +2683,11 @@ src:enter() {
 
 	flag.parse
 
-	src:enter_ "$@"
+	dir:enter_ "$@"
 }
 
 # Run command inside src
-src:inside() {
+dir:inside() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=-1
@@ -2727,7 +2704,7 @@ src:inside() {
 	local url=$1 old_pwd=$PWD
 	shift
 
-	src:install_ "$url"
+	dir:install_ "$url"
 
 	"$@"
 
@@ -2735,7 +2712,7 @@ src:inside() {
 }
 
 # Install src into a source tree
-src:install() {
+dir:install() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=
@@ -2747,11 +2724,11 @@ src:install() {
 
 	flag.parse
 
-	src:install_ "$@"
+	dir:install_ "$@"
 }
 
 # Run src from URL
-src:run() {
+dir:run() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=-1
@@ -2765,13 +2742,13 @@ src:run() {
 
 	flag.parse
 
-	src:install_ "$@"
+	dir:install_ "$@"
 
-	src:run_ "${_[.dir]}"
+	dir:run_ "${_[.dir]}"
 }
 
 # Install src into a volatile source tree
-src:use() {
+dir:use() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=
@@ -2784,15 +2761,15 @@ src:use() {
 
 	flag.parse
 
-	src:install_ "$@"
+	dir:install_ "$@"
 }
 
 # cmd/src - Protected functions
 
-src:cd_() {
+dir:cd_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src:dst_ dst
+	dir:dst_ dst
 
 	[[ -d $dst ]] || .die "Destination not found: $dst"
 
@@ -2804,30 +2781,30 @@ src:cd_() {
 	file.enter "${_[.dir]:-}"
 }
 
-src:dst_() {
+dir:dst_() {
 	file:dst_ "$@"
 }
 
-src:enter_() {
-	src:install_ "$@" >/dev/null
+dir:enter_() {
+	dir:install_ "$@" >/dev/null
 
 	# shellcheck disable=2128
 	echo "$PWD"
 }
 
-src:exist_() {
+dir:exist_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src:dst_ dst
+	dir:dst_ dst
 
 	[[ -d $dst ]]
 }
 
-src:get_() {
+dir:get_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	! src:exist_ "$dst" || .die "Destination already exist: $dst"
+	! dir:exist_ "$dst" || .die "Destination already exist: $dst"
 
 	local -a opt
 
@@ -2846,31 +2823,31 @@ src:get_() {
 	unset -f _func_
 }
 
-src:install_() {
+dir:install_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	url:parse_ "$url" || .die "Error parsing URL: ${_[!]}: $url"
 
-	src:plan_ || .die "Error planning URL: ${_[!]}: $url"
+	dir:plan_ || .die "Error planning URL: ${_[!]}: $url"
 
 	local src=${_[1]} dst=${_[2]:-}
 
-	if src:exist_ "$dst"; then
-		src:update_ "$dst"
+	if dir:exist_ "$dst"; then
+		dir:update_ "$dst"
 	else
-		src:get_ "$src" "$dst"
+		dir:get_ "$src" "$dst"
 	fi
 
-	src:cd_ "$dst"
+	dir:cd_ "$dst"
 }
 
-src:managed_() {
+dir:managed_() {
 	local path=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.is.git "$path" && git -C "$path" config underscore.name &>/dev/null
 }
 
-src:run_() {
+dir:run_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	path.base file
@@ -2878,10 +2855,10 @@ src:run_() {
 	.calling "$file" file:run_ "$file"
 }
 
-src:update_() {
+dir:update_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src:cd_ "$dst"
+	dir:cd_ "$dst"
 
 	git.switch "${_[.branch]:-}"
 
@@ -2894,7 +2871,7 @@ src:update_() {
 	.must -- popd >/dev/null
 }
 
-src:plan_() {
+dir:plan_() {
 	local owner repo auth path
 
 	if [[ ! ${_[.host]} =~ ^(github.com|gitlab.com|bitbucket.com)$ ]]; then
@@ -3376,6 +3353,11 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['deb:uninstall']='Uninstall Debian packages'
 		['deb:update']='Update Debian package index'
 		['deb:using']='Use given official Debian distributions'
+		['dir:enter']='Get src from URL and enter to the directory'
+		['dir:inside']='Run command inside src'
+		['dir:install']='Install src into a source tree'
+		['dir:run']='Run src from URL'
+		['dir:use']='Install src into a volatile source tree'
 		['file:chogm']='Change owner, group and mode'
 		['file:copy']='Copy file/directory to destination creating all parents if necessary'
 		['file:enter']='Enter file directory'
@@ -3399,11 +3381,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self:name']='Print self name'
 		['self:path']='Print self path'
 		['self:src']='Print self source'
-		['src:enter']='Get src from URL and enter to the directory'
-		['src:inside']='Run command inside src'
-		['src:install']='Install src into a source tree'
-		['src:run']='Run src from URL'
-		['src:use']='Install src into a volatile source tree'
 		['text:fix']='Append stdin content to the target file'
 		['text:unfix']='Remove appended content'
 		['ui:bug']='Print bug message and exit failure'
@@ -3438,6 +3415,11 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['deb uninstall']='deb:uninstall'
 		['deb update']='deb:update'
 		['deb using']='deb:using'
+		['dir enter']='dir:enter'
+		['dir inside']='dir:inside'
+		['dir install']='dir:install'
+		['dir run']='dir:run'
+		['dir use']='dir:use'
 		['enter']=':enter'
 		['expired']=':expired'
 		['file chogm']='file:chogm'
@@ -3467,11 +3449,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self path']='self:path'
 		['self src']='self:src'
 		['should']=':should'
-		['src enter']='src:enter'
-		['src inside']='src:inside'
-		['src install']='src:install'
-		['src run']='src:run'
-		['src use']='src:use'
 		['text fix']='text:fix'
 		['text unfix']='text:unfix'
 		['ui bug']='ui:bug'

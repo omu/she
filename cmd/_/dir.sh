@@ -1,7 +1,7 @@
 # cmd/src - Source management
 
 # Get src from URL and enter to the directory
-src:enter() {
+dir:enter() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=
@@ -14,11 +14,11 @@ src:enter() {
 
 	flag.parse
 
-	src:enter_ "$@"
+	dir:enter_ "$@"
 }
 
 # Run command inside src
-src:inside() {
+dir:inside() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=-1
@@ -35,7 +35,7 @@ src:inside() {
 	local url=$1 old_pwd=$PWD
 	shift
 
-	src:install_ "$url"
+	dir:install_ "$url"
 
 	"$@"
 
@@ -43,7 +43,7 @@ src:inside() {
 }
 
 # Install src into a source tree
-src:install() {
+dir:install() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=
@@ -55,11 +55,11 @@ src:install() {
 
 	flag.parse
 
-	src:install_ "$@"
+	dir:install_ "$@"
 }
 
 # Run src from URL
-src:run() {
+dir:run() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=-1
@@ -73,13 +73,13 @@ src:run() {
 
 	flag.parse
 
-	src:install_ "$@"
+	dir:install_ "$@"
 
-	src:run_ "${_[.dir]}"
+	dir:run_ "${_[.dir]}"
 }
 
 # Install src into a volatile source tree
-src:use() {
+dir:use() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-expiry]=
@@ -92,15 +92,15 @@ src:use() {
 
 	flag.parse
 
-	src:install_ "$@"
+	dir:install_ "$@"
 }
 
 # cmd/src - Protected functions
 
-src:cd_() {
+dir:cd_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src:dst_ dst
+	dir:dst_ dst
 
 	[[ -d $dst ]] || .die "Destination not found: $dst"
 
@@ -112,30 +112,30 @@ src:cd_() {
 	file.enter "${_[.dir]:-}"
 }
 
-src:dst_() {
+dir:dst_() {
 	file:dst_ "$@"
 }
 
-src:enter_() {
-	src:install_ "$@" >/dev/null
+dir:enter_() {
+	dir:install_ "$@" >/dev/null
 
 	# shellcheck disable=2128
 	echo "$PWD"
 }
 
-src:exist_() {
+dir:exist_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src:dst_ dst
+	dir:dst_ dst
 
 	[[ -d $dst ]]
 }
 
-src:get_() {
+dir:get_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	! src:exist_ "$dst" || .die "Destination already exist: $dst"
+	! dir:exist_ "$dst" || .die "Destination already exist: $dst"
 
 	local -a opt
 
@@ -154,31 +154,31 @@ src:get_() {
 	unset -f _func_
 }
 
-src:install_() {
+dir:install_() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	url:parse_ "$url" || .die "Error parsing URL: ${_[!]}: $url"
 
-	src:plan_ || .die "Error planning URL: ${_[!]}: $url"
+	dir:plan_ || .die "Error planning URL: ${_[!]}: $url"
 
 	local src=${_[1]} dst=${_[2]:-}
 
-	if src:exist_ "$dst"; then
-		src:update_ "$dst"
+	if dir:exist_ "$dst"; then
+		dir:update_ "$dst"
 	else
-		src:get_ "$src" "$dst"
+		dir:get_ "$src" "$dst"
 	fi
 
-	src:cd_ "$dst"
+	dir:cd_ "$dst"
 }
 
-src:managed_() {
+dir:managed_() {
 	local path=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	git.is.git "$path" && git -C "$path" config underscore.name &>/dev/null
 }
 
-src:run_() {
+dir:run_() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	path.base file
@@ -186,10 +186,10 @@ src:run_() {
 	.calling "$file" file:run_ "$file"
 }
 
-src:update_() {
+dir:update_() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src:cd_ "$dst"
+	dir:cd_ "$dst"
 
 	git.switch "${_[.branch]:-}"
 
@@ -202,7 +202,7 @@ src:update_() {
 	.must -- popd >/dev/null
 }
 
-src:plan_() {
+dir:plan_() {
 	local owner repo auth path
 
 	if [[ ! ${_[.host]} =~ ^(github.com|gitlab.com|bitbucket.com)$ ]]; then

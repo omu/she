@@ -44,6 +44,11 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | deb uninstall | Uninstall Debian packages                                            |
 | deb update    | Update Debian package index                                          |
 | deb using     | Use given official Debian distributions                              |
+| dir enter     | Get src from URL and enter to the directory                          |
+| dir inside    | Run command inside src                                               |
+| dir install   | Install src into a source tree                                       |
+| dir run       | Run src from URL                                                     |
+| dir use       | Install src into a volatile source tree                              |
 | enter         | Enter to directory/URL                                               |
 | expired       | Return if any of the files expired                                   |
 | file chogm    | Change owner, group and mode                                         |
@@ -73,11 +78,6 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | self path     | Print self path                                                      |
 | self src      | Print self source                                                    |
 | should        | Ignore error if the given command fails                              |
-| src enter     | Get src from URL and enter to the directory                          |
-| src inside    | Run command inside src                                               |
-| src install   | Install src into a source tree                                       |
-| src run       | Run src from URL                                                     |
-| src use       | Install src into a volatile source tree                              |
 | text fix      | Append stdin content to the target file                              |
 | text unfix    | Remove appended content                                              |
 | ui bug        | Print bug message and exit failure                                   |
