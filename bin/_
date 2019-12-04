@@ -1495,19 +1495,6 @@ url.any() {
 	return 1
 }
 
-url.id() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local id scheme
-	url.parse "$url" id scheme
-
-	if [[ ${scheme:-} = file ]] && [[ ! "$url" =~ ^/ ]]; then
-		url.parse "$PWD/$url" id
-	fi
-
-	echo "$id"
-}
-
 url.is() {
 	local url=${1?${FUNCNAME[0]}: missing argument};      shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -1515,10 +1502,16 @@ url.is() {
 	url.any "$url" "$expected"
 }
 
+url.dump() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	usl -var 'id = {{ .source | pathescape }}' "$url" "$@"
+}
+
 url.parse() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	eval read -r "$@" < <(usl "$url" "$@")
+	eval -- "$(url.dump "$url" "$@")"
 }
 
 # virt.sh - Virtualization functions
@@ -3127,7 +3120,7 @@ url:parse() {
 
 	flag.parse
 
-	usl "$@"
+	url.dump "$@"
 }
 
 # cmd/version - Print version

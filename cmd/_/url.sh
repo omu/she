@@ -33,5 +33,5 @@ url:parse() {
 
 	flag.parse
 
-	usl "$@"
+	url.dump "$@"
 }
