@@ -1502,17 +1502,24 @@ url.is() {
 	url.any "$url" "$expected"
 }
 
-url.dump() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	usl -var 'id = {{ .source | pathescape }}' "$url" "$@"
+url.usl() {
+	usl "${_url_usl_args[@]}" "$@"
 }
 
 url.parse() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	eval -- "$(url.dump "$url" "$@")"
+	eval -- "$(url.usl "$@")"
 }
+
+# url - Init
+
+url.init_() {
+	# shellcheck disable=2034
+	declare -ag _url_usl_args=(
+		'-var' 'id = {{ .source | pathescape }}'
+	)
+}
+
+url.init_
 
 # virt.sh - Virtualization functions
 
@@ -3111,8 +3118,8 @@ url:is() {
 	url.is "$@"
 }
 
-# Parse URL
-url:parse() {
+# Parse and dump URL
+url:dump() {
 	local -A _=(
 		[.help]='URL ATTRIBUTE...'
 		[.argc]=2-
@@ -3120,8 +3127,12 @@ url:parse() {
 
 	flag.parse
 
-	url.dump "$@"
+	url.usl "$@"
 }
+
+_url_usl_args+=(
+		'-var' "cache = $_RUN/{{ .source | pathescape }}"
+)
 
 # cmd/version - Print version
 
@@ -3332,8 +3343,8 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['ui:running']='Print a busy message run command'
 		['ui:say']='Print message on stderr'
 		['url:any']='Assert URL type'
+		['url:dump']='Parse and dump URL'
 		['url:is']='Assert URL type'
-		['url:parse']='Parse URL'
 		['virt:any']='Assert any of the virtualization types'
 		['virt:is']='Assert virtualization type'
 		['virt:which']='Detect virtualization type'
@@ -3401,8 +3412,8 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['ui running']='ui:running'
 		['ui say']='ui:say'
 		['url any']='url:any'
+		['url dump']='url:dump'
 		['url is']='url:is'
-		['url parse']='url:parse'
 		['version']=':version'
 		['virt any']='virt:any'
 		['virt is']='virt:is'

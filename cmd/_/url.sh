@@ -24,8 +24,8 @@ url:is() {
 	url.is "$@"
 }
 
-# Parse URL
-url:parse() {
+# Parse and dump URL
+url:dump() {
 	local -A _=(
 		[.help]='URL ATTRIBUTE...'
 		[.argc]=2-
@@ -33,5 +33,9 @@ url:parse() {
 
 	flag.parse
 
-	url.dump "$@"
+	url.usl "$@"
 }
+
+_url_usl_args+=(
+		'-var' "cache = $_RUN/{{ .source | pathescape }}"
+)

@@ -92,8 +92,8 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | ui running    | Print a busy message run command                                     |
 | ui say        | Print message on stderr                                              |
 | url any       | Assert URL type                                                      |
+| url dump      | Parse and dump URL                                                   |
 | url is        | Assert URL type                                                      |
-| url parse     | Parse URL                                                            |
 | version       | Return version                                                       |
 | virt any      | Assert any of the virtualization types                               |
 | virt is       | Assert virtualization type                                           |
