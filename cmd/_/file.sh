@@ -45,6 +45,7 @@ file:inside() {
 
 	flag.parse
 
+	# shellcheck disable=2128
 	local dir=$1 old_pwd=$PWD
 	shift
 

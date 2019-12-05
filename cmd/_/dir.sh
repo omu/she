@@ -32,6 +32,7 @@ dir:inside() {
 
 	flag.parse
 
+	# shellcheck disable=2128
 	local url=$1 old_pwd=$PWD
 	shift
 
