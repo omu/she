@@ -37,7 +37,5 @@ url:dump() {
 }
 
 init.url() {
-	_url_usl_args+=(
-			'-var' "cache = $_RUN/{{ .source | pathescape }}"
-	)
+	url.template cache "$_RUN/{{ .source | pathescape }}"
 }

@@ -1548,13 +1548,21 @@ url.parse() {
 	eval -- "$(url.usl "$@")"
 }
 
+url.template() {
+	local name=${1?${FUNCNAME[0]}: missing argument};     shift
+	local template=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	_url_usl_args+=(
+		'-var' "$name = $template"
+	)
+}
+
 # url - Init
 
 url.init_() {
-	# shellcheck disable=2034
-	declare -ag _url_usl_args=(
-		'-var' 'id = {{ .source | pathescape }}'
-	)
+	declare -ag _url_usl_args=()
+
+	url.template id '{{ .source | pathescape }}'
 }
 
 url.init_
@@ -3171,9 +3179,7 @@ url:dump() {
 }
 
 init.url() {
-	_url_usl_args+=(
-			'-var' "cache = $_RUN/{{ .source | pathescape }}"
-	)
+	url.template cache "$_RUN/{{ .source | pathescape }}"
 }
 
 # cmd/version - Print version
