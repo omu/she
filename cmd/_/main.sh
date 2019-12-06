@@ -6,6 +6,7 @@
 #=github.com/omu/home/src/sh/color.sh
 #=github.com/omu/home/src/sh/deb.sh
 #=github.com/omu/home/src/sh/debug.sh
+#=github.com/omu/home/src/sh/call.sh
 #=github.com/omu/home/src/sh/defer.sh
 #=github.com/omu/home/src/sh/file.sh
 #=github.com/omu/home/src/sh/filetype.sh
@@ -47,24 +48,21 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/
 	#/command/
 
-	.source() {
-		echo "_SELF=$(self.path)"
-		echo
-		sed 's/^\t\t//' <<'EOF'
+	#=github.com/omu/home/src/sh/main.sh
+
+	main() {
+		if ! .interactive && [[ $# -eq 0 ]]; then
+			echo "_SELF=$(self.path)"
+			echo
+			sed 's/^\t\t//' <<'EOF'
 		#=github.com/omu/home/src/sh/!.sh: .prelude+
 		#:cmd/_/source.sh
 EOF
-	}
-
-	#=github.com/omu/home/src/sh/main.sh
-
-	.main() {
-		if ! .interactive && [[ $# -eq 0 ]]; then
-			.source
 		else
+			.call init
 			.dispatch "$@"
 		fi
 	}
 
-	.main "$@"
+	main "$@"
 fi

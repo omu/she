@@ -84,31 +84,6 @@
 	return 0
 }
 
-.init() {
-	local -a _init_funcs_
-
-	mapfile -t _init_funcs_ < <(
-		shopt -s extdebug
-
-		declare -F | grep 'declare -f init[.]' | awk '{ print $3 }' |
-		while read -r func; do declare -F "$func"; done |
-		sort -t' ' -k2 -n | awk '
-			$1 !~ /init[.]early|init[.]late/ {
-				print $1
-			}
-		'
-	)
-
-	! .callable init.early || init.early
-
-	local func
-	for func in "${_init_funcs_[@]}"; do
-		"$func" || .cry "Init function failed: $func"
-	done
-
-	! .callable init.late || init.late
-}
-
 .interactive() {
 	[[   -t 1 ]]
 }
@@ -446,39 +421,18 @@ color.init_
 	alias .untrap="trap - ${signals[*]}"
 
 	_defer_() {
-		local -r SIG=$1 ERR=$?
+		local -r SIGNAL=$1 ERR=$?
 
-		local -a _defer_funcs_
-
-		mapfile -t _defer_funcs_ < <(
-			shopt -s extdebug
-
-			declare -F | grep 'declare -f defer[.]' | awk '{ print $3 }' |
-			while read -r func; do declare -F "$func"; done |
-			sort -t' ' -k2 -n | awk '
-				$1 !~ /defer[.]early|defer[.]late/ {
-					print $1
-				}
-			'
-		)
-
-		! .callable defer.early || defer.early
-
-		local func
-		for func in "${_defer_funcs_[@]}"; do
-			"$func" || [[ $SIG = INT ]] || [[ $SIG = QUIT ]] || .cry "Deferred function failed: $func"
-		done
+		.call defer
 
 		if [[ -v _defer_clean_ ]] && [[ "${#_defer_clean_[@]}" -gt 0 ]]; then
 			rm -rf -- "${_defer_clean_[@]}"
 		fi
 
-		! .callable defer.late || defer.late
-
 		builtin trap - EXIT
 
-		if [[ $SIG = INT ]] || [[ $SIG = QUIT ]]; then
-			builtin trap - "$SIG"; kill -s "$SIG" "$$"
+		if [[ $SIGNAL = INT ]] || [[ $SIGNAL = QUIT ]]; then
+			builtin trap - "$SIGNAL"; kill -s "$SIGNAL" "$$"
 		fi
 
 		return "$ERR"
@@ -1044,10 +998,105 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['version']=':version'
 	)
 
-	.source() {
-		echo "readonly _SELF=$(self.path)"
-		echo
-		sed 's/^\t\t//' <<'EOF'
+	# main - Application
+
+	.usage() {
+		# shellcheck disable=2128
+		.say "Usage: $PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
+		.say ""
+		.say "Commands:"
+
+		local cmd
+
+		# shellcheck disable=2154
+		for cmd in "${!_command[@]}"; do
+			local fun=${_command[$cmd]}
+
+			printf "\\t%-24s  %s\n" "$cmd" "${_help[$fun]:-}"
+		done | sort >&2
+	}
+
+	# shellcheck disable=2154
+	.dispatch() {
+		local orig="${*}"
+
+		if [[ $# -eq 0 ]]; then
+			.usage
+
+			.die 'Command required'
+		fi
+
+		local help=
+
+		if [[ $1 = help ]]; then
+			help=true
+
+			shift
+
+			if [[ $# -eq 0 ]]; then
+				.usage
+
+				.die 'Help topic required'
+			fi
+		fi
+
+		local -a args=("$@") try
+
+		local cmd
+		while [[ $# -gt 0 ]]; do
+			try+=("$1")
+			shift
+
+			if [[ -n ${_command[${try[*]}]:-} ]]; then
+				cmd=${try[*]}
+				args=("$@")
+			fi
+		done
+
+		[[ -n ${cmd:-} ]] || .die "No command found: $orig"
+
+		local fun=${_command["$cmd"]}
+
+		PROGNAME+=("$cmd")
+
+		if [[ -n ${help:-} ]]; then
+			.say "${_help[$fun]:-}" ""
+
+			"$fun" -help
+		else
+			"$fun" "${args[@]}"
+		fi
+	}
+
+	.redirect() {
+		local -a args=("$@") try
+
+		local cmd
+		while [[ $# -gt 0 ]]; do
+			try+=("$1")
+			shift
+
+			if [[ -n ${_command[${try[*]}]:-} ]]; then
+				cmd=${try[*]}
+				args=("$@")
+			fi
+		done
+
+		[[ -n ${cmd:-} ]] || .die "No command found: $orig"
+
+		local fun=${_command["$cmd"]}
+
+		unset 'PROGNAME[${#PROGNAME[@]}-1]'
+		PROGNAME+=("$cmd")
+
+		"$fun" "${args[@]}"
+	}
+
+	main() {
+		if ! .interactive && [[ $# -eq 0 ]]; then
+			echo "readonly _SELF=$(self.path)"
+			echo
+			sed 's/^\t\t//' <<'EOF'
 			#!/usr/bin/env bash
 
 			[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
@@ -1132,31 +1181,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				done
 
 				return 0
-			}
-
-			.init() {
-				local -a _init_funcs_
-
-				mapfile -t _init_funcs_ < <(
-					shopt -s extdebug
-
-					declare -F | grep 'declare -f init[.]' | awk '{ print $3 }' |
-					while read -r func; do declare -F "$func"; done |
-					sort -t' ' -k2 -n | awk '
-						$1 !~ /init[.]early|init[.]late/ {
-							print $1
-						}
-					'
-				)
-
-				! .callable init.early || init.early
-
-				local func
-				for func in "${_init_funcs_[@]}"; do
-					"$func" || .cry "Init function failed: $func"
-				done
-
-				! .callable init.late || init.late
 			}
 
 			.interactive() {
@@ -1391,39 +1415,18 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				alias .untrap="trap - ${signals[*]}"
 
 				_defer_() {
-					local -r SIG=$1 ERR=$?
+					local -r SIGNAL=$1 ERR=$?
 
-					local -a _defer_funcs_
-
-					mapfile -t _defer_funcs_ < <(
-						shopt -s extdebug
-
-						declare -F | grep 'declare -f defer[.]' | awk '{ print $3 }' |
-						while read -r func; do declare -F "$func"; done |
-						sort -t' ' -k2 -n | awk '
-							$1 !~ /defer[.]early|defer[.]late/ {
-								print $1
-							}
-						'
-					)
-
-					! .callable defer.early || defer.early
-
-					local func
-					for func in "${_defer_funcs_[@]}"; do
-						"$func" || [[ $SIG = INT ]] || [[ $SIG = QUIT ]] || .cry "Deferred function failed: $func"
-					done
+					.call defer
 
 					if [[ -v _defer_clean_ ]] && [[ "${#_defer_clean_[@]}" -gt 0 ]]; then
 						rm -rf -- "${_defer_clean_[@]}"
 					fi
 
-					! .callable defer.late || defer.late
-
 					builtin trap - EXIT
 
-					if [[ $SIG = INT ]] || [[ $SIG = QUIT ]]; then
-						builtin trap - "$SIG"; kill -s "$SIG" "$$"
+					if [[ $SIGNAL = INT ]] || [[ $SIGNAL = QUIT ]]; then
+						builtin trap - "$SIGNAL"; kill -s "$SIGNAL" "$$"
 					fi
 
 					return "$ERR"
@@ -1648,110 +1651,10 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 			[[ -z "${BASH_SOURCE[1]:-}" ]] || tap startup "${BASH_SOURCE[1]}"
 EOF
-	}
-
-	# main - Application
-
-	.usage() {
-		# shellcheck disable=2128
-		.say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
-		.say "Commands:"
-
-		local cmd
-
-		# shellcheck disable=2154
-		for cmd in "${!_command[@]}"; do
-			local fun=${_command[$cmd]}
-
-			printf "\\t%-24s  %s\n" "$cmd" "${_help[$fun]:-}"
-		done | sort >&2
-	}
-
-	# shellcheck disable=2154
-	.dispatch() {
-		local orig="${*}"
-
-		if [[ $# -eq 0 ]]; then
-			.usage
-
-			.die 'Command required'
-		fi
-
-		local help=
-
-		if [[ $1 = help ]]; then
-			help=true
-
-			shift
-
-			if [[ $# -eq 0 ]]; then
-				.usage
-
-				.die 'Help topic required'
-			fi
-		fi
-
-		local -a args=("$@") try
-
-		local cmd
-		while [[ $# -gt 0 ]]; do
-			try+=("$1")
-			shift
-
-			if [[ -n ${_command[${try[*]}]:-} ]]; then
-				cmd=${try[*]}
-				args=("$@")
-			fi
-		done
-
-		[[ -n ${cmd:-} ]] || .die "No command found: $orig"
-
-		local fun=${_command["$cmd"]}
-
-		PROGNAME+=("$cmd")
-
-		if [[ -n ${help:-} ]]; then
-			.say "${_help[$fun]:-}" ""
-
-			"$fun" -help
-		else
-			"$fun" "${args[@]}"
-		fi
-	}
-
-	.redirect() {
-		local -a args=("$@") try
-
-		local cmd
-		while [[ $# -gt 0 ]]; do
-			try+=("$1")
-			shift
-
-			if [[ -n ${_command[${try[*]}]:-} ]]; then
-				cmd=${try[*]}
-				args=("$@")
-			fi
-		done
-
-		[[ -n ${cmd:-} ]] || .die "No command found: $orig"
-
-		local fun=${_command["$cmd"]}
-
-		unset 'PROGNAME[${#PROGNAME[@]}-1]'
-		PROGNAME+=("$cmd")
-
-		"$fun" "${args[@]}"
-	}
-
-	.init
-
-	.main() {
-		if ! .interactive && [[ $# -eq 0 ]]; then
-			.source
 		else
 			.dispatch "$@"
 		fi
 	}
 
-	.main "$@"
+	main "$@"
 fi

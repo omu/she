@@ -14,10 +14,13 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/
 	#/command/
 
-	.source() {
-		echo "readonly _SELF=$(self.path)"
-		echo
-		sed 's/^\t\t//' <<'EOF'
+	#=github.com/omu/home/src/sh/main.sh
+
+	main() {
+		if ! .interactive && [[ $# -eq 0 ]]; then
+			echo "readonly _SELF=$(self.path)"
+			echo
+			sed 's/^\t\t//' <<'EOF'
 			#=github.com/omu/home/src/sh/!.sh
 
 			#=github.com/omu/home/src/sh/assert.sh
@@ -28,17 +31,10 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 			#:cmd/t/source.sh
 EOF
-	}
-
-	#=github.com/omu/home/src/sh/main.sh
-
-	.main() {
-		if ! .interactive && [[ $# -eq 0 ]]; then
-			.source
 		else
 			.dispatch "$@"
 		fi
 	}
 
-	.main "$@"
+	main "$@"
 fi

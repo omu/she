@@ -12,9 +12,9 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 	#=github.com/omu/home/src/sh/main.sh
 
-	.main() {
+	main() {
 		.dispatch "$@"
 	}
 
-	.main "$@"
+	main "$@"
 fi

@@ -84,31 +84,6 @@
 	return 0
 }
 
-.init() {
-	local -a _init_funcs_
-
-	mapfile -t _init_funcs_ < <(
-		shopt -s extdebug
-
-		declare -F | grep 'declare -f init[.]' | awk '{ print $3 }' |
-		while read -r func; do declare -F "$func"; done |
-		sort -t' ' -k2 -n | awk '
-			$1 !~ /init[.]early|init[.]late/ {
-				print $1
-			}
-		'
-	)
-
-	! .callable init.early || init.early
-
-	local func
-	for func in "${_init_funcs_[@]}"; do
-		"$func" || .cry "Init function failed: $func"
-	done
-
-	! .callable init.late || init.late
-}
-
 .interactive() {
 	[[   -t 1 ]]
 }
@@ -501,6 +476,65 @@ deb.add_key_() {
 	done | grep -v "^${BASH_SOURCE[0]}"
 }
 
+# call.sh - Handle callback functions
+
+.call() {
+	local group=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local -a _call_funcs_
+
+	mapfile -t _call_funcs_ < <(
+		shopt -s extdebug
+
+		declare -F | awk '/^declare -f '"$group"'[.]/ { print $3 }' |
+		while read -r func; do declare -F "$func"; done |
+		sort -t' ' -k2 -n | cut -f1 -d' '
+	)
+
+	local func
+
+	local -a _call_early_ _call_now_ _call_late_
+
+	for func in "${_call_funcs_[@]}"; do
+		case $func in
+		*_early|*.early_|*.early) _call_early_+=("$func") ;;
+		*_late|*.late_|*.late)    _call_late_+=("$func")  ;;
+		*)                        _call_now_+=("$func")   ;;
+		esac
+	done
+
+	local failer=$group.fail
+	.callable "$failer" || failer=.call_fail_default_
+
+	local -i err=0
+
+	for func in "${_call_early_[@]}"; do
+		"$func" "$@" || { "$failer" "$func" "$@"; err+=1; }
+	done
+
+	for func in "${_call_now_[@]}"; do
+		"$func" "$@" || { "$failer" "$@"; err+=1; }
+	done
+
+	for func in "${_call_late_[@]}"; do
+		"$func" "$@" ||  { "$failer" "$@"; err+=1; }
+	done
+
+	return $err
+}
+
+# Private functions
+
+.call_fail_default_() {
+	local func=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	case ${SIGNAL:-} in
+	INT|QUIT) return 0 ;;
+	esac
+
+	.cry "Callback failed: $func"
+}
+
 # defer.sh - Deferred functions
 
 # Register files/directories to clean up at exit
@@ -545,39 +579,18 @@ deb.add_key_() {
 	alias .untrap="trap - ${signals[*]}"
 
 	_defer_() {
-		local -r SIG=$1 ERR=$?
+		local -r SIGNAL=$1 ERR=$?
 
-		local -a _defer_funcs_
-
-		mapfile -t _defer_funcs_ < <(
-			shopt -s extdebug
-
-			declare -F | grep 'declare -f defer[.]' | awk '{ print $3 }' |
-			while read -r func; do declare -F "$func"; done |
-			sort -t' ' -k2 -n | awk '
-				$1 !~ /defer[.]early|defer[.]late/ {
-					print $1
-				}
-			'
-		)
-
-		! .callable defer.early || defer.early
-
-		local func
-		for func in "${_defer_funcs_[@]}"; do
-			"$func" || [[ $SIG = INT ]] || [[ $SIG = QUIT ]] || .cry "Deferred function failed: $func"
-		done
+		.call defer
 
 		if [[ -v _defer_clean_ ]] && [[ "${#_defer_clean_[@]}" -gt 0 ]]; then
 			rm -rf -- "${_defer_clean_[@]}"
 		fi
 
-		! .callable defer.late || defer.late
-
 		builtin trap - EXIT
 
-		if [[ $SIG = INT ]] || [[ $SIG = QUIT ]]; then
-			builtin trap - "$SIG"; kill -s "$SIG" "$$"
+		if [[ $SIGNAL = INT ]] || [[ $SIGNAL = QUIT ]]; then
+			builtin trap - "$SIGNAL"; kill -s "$SIGNAL" "$$"
 		fi
 
 		return "$ERR"
@@ -3452,86 +3465,12 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['zip unpack']='zip:unpack'
 	)
 
-	.source() {
-		echo "_SELF=$(self.path)"
-		echo
-		sed 's/^\t\t//' <<'EOF'
-		# shellcheck disable=2034,2128
-		.prelude() {
-			set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
-
-			export LC_ALL=C.UTF-8 LANG=C.UTF-8
-
-			declare -ag PROGNAME=("${0##*/}") # Program name
-
-			declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
-		}
-
-		.prelude
-
-		declare -gr _SELF=$_SELF
-
-		._() {
-			case ${1:-} in
-			-root)
-				[[ ${EUID:-} -eq 0 ]] || { echo >&2 'Root privileges required.'; exit 1; }
-				shift
-				;;
-			esac
-
-			_.die() {
-				"$_SELF" die "$@"; exit $?
-			}
-
-			_.cry() {
-				"$_SELF" cry "$@"
-			}
-
-			_.bye() {
-				"$_SELF" bye "$@"; exit $?
-			}
-
-			_.bug() {
-				"$_SELF" bug "$@"; exit $?
-			}
-
-			_.must() {
-				"$_SELF" must "$@" || exit $?
-			}
-
-			_.enter() {
-				local dir
-
-				if dir=$("$_SELF" enter "$@") && [[ -n $dir ]]; then
-					pushd "$dir" &>/dev/null || exit
-				fi
-			}
-
-			_.leave() {
-				popd &>/dev/null || exit
-			}
-
-			unset -f "${FUNCNAME[0]}"
-		}
-
-		_() {
-			local cmd=$1
-
-			case $cmd in
-			die|cry|bye|bug|must|enter|leave) shift; _."$cmd" "$@" ;;
-			*)                                       "$_SELF" "$@" ;;
-			esac
-		}
-
-		._ "$@"
-EOF
-	}
-
 	# main - Application
 
 	.usage() {
 		# shellcheck disable=2128
-		.say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
+		.say "Usage: $PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
+		.say ""
 		.say "Commands:"
 
 		local cmd
@@ -3620,15 +3559,85 @@ EOF
 		"$fun" "${args[@]}"
 	}
 
-	.init
-
-	.main() {
+	main() {
 		if ! .interactive && [[ $# -eq 0 ]]; then
-			.source
+			echo "_SELF=$(self.path)"
+			echo
+			sed 's/^\t\t//' <<'EOF'
+		# shellcheck disable=2034,2128
+		.prelude() {
+			set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+
+			export LC_ALL=C.UTF-8 LANG=C.UTF-8
+
+			declare -ag PROGNAME=("${0##*/}") # Program name
+
+			declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
+		}
+
+		.prelude
+
+		declare -gr _SELF=$_SELF
+
+		._() {
+			case ${1:-} in
+			-root)
+				[[ ${EUID:-} -eq 0 ]] || { echo >&2 'Root privileges required.'; exit 1; }
+				shift
+				;;
+			esac
+
+			_.die() {
+				"$_SELF" die "$@"; exit $?
+			}
+
+			_.cry() {
+				"$_SELF" cry "$@"
+			}
+
+			_.bye() {
+				"$_SELF" bye "$@"; exit $?
+			}
+
+			_.bug() {
+				"$_SELF" bug "$@"; exit $?
+			}
+
+			_.must() {
+				"$_SELF" must "$@" || exit $?
+			}
+
+			_.enter() {
+				local dir
+
+				if dir=$("$_SELF" enter "$@") && [[ -n $dir ]]; then
+					pushd "$dir" &>/dev/null || exit
+				fi
+			}
+
+			_.leave() {
+				popd &>/dev/null || exit
+			}
+
+			unset -f "${FUNCNAME[0]}"
+		}
+
+		_() {
+			local cmd=$1
+
+			case $cmd in
+			die|cry|bye|bug|must|enter|leave) shift; _."$cmd" "$@" ;;
+			*)                                       "$_SELF" "$@" ;;
+			esac
+		}
+
+		._ "$@"
+EOF
 		else
+			.call init
 			.dispatch "$@"
 		fi
 	}
 
-	.main "$@"
+	main "$@"
 fi

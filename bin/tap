@@ -84,31 +84,6 @@
 	return 0
 }
 
-.init() {
-	local -a _init_funcs_
-
-	mapfile -t _init_funcs_ < <(
-		shopt -s extdebug
-
-		declare -F | grep 'declare -f init[.]' | awk '{ print $3 }' |
-		while read -r func; do declare -F "$func"; done |
-		sort -t' ' -k2 -n | awk '
-			$1 !~ /init[.]early|init[.]late/ {
-				print $1
-			}
-		'
-	)
-
-	! .callable init.early || init.early
-
-	local func
-	for func in "${_init_funcs_[@]}"; do
-		"$func" || .cry "Init function failed: $func"
-	done
-
-	! .callable init.late || init.late
-}
-
 .interactive() {
 	[[   -t 1 ]]
 }
@@ -840,7 +815,8 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 	.usage() {
 		# shellcheck disable=2128
-		.say "$PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
+		.say "Usage: $PROGNAME COMMAND... [-FLAG=VALUE...] [ARGS]"
+		.say ""
 		.say "Commands:"
 
 		local cmd
@@ -929,11 +905,9 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		"$fun" "${args[@]}"
 	}
 
-	.init
-
-	.main() {
+	main() {
 		.dispatch "$@"
 	}
 
-	.main "$@"
+	main "$@"
 fi
