@@ -3441,75 +3441,75 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		if ! .interactive && [[ $# -eq 0 ]]; then
 			echo "_SELF=$(self.path)"
 			echo
-			sed 's/^\t\t//' <<'EOF'
-		# shellcheck disable=2034,2128
-		.prelude() {
-			set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+			sed 's/^\t\t\t\t//' <<'EOF'
+				# shellcheck disable=2034,2128
+				.prelude() {
+					set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
 
-			export LC_ALL=C.UTF-8 LANG=C.UTF-8
+					export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-			declare -ag PROGNAME=("${0##*/}") # Program name
+					declare -ag PROGNAME=("${0##*/}") # Program name
 
-			declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
-		}
+					declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
+				}
 
-		.prelude
+				.prelude
 
-		declare -gr _SELF=$_SELF
+				declare -gr _SELF=$_SELF
 
-		._() {
-			case ${1:-} in
-			-root)
-				[[ ${EUID:-} -eq 0 ]] || { echo >&2 'Root privileges required.'; exit 1; }
-				shift
-				;;
-			esac
+				._() {
+					case ${1:-} in
+					-root)
+						[[ ${EUID:-} -eq 0 ]] || { echo >&2 'Root privileges required.'; exit 1; }
+						shift
+						;;
+					esac
 
-			_.die() {
-				"$_SELF" die "$@"; exit $?
-			}
+					_.die() {
+						"$_SELF" die "$@"; exit $?
+					}
 
-			_.cry() {
-				"$_SELF" cry "$@"
-			}
+					_.cry() {
+						"$_SELF" cry "$@"
+					}
 
-			_.bye() {
-				"$_SELF" bye "$@"; exit $?
-			}
+					_.bye() {
+						"$_SELF" bye "$@"; exit $?
+					}
 
-			_.bug() {
-				"$_SELF" bug "$@"; exit $?
-			}
+					_.bug() {
+						"$_SELF" bug "$@"; exit $?
+					}
 
-			_.must() {
-				"$_SELF" must "$@" || exit $?
-			}
+					_.must() {
+						"$_SELF" must "$@" || exit $?
+					}
 
-			_.enter() {
-				local dir
+					_.enter() {
+						local dir
 
-				if dir=$("$_SELF" enter "$@") && [[ -n $dir ]]; then
-					pushd "$dir" &>/dev/null || exit
-				fi
-			}
+						if dir=$("$_SELF" enter "$@") && [[ -n $dir ]]; then
+							pushd "$dir" &>/dev/null || exit
+						fi
+					}
 
-			_.leave() {
-				popd &>/dev/null || exit
-			}
+					_.leave() {
+						popd &>/dev/null || exit
+					}
 
-			unset -f "${FUNCNAME[0]}"
-		}
+					unset -f "${FUNCNAME[0]}"
+				}
 
-		_() {
-			local cmd=$1
+				_() {
+					local cmd=$1
 
-			case $cmd in
-			die|cry|bye|bug|must|enter|leave) shift; _."$cmd" "$@" ;;
-			*)                                       "$_SELF" "$@" ;;
-			esac
-		}
+					case $cmd in
+					die|cry|bye|bug|must|enter|leave) shift; _."$cmd" "$@" ;;
+					*)                                       "$_SELF" "$@" ;;
+					esac
+				}
 
-		._ "$@"
+				._ "$@"
 EOF
 		else
 			.callback init

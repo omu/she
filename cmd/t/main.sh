@@ -21,16 +21,16 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		if ! .interactive && [[ $# -eq 0 ]]; then
 			echo "readonly _SELF=$(self.path)"
 			echo
-			sed 's/^\t\t//' <<'EOF'
-			#=github.com/omu/home/src/sh/!.sh
+			sed 's/^\t\t\t\t//' <<'EOF'
+				#=github.com/omu/home/src/sh/!.sh
 
-			#=github.com/omu/home/src/sh/assert.sh
-			#=github.com/omu/home/src/sh/defer.sh
-			#=github.com/omu/home/src/sh/temp.sh: temp.dir temp.clean
+				#=github.com/omu/home/src/sh/assert.sh
+				#=github.com/omu/home/src/sh/defer.sh
+				#=github.com/omu/home/src/sh/temp.sh: temp.dir temp.clean
 
-			#:cmd/t/t.sh
+				#:cmd/t/t.sh
 
-			#:cmd/t/source.sh
+				#:cmd/t/source.sh
 EOF
 		else
 			.dispatch "$@"

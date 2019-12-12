@@ -53,9 +53,9 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		if ! .interactive && [[ $# -eq 0 ]]; then
 			echo "_SELF=$(self.path)"
 			echo
-			sed 's/^\t\t//' <<'EOF'
-		#=github.com/omu/home/src/sh/!.sh: .prelude+
-		#:cmd/_/source.sh
+			sed 's/^\t\t\t\t//' <<'EOF'
+				#=github.com/omu/home/src/sh/!.sh: .prelude+
+				#:cmd/_/source.sh
 EOF
 		else
 			.callback init
