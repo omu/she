@@ -2,6 +2,7 @@
 
 #=github.com/omu/home/src/sh/assert.sh
 #=github.com/omu/home/src/sh/color.sh
+#=github.com/omu/home/src/sh/callback.sh
 #=github.com/omu/home/src/sh/defer.sh
 #=github.com/omu/home/src/sh/flag.sh
 #=github.com/omu/home/src/sh/self.sh

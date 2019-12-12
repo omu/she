@@ -12,6 +12,33 @@
 	.available "$@"
 }
 
+# TODO
+:call() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-expiry]=-1
+		[-prefix]=$_RUN
+
+		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL [ARG]...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	# shellcheck disable=2128
+	local url=$1
+	shift
+
+	local -A src=([url]="$url" [root]="${_[-prefix]}" [expiry]="${_[-expiry]}")
+
+	src.get src
+
+	local dst=${src[cache]}
+	[[ -z ${src[inpath]} ]] || dst=$dst/${src[inpath]}
+
+	:run "$dst" "$@"
+}
+
 # Return if first argument found in remaining arguments
 :contains() {
 	local -A _=(
@@ -24,26 +51,25 @@
 	.contains "$@"
 }
 
-# Enter to directory/URL
+# TODO
 :enter() {
+	# shellcheck disable=2192
 	local -A _=(
-		[.help]='DIR|URL'
+		[-expiry]=-1
+		[-prefix]=$_RUN
+
+		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL'
 		[.argc]=1
 	)
 
-	flag.peek
+	flag.parse
 
 	local url=$1
+	shift
 
-	local kind=
-	url.kind "$url" kind
+	local -A src=([url]="$url" [root]="${_[-prefix]}" [expiry]="${_[-expiry]}")
 
-	# shellcheck disable=2153
-	case $kind in
-	src) .redirect src  enter "${ARGV[@]}"  ;;
-	non) .redirect file enter "${ARGV[@]}"  ;;
-	*)   .die "Unsupported URL kind: $kind" ;;
-	esac
+	src.enter src
 }
 
 # Return if any of the files expired
@@ -60,28 +86,6 @@
 	.expired "${_[-expiry]}" "$@"
 }
 
-# Enter to directory/URL and run command
-:inside() {
-	local -A _=(
-		[.help]='DIR|URL COMMAND [ARGS]...'
-		[.argc]=2-
-	)
-
-	flag.peek
-
-	local url=$1
-
-	local kind=
-	url.kind "$url" kind
-
-	# shellcheck disable=2153
-	case $kind in
-	src) .redirect src  inside "${ARGV[@]}"  ;;
-	non) .redirect file inside "${ARGV[@]}"  ;;
-	*)   .die "Unsupported URL kind: $kind" ;;
-	esac
-}
-
 # Ensure the given command succeeds
 :must() {
 	local -A _=(
@@ -93,28 +97,6 @@
 	flag.parse
 
 	.must "$@"
-}
-
-# Try to run file or URL
-:run() {
-	local -A _=(
-		[.help]='FILE|URL'
-		[.argc]=1
-	)
-
-	flag.peek
-
-	local url=$1
-
-	local kind=
-	url.kind "$url" kind
-
-	# shellcheck disable=2153
-	case $kind in
-	web) .redirect web  run "${ARGV[@]}" ;;
-	src) .redirect src  run "${ARGV[@]}" ;;
-	non) .redirect file run "${ARGV[@]}" ;;
-	esac
 }
 
 # Ignore error if the given command fails
@@ -130,9 +112,47 @@
 	.should "$@"
 }
 
+# TODO
+:run() {
+	# shellcheck disable=2192
+	local -A _=(
+		[.help]='FILE|DIR [ARG]...'
+		[.argc]=2-
+	)
+
+	flag.parse
+	:
+}
+
+# TODO
+:with() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-expiry]=-1
+		[-prefix]=$_RUN
+
+		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL COMMAND [ARG]...'
+		[.argc]=2-
+	)
+
+	flag.parse
+
+	# shellcheck disable=2128
+	local url=$1 old_pwd=$PWD
+	shift
+
+	local -A src=([url]="$url" [root]="${_[-prefix]:-}" [expiry]="${_[-expiry]:-}")
+
+	src.enter src
+
+	"$@" "${src[cache]}"
+
+	.must cd "$old_pwd"
+}
+
 # cmd/_ - Init
 
-_:init_() {
+init.early_() {
 	# Default variable as a hash
 	declare -gA _=()
 
@@ -154,8 +174,4 @@ _:init_() {
 	fi
 
 	export PATH="$_RUN"/bin:"$PATH"
-
-	unset -f "${FUNCNAME[0]}"
 }
-
-_:init_

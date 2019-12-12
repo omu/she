@@ -13,7 +13,11 @@ bin:install() {
 
 	flag.parse
 
-	bin:install_ "$@"
+	# shellcheck disable=2128
+	local url=$1
+	shift
+
+	bin.install- "$url" "${_[-prefix]}" "${_[-name]:-}"
 }
 
 # Use program by installing to a volatile path
@@ -29,69 +33,39 @@ bin:use() {
 
 	flag.parse
 
-	bin:install_ "$@"
+	# shellcheck disable=2128
+	local url=$1
+	shift
+
+	bin.install- "$url" "${_[-prefix]}" "${_[-name]:-}"
 }
 
-# bin - Protected functions
+# bin - Private functions
 
-bin:install_() {
-	local url="${1?${FUNCNAME[0]}: missing argument}"; shift
+bin.install-() {
+	local url="${1?${FUNCNAME[0]}: missing argument}";    shift
+	local prefix="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local name=${1:-}
 
-	# shellcheck disable=1007
-	local bin= temp_bin_file= temp_bin_dir=
+	local -A bin=([url]="$url" [root]="$_RUN" [expiry]=-1)
 
-	if url.is "$url" web; then
-		file.download "$url" temp_bin_file
-		bin=$temp_bin_file
-	elif url.is "$url" non; then
-		bin=$url
-	else
-		.die "Unsupported URL: $url"
-	fi
-
-	if filetype.compressed "$bin"; then
-		temp.dir temp_bin_dir
-
-		zip:unpack -force=true "$bin" "$temp_bin_dir"
-		bin=$temp_bin_dir
-	fi
+	src.get bin
 
 	local -a bins=()
-	bin:inspect_ "$bin" bins
+	filetype.runnables "${bin[cache]}" bins
 
-	[[ -n ${_[-mode]:-} ]] || _[-mode]=755
+	[[ ${#bins[@]} -gt 0 ]] || .die "No program found: $url"
 
-	if [[ ${#bins[@]} -eq 1 ]]; then
-		local src=${bins[0]} dst=${_[-name]:-}
-
-		file:install_ "$src" "$dst"
-	elif [[ ${#bins[@]} -gt 1 ]]; then
-		[[ -n ${_[-name]:-} ]] || .die "Ambiguous usage of name argument: ${_[-name]}"
-
-		local src
-		for src in "${bins[@]}"; do
-			file:install_ "$src"
-		done
-	else
-		.die "No program found: $url"
+	if [[ -n $name ]] && [[ ${#bins[@]} -gt 1 ]]; then
+		.die "Ambiguous usage of name option: $name"
 	fi
 
-	temp.clean temp_bin_file temp_bin_dir
-}
+	local src
+	for src in "${bins[@]}"; do
+		[[ -z $name ]] || name=${src##*/}
 
-# cmd/bin - Protected functions
+		file.cp "$src" "$prefix"/"$name" 0755
+	done
 
-bin:inspect_() {
-	local    bin=${1?${FUNCNAME[0]}: missing argument};          shift
-	local -n bin_inspect_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	if [[ -d $bin ]]; then
-		local file
-		for file in "$bin"/*; do
-			filetype.runnable "$file" || continue
-			bin_inspect_+=("$file")
-		done
-	elif filetype.runnable "$bin"; then
-		bin_inspect_+=("$bin")
-	fi
+	src.del bin
 }
