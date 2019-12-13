@@ -18,7 +18,7 @@ http:any() {
 	local code
 
 	for code; do
-		http:is_ "$response" "$code"
+		http:is- "$response" "$code"
 	done
 }
 
@@ -48,12 +48,12 @@ http:is() {
 	local response
 	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
 
-	http:is_ "$response" "$code"
+	http:is- "$response" "$code"
 }
 
 # cmd/http - Protected functions
 
-http:is_() {
+http:is-() {
 	local response=${1?${FUNCNAME[0]}: missing argument}; shift
 	local code=${1?${FUNCNAME[0]}: missing argument};     shift
 

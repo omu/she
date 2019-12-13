@@ -2176,7 +2176,7 @@ deb:add() {
 
 	flag.parse
 
-	deb:add_
+	deb:add-
 }
 
 # Install Debian packages
@@ -2199,7 +2199,7 @@ deb:install() {
 
 	flag.parse
 
-	deb:install_ "$@"
+	deb:install- "$@"
 }
 
 # Print missing packages among given packages
@@ -2255,12 +2255,12 @@ deb:using() {
 
 	flag.parse
 
-	deb:using_ "$@"
+	deb:using- "$@"
 }
 
 # deb - Protected functions
 
-deb:add_() {
+deb:add-() {
 	local repository=${_[repository]:-}
 
 	[[ -n $repository ]] || .bug "Undefined repository."
@@ -2275,7 +2275,7 @@ deb:add_() {
 	.getting 'Updating package index' apt-get update -y
 }
 
-deb:install_() {
+deb:install-() {
 	[[ $# -gt 0 ]] || return 0
 
 	if [[ -n ${_[repository]:-} ]]; then
@@ -2320,7 +2320,7 @@ deb:install_() {
 
 		if [[ -n ${target:-} ]]; then
 			.hmm "Using $target"
-			deb:using_ "$target"
+			deb:using- "$target"
 
 			opts+=(
 				--target-release
@@ -2333,7 +2333,7 @@ deb:install_() {
 	deb.install_manual "${urls[@]}"
 }
 
-deb:using_() {
+deb:using-() {
 	local dist
 	for dist; do
 		case $dist in
@@ -2344,7 +2344,7 @@ deb:using_() {
 			;;
 		esac
 
-		deb.dist_added "$dist" || deb:add_ repository="$dist" deb="http://ftp.debian.org/debian $dist main contrib non-free"
+		deb.dist_added "$dist" || deb:add- repository="$dist" deb="http://ftp.debian.org/debian $dist main contrib non-free"
 	done
 }
 
@@ -2408,7 +2408,7 @@ filetype:any() {
 
 	local type
 	for type; do
-		if filetype:is_ "$type"; then
+		if filetype:is- "$type"; then
 			return 0
 		fi
 	done
@@ -2429,7 +2429,7 @@ filetype:is() {
 
 	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
 
-	filetype:is_ "$@"
+	filetype:is- "$@"
 }
 
 # Print mime type
@@ -2454,7 +2454,7 @@ filetype:mime() {
 
 # filetype - Protected functions
 
-filetype:is_() {
+filetype:is-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 	local type=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -2465,11 +2465,11 @@ filetype:is_() {
 	"$func" "$file" "$@"
 }
 
-filetype:shebang_() {
+filetype:shebang-() {
 	local    file=${1?${FUNCNAME[0]}: missing argument}; shift
 	local -n filetype_shebang_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	filetype:is:interpretable_ "$file" || return 1
+	filetype:is:interpretable- "$file" || return 1
 
 	# shellcheck disable=2034
 	local filetype_shebang_string
@@ -2484,7 +2484,7 @@ filetype:shebang_() {
 
 # cmd/filetype - Protected functions
 
-filetype:is:compressed_() {
+filetype:is:compressed-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local mime; mime=$(file --mime-type --brief "$file")
@@ -2505,23 +2505,23 @@ filetype:is:compressed_() {
 	esac
 }
 
-filetype:is:executable_() {
+filetype:is:executable-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	filetype:is:runnable_ "$file" || return 1
+	filetype:is:runnable- "$file" || return 1
 
 	[[ ${_[.file.runnable]:-} = binary ]]
 }
 
-filetype:is:interpretable_() {
+filetype:is:interpretable-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	filetype:is:runnable_ "$file" || return 1
+	filetype:is:runnable- "$file" || return 1
 
 	[[ ${_[.file.runnable]:-} = script ]]
 }
 
-filetype:is:mime_() {
+filetype:is:mime-() {
 	local file=${1?${FUNCNAME[0]}: missing argument};     shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -2537,7 +2537,7 @@ filetype:is:mime_() {
 	[[ $mime = "$expected" ]]
 }
 
-filetype:is:runnable_() {
+filetype:is:runnable-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local mime encoding
@@ -2628,7 +2628,7 @@ http:any() {
 	local code
 
 	for code; do
-		http:is_ "$response" "$code"
+		http:is- "$response" "$code"
 	done
 }
 
@@ -2658,12 +2658,12 @@ http:is() {
 	local response
 	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
 
-	http:is_ "$response" "$code"
+	http:is- "$response" "$code"
 }
 
 # cmd/http - Protected functions
 
-http:is_() {
+http:is-() {
 	local response=${1?${FUNCNAME[0]}: missing argument}; shift
 	local code=${1?${FUNCNAME[0]}: missing argument};     shift
 

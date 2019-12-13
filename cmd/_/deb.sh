@@ -17,7 +17,7 @@ deb:add() {
 
 	flag.parse
 
-	deb:add_
+	deb:add-
 }
 
 # Install Debian packages
@@ -40,7 +40,7 @@ deb:install() {
 
 	flag.parse
 
-	deb:install_ "$@"
+	deb:install- "$@"
 }
 
 # Print missing packages among given packages
@@ -96,12 +96,12 @@ deb:using() {
 
 	flag.parse
 
-	deb:using_ "$@"
+	deb:using- "$@"
 }
 
 # deb - Protected functions
 
-deb:add_() {
+deb:add-() {
 	local repository=${_[repository]:-}
 
 	[[ -n $repository ]] || .bug "Undefined repository."
@@ -116,7 +116,7 @@ deb:add_() {
 	.getting 'Updating package index' apt-get update -y
 }
 
-deb:install_() {
+deb:install-() {
 	[[ $# -gt 0 ]] || return 0
 
 	if [[ -n ${_[repository]:-} ]]; then
@@ -161,7 +161,7 @@ deb:install_() {
 
 		if [[ -n ${target:-} ]]; then
 			.hmm "Using $target"
-			deb:using_ "$target"
+			deb:using- "$target"
 
 			opts+=(
 				--target-release
@@ -174,7 +174,7 @@ deb:install_() {
 	deb.install_manual "${urls[@]}"
 }
 
-deb:using_() {
+deb:using-() {
 	local dist
 	for dist; do
 		case $dist in
@@ -185,7 +185,7 @@ deb:using_() {
 			;;
 		esac
 
-		deb.dist_added "$dist" || deb:add_ repository="$dist" deb="http://ftp.debian.org/debian $dist main contrib non-free"
+		deb.dist_added "$dist" || deb:add- repository="$dist" deb="http://ftp.debian.org/debian $dist main contrib non-free"
 	done
 }
 

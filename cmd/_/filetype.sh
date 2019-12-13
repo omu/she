@@ -17,7 +17,7 @@ filetype:any() {
 
 	local type
 	for type; do
-		if filetype:is_ "$type"; then
+		if filetype:is- "$type"; then
 			return 0
 		fi
 	done
@@ -38,7 +38,7 @@ filetype:is() {
 
 	local file=$1; .must "No such file: $file" [[ -f "$file" ]]
 
-	filetype:is_ "$@"
+	filetype:is- "$@"
 }
 
 # Print mime type
@@ -63,7 +63,7 @@ filetype:mime() {
 
 # filetype - Protected functions
 
-filetype:is_() {
+filetype:is-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 	local type=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -74,11 +74,11 @@ filetype:is_() {
 	"$func" "$file" "$@"
 }
 
-filetype:shebang_() {
+filetype:shebang-() {
 	local    file=${1?${FUNCNAME[0]}: missing argument}; shift
 	local -n filetype_shebang_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	filetype:is:interpretable_ "$file" || return 1
+	filetype:is:interpretable- "$file" || return 1
 
 	# shellcheck disable=2034
 	local filetype_shebang_string
@@ -93,7 +93,7 @@ filetype:shebang_() {
 
 # cmd/filetype - Protected functions
 
-filetype:is:compressed_() {
+filetype:is:compressed-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local mime; mime=$(file --mime-type --brief "$file")
@@ -114,23 +114,23 @@ filetype:is:compressed_() {
 	esac
 }
 
-filetype:is:executable_() {
+filetype:is:executable-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	filetype:is:runnable_ "$file" || return 1
+	filetype:is:runnable- "$file" || return 1
 
 	[[ ${_[.file.runnable]:-} = binary ]]
 }
 
-filetype:is:interpretable_() {
+filetype:is:interpretable-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	filetype:is:runnable_ "$file" || return 1
+	filetype:is:runnable- "$file" || return 1
 
 	[[ ${_[.file.runnable]:-} = script ]]
 }
 
-filetype:is:mime_() {
+filetype:is:mime-() {
 	local file=${1?${FUNCNAME[0]}: missing argument};     shift
 	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -146,7 +146,7 @@ filetype:is:mime_() {
 	[[ $mime = "$expected" ]]
 }
 
-filetype:is:runnable_() {
+filetype:is:runnable-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local mime encoding
