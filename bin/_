@@ -608,9 +608,9 @@ file.chmog() {
 	local mode owner group
 	IFS=: read -r mode owner group <<<"$mog"
 
-	[[ -z ${mode:-}  ]] || .must chmod "$mode"
-	[[ -z ${owner:-} ]] || .must chown "$owner"
-	[[ -z ${group:-} ]] || .must chgrp "$group"
+	[[ -z ${mode:-}  ]] || .must -- chmod "$mode"
+	[[ -z ${owner:-} ]] || .must -- chown "$owner"
+	[[ -z ${group:-} ]] || .must -- chgrp "$group"
 }
 
 file.cp() {
@@ -619,7 +619,7 @@ file.cp() {
 	local mog=${1:-}
 
 	local dir=${dst%/*}
-	[[ -d $dir ]] || .must mkdir -p "$dir"
+	[[ -d $dir ]] || .must -- mkdir -p "$dir"
 
 	cp -a "$src" "$dst"
 
@@ -664,7 +664,7 @@ file.ln() {
 	local mog=${1:-}
 
 	local dir=${dst%/*}
-	[[ -d $dir ]] || .must mkdir -p "$dir"
+	[[ -d $dir ]] || .must -- mkdir -p "$dir"
 
 	src=$(realpath -m --relative-base "${dst%/*}" "$src")
 	.must -- ln -sf "$src" "$dst"
@@ -678,7 +678,7 @@ file.cp() {
 	local mog=${1:-}
 
 	local dir=${dst%/*}
-	[[ -d $dir ]] || .must mkdir -p "$dir"
+	[[ -d $dir ]] || .must -- mkdir -p "$dir"
 
 	mv -f "$src" "$dst"
 
@@ -1076,7 +1076,7 @@ git.clone() {
 		"$ref"
 	)
 
-	.must git clone "${options[@]}" "$src" "$dst"
+	.must -- git clone "${options[@]}" "$src" "$dst"
 
 	if [[ -n ${ref:-} ]] && git.ref.is "$ref" tag; then
 		git.set.immutable true
@@ -1137,19 +1137,19 @@ git.ref.is() {
 git.reset() {
 	local repo=${1:-.}
 
-	.must git -C "$repo" --reset hard
+	.must -- git -C "$repo" --reset hard
 }
 
 git.set.immutable() {
 	local repo=${1:-.}
 
-	.must git -C "$repo" config --type bool core.x-immutable true
+	.must -- git -C "$repo" config --type bool core.x-immutable true
 }
 
 git.set.mutable() {
 	local repo=${1:-.}
 
-	.must git -C "$repo" config --type bool core.x-immutable false
+	.must -- git -C "$repo" config --type bool core.x-immutable false
 }
 
 git.switch() {
@@ -1158,7 +1158,7 @@ git.switch() {
 
 	[[ -n $branch ]] || branch=$(git.default-branch "$repo")
 
-	.must git -C "$repo" checkout --quiet "$branch"
+	.must -- git -C "$repo" checkout --quiet "$branch"
 }
 
 git.top() {
@@ -1176,21 +1176,21 @@ git.topdir() {
 		local d
 		[[ -d $path ]] || d=${path%/*}
 
-		.must pushd "$d" &>/dev/null
+		.must -- pushd "$d" &>/dev/null
 	fi
 
 	local dir
 	dir=$(git rev-parse --git-dir) && dir=$(cd "$dir" && pwd)/ && echo "${dir%%/.git/*}"
 
 	if [[ -n $path ]]; then
-		.must popd &>/dev/null
+		.must -- popd &>/dev/null
 	fi
 }
 
 git.update() {
 	local repo=${1:-.}
 
-	git.is "$repo" immutable || .must git pull -q
+	git.is "$repo" immutable || .must -- git pull -q
 }
 
 # Private functions
@@ -1909,24 +1909,18 @@ zip.prep_unzip_() {
 
 # src.sh - Source cache management
 
-src.purge() {
-	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	src.sanitize- _src_
-	src.purge-
-}
-
 src.del() {
 	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src.rm-
+	src.planned- && src.rm-
 }
 
 src.enter() {
 	# shellcheck disable=2034
 	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src.get-
+	src.plan _src_ && src.apply-
+
 	src.enter-
 }
 
@@ -1934,7 +1928,7 @@ src.get() {
 	# shellcheck disable=2034
 	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src.get-
+	src.plan _src_ && src.apply-
 }
 
 src.plan() {
@@ -1942,6 +1936,12 @@ src.plan() {
 	local -n _src_plan_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	src.calculate- _src_plan_
+}
+
+src.purge() {
+	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	src.planned- && src.purge-
 }
 
 # Private functions
@@ -1956,34 +1956,50 @@ src.apply-() {
 	fi
 }
 
-src.enter-() {
-	[[ -d ${_src_[cache]} ]] || return 0
-	.must "${_src_[cache]}"
+# shellcheck disable=2154
+src.calculate-() {
+	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ -d ${_src_[inpath]} ]] || return 0
-	.must "${_src_[inpath]}"
+	[[ -n ${_src_[url]:-}    ]] || .bug "Cache URL missing"
+	[[ -n ${_src_[root]:-}   ]] || .bug "Cache root missing for URL: ${_src_[url]}"
+	[[ -n ${_src_[expiry]:-} ]] || .bug "Cache expiry missing for URL: ${_src_[url]}"
+
+	local url=${_src_[url]} class domain id inpath name ref scheme source
+
+	url.parse "$url" class domain id inpath name ref scheme source
+
+	_src_[class]=${class:-none}; _src_[domain]=$domain
+	_src_[id]=$id;               _src_[inpath]=$inpath;
+	_src_[name]=$name;           _src_[ref]=$ref
+	_src_[scheme]=$scheme;       _src_[source]=$source
+
+	_src_[caches]=${_src_[root]}/src;           _src_[interims]=${_src_[root]}/tmp
+	_src_[cache]=${_src_[caches]}/${_src_[id]}; _src_[interim]=${_src_[interims]}/${_src_[id]}
 }
 
-src.get-() {
-	src.plan _src_
-	src.apply-
+src.enter-() {
+	[[ -d ${_src_[cache]} ]] || return 0
+	.must -- cd "${_src_[cache]}"
+
+	[[ -d ${_src_[inpath]} ]] || return 0
+	.must -- cd "${_src_[inpath]}"
 }
 
 src.init-() {
-	[[ -d ${_src_[caches]}   ]] || .must mkdir -p "${_src_[caches]}"
-	[[ -d ${_src_[interims]} ]] || .must mkdir -p "${_src_[interims]}"
-}
-
-src.mv-() {
-	[[ -e ${_src_[interim]} ]] || return 0
-
-	src.rm- && mv "${_src_[interim]}" "${_src_[cache]}"
+	[[ -d ${_src_[caches]}   ]] || .must -- mkdir -p "${_src_[caches]}"
+	[[ -d ${_src_[interims]} ]] || .must -- mkdir -p "${_src_[interims]}"
 }
 
 src.ln-() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	src.rm- && ln -sf "$dst" "${_src_[cache]}"
+}
+
+src.mv-() {
+	[[ -e ${_src_[interim]} ]] || return 0
+
+	src.rm- && mv "${_src_[interim]}" "${_src_[cache]}"
 }
 
 src.new-() {
@@ -1998,6 +2014,17 @@ src.new-() {
 	fi
 
 	touch "${_src_[cache]}"
+}
+
+src.ok-() {
+	[[ -e ${_src_[cache]} ]] || return 1
+
+	.expired "${_src_[expiry]}" "${_src_[cache]}"
+}
+
+src.planned-() {
+	[[ -n ${_src_[cache]:-}   ]] || .bug "Unplanned cache: ${_src_[url]}"
+	[[ -n ${_src_[interim]:-} ]] || .bug "Unplanned interim: ${_src_[url]}"
 }
 
 src.purge-() {
@@ -2019,37 +2046,6 @@ src.renew-() {
 
 src.rm-() {
 	rm -rf "${_src_[cache]}"
-}
-
-src.ok-() {
-	[[ -e ${_src_[cache]} ]] || return 1
-
-	.expired "${_src_[expiry]}" "${_src_[cache]}"
-}
-
-src.calculate-() {
-	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	src.sanitize- _src_
-
-	local url=${_src_[url]} class domain id inpath name ref scheme source
-
-	url.parse "$url" class id inpath ref scheme source
-
-	_src_[class]=${class:-none};                _src_[domain]=$domain
-	_src_[id]=$id;                              _src_[inpath]=$inpath;
-	_src_[name]=$name;                          _src_[ref]=$ref
-	_src_[scheme]=$scheme;                      _src_[source]=$source
-	_src_[caches]=${_src_[root]}/src;           _src_[interims]=${_src_[root]}/tmp
-	_src_[cache]=${_src_[caches]}/${_src_[id]}; _src_[interim]=${_src_[interims]}/${_src_[id]}
-}
-
-src.sanitize-() {
-	local -n _src_sanitize_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ -n ${_src_sanitize_[url]:-}    ]] || .bug "Cache URL missing"
-	[[ -n ${_src_sanitize_[root]:-}   ]] || .bug "Cache root missing for URL: ${_src_sanitize_[url]}"
-	[[ -n ${_src_sanitize_[expiry]:-} ]] || .bug "Cache expiry missing for URL: ${_src_sanitize_[url]}"
 }
 
 # Git
@@ -2857,7 +2853,7 @@ self:src() {
 
 	flag.parse
 
-	.must "$@"
+	.must -- "$@"
 }
 
 # Ignore error if the given command fails
@@ -2908,7 +2904,7 @@ self:src() {
 
 	"$@" "${src[cache]}"
 
-	.must cd "$old_pwd"
+	.must -- cd "$old_pwd"
 }
 
 # cmd/_ - Init

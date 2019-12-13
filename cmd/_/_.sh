@@ -96,7 +96,7 @@
 
 	flag.parse
 
-	.must "$@"
+	.must -- "$@"
 }
 
 # Ignore error if the given command fails
@@ -147,7 +147,7 @@
 
 	"$@" "${src[cache]}"
 
-	.must cd "$old_pwd"
+	.must -- cd "$old_pwd"
 }
 
 # cmd/_ - Init
