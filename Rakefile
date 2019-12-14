@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-BIN = %w[_ t tap].freeze
+BIN = %w[_ t x tap].freeze
 
 desc 'Build'
 task :build do

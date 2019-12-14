@@ -1,0 +1,1537 @@
+#!/usr/bin/env bash
+
+[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
+[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
+
+# Protected functions
+
+.available() {
+	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
+}
+
+.bug() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "BUG: $*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 127
+}
+
+.bye() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "$*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 0
+}
+
+.callable() {
+	[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
+}
+
+.contains() {
+	: "${1?${FUNCNAME[0]}: missing argument}"
+
+	local element
+
+	for element in "${@:2}"; do
+		if [[ $element = "$1" ]]; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+.cry() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "W: $*"
+	else
+		echo >&2 ""
+	fi
+}
+
+.die() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "E: $*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 1
+}
+
+.err() {
+	.out "$@" >&2
+}
+
+.expired() {
+	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $expiry -gt 0 ]] || return 1
+
+	local file
+	for file; do
+		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
+			return 1
+		fi
+	done
+
+	return 0
+}
+
+.interactive() {
+	[[   -t 1 ]]
+}
+
+.out() {
+	local arg
+
+	for arg; do
+		echo -e "$arg"
+	done
+
+	if .piped; then
+		cat
+	fi
+}
+
+.piped() {
+	[[ ! -t 0 ]]
+}
+
+.load() {
+	# shellcheck disable=2128
+	local _load_old_=$PWD
+
+	[[ -v _load_dirs_ ]] || declare -ag _load_dirs_=(
+		"$(dirname "$(readlink -f "$0")")"
+	)
+
+	local _load_src_
+
+	for _load_src_; do
+		builtin cd "${_load_dirs_[-1]}" || .die "Chdir error: ${_load_dirs_[-1]}"
+
+		local _load_src_found_
+
+		for _load_src_found_ in "$_load_src_" "$_load_src_".sh; do
+			if [[ -f $_load_src_found_ ]]; then
+				_load_src_found_=$(readlink -f "$_load_src_found_")
+
+				_load_dirs_+=("$(dirname "$_load_src_found_")")
+
+				builtin source "$_load_src_found_"
+			fi
+		done
+
+		unset _load_src_found_
+	done
+
+	unset _load_src_
+
+	builtin cd "$_load_old_" || .die "Chdir error: $_load_old_"
+	unset _load_old_
+}
+
+.must() {
+	if [[ ${1:-} = -- ]]; then
+		shift
+
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .die "Command failed: $*"
+	else
+		eval -- "${@:2}" || .die "${1?${FUNCNAME[0]}: missing argument}"
+	fi
+}
+
+.say() {
+	echo -e "${@-""}"
+}
+
+.should() {
+	if [[ ${1:-} = -- ]]; then
+		shift
+
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .cry "Exit code $? is suppressed: $*"
+	else
+		eval -- "${@:2}" || .cry "${1?${FUNCNAME[0]}: missing argument}"
+	fi
+}
+
+# Init
+
+# shellcheck disable=2034,2128
+.prelude() {
+	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+
+	export LC_ALL=C.UTF-8 LANG=C.UTF-8
+
+	declare -ag PROGNAME=("${0##*/}") # Program name
+
+	declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
+}
+
+.prelude
+
+# color.sh - Colors
+
+color.code() {
+	local name="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local code="${_color[$name]:-}"
+
+	[[ -n $code ]] || .bug "No such color: $name"
+
+	echo -en "$code"
+}
+
+color.echo() {
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local code reset
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -e "${code}${*}${reset}"
+}
+
+color.expand() {
+	while [[ $# -gt 0 ]]; do
+		local -n color_expand_=${1?missing argument}
+		shift
+
+		local key value
+		for key in "${!color_expand_[@]}"; do
+			value=${color_expand_[$key]}
+
+			color_expand_[$key]=${_color[$value]}
+		done
+	done
+}
+
+color.out() {
+	local color="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local code reset
+
+	code=$(color.code "$color")
+	reset=$(color.code reset)
+
+	echo -en "$code"
+	.out
+	echo -en "$reset"
+}
+
+color.setup() {
+	while [[ $# -gt 0 ]]; do
+		local key=${1%%=*}; value=${1#*=}
+
+		if [[ -n ${_color[$value]:-} ]]; then
+			_color[$key]=${_color[$value]}
+		else
+			_color[$key]=$value
+		fi
+
+		shift
+	done
+}
+
+# color - Init
+
+# shellcheck disable=2034
+color.init_() {
+	declare -Ag _color=(
+		# Basic colors with variants - prefix +: bold, prefix -: dim, suffix -: reverse
+
+		[black]='\e[38;5;8m'          [+black]='\e[1m\e[38;5;8m'     [-black]='\e[38;5;0m'
+		[black-]='\e[48;5;8m'         [+black-]='\e[1m\e[48;5;8m'    [-black-]='\e[48;5;0m'
+
+		[blue]='\e[38;5;12m'          [+blue]='\e[1m\e[38;5;12m'     [-blue]='\e[38;5;4m'
+		[blue-]='\e[48;5;12m'         [+blue-]='\e[1m\e[48;5;12m'    [-blue-]='\e[48;5;4m'
+
+		[cyan]='\e[38;5;14m'          [+cyan]='\e[1m\e[38;5;14m'     [-cyan]='\e[38;5;6m'
+		[cyan-]='\e[48;5;14m'         [+cyan-]='\e[1m\e[48;5;14m'    [-cyan-]='\e[48;5;6m'
+
+		[green]='\e[38;5;10m'         [+green]='\e[1m\e[38;5;10m'    [-green]='\e[38;5;2m'
+		[green-]='\e[48;5;10m'        [+green-]='\e[1m\e[48;5;10m'   [-green-]='\e[48;5;2m'
+
+		[magenta]='\e[38;5;13m'       [+magenta]='\e[1m\e[38;5;13m'  [-magenta]='\e[38;5;5m'
+		[magenta-]='\e[48;5;13m'      [+magenta-]='\e[1m\e[48;5;13m' [-magenta-]='\e[48;5;5m'
+
+		[red]='\e[38;5;9m'            [+red]='\e[1m\e[38;5;9m'       [-red]='\e[38;5;1m'
+		[red-]='\e[48;5;9m'           [+red-]='\e[1m\e[48;5;9m'      [-red-]='\e[48;5;1m'
+
+		[white]='\e[38;5;15m'         [+white]='\e[1m\e[38;5;15m'    [-white]='\e[38;5;7m'
+		[white-]='\e[48;5;15m'        [+white-]='\e[1m\e[48;5;15m'   [-white-]='\e[48;5;7m'
+
+		[yellow]='\e[38;5;11m'        [+yellow]='\e[1m\e[38;5;11m'   [-yellow]='\e[38;5;3m'
+		[yellow-]='\e[48;5;11m'       [+yellow-]='\e[1m\e[48;5;11m'  [-yellow-]='\e[48;5;3m'
+
+		# Attributes
+
+		[bold]='\e[1m'                [dark]='\e[2m'                 [underlined]='\e[4m'
+		[blink]='\e[5m'               [reverse]='\e[7m'              [reset]='\e[0m'
+
+		# Priority aliases
+		[high]='\e[1m'                [medium]=''                    [low]='\e[2m'
+	)
+}
+
+color.init_
+
+# callback.sh - Handle callback functions
+
+.callback() {
+	local group=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local -a _callback_funcs_
+
+	mapfile -t _callback_funcs_ < <(
+		shopt -s extdebug
+
+		declare -F | awk '/^declare -f '"$group"'[.]/ { print $3 }' |
+		while read -r func; do declare -F "$func"; done |
+		sort -t' ' -k2 -n | cut -f1 -d' '
+	)
+
+	local func
+
+	local -a _callback_early_ _callback_now_ _callback_late_
+
+	for func in "${_callback_funcs_[@]}"; do
+		case $func in
+		*_early|*.early_|*.early) _callback_early_+=("$func") ;;
+		*_late|*.late_|*.late)    _callback_late_+=("$func")  ;;
+		*)                        _callback_now_+=("$func")   ;;
+		esac
+	done
+
+	local failer=$group.fail
+	.callable "$failer" || failer=.callback_fail_default_
+
+	local -i err=0
+
+	for func in "${_callback_early_[@]}"; do
+		"$func" "$@" || { "$failer" "$func" "$@"; err+=1; }
+	done
+
+	for func in "${_callback_now_[@]}"; do
+		"$func" "$@" || { "$failer" "$@"; err+=1; }
+	done
+
+	for func in "${_callback_late_[@]}"; do
+		"$func" "$@" ||  { "$failer" "$@"; err+=1; }
+	done
+
+	return $err
+}
+
+# Private functions
+
+.callback_fail_default_() {
+	local func=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	case ${SIGNAL:-} in
+	INT|QUIT) return 0 ;;
+	esac
+
+	.cry "Callback failed: $func"
+}
+
+# defer.sh - Deferred functions
+
+# Register files/directories to clean up at exit
+.clean() {
+	[[ -v _defer_initialized_ ]] || .defer
+
+	_defer_clean_+=("$@")
+}
+
+# Trap defer setup
+# shellcheck disable=2120
+.defer() {
+	if [[ -v _defer_initialized_ ]]; then
+		return
+	else
+		_defer_initialized_=true
+
+		declare -ag _defer_clean_=()
+
+		if [[ -n $(builtin trap -p 2>/dev/null) ]]; then
+			.cry 'Trap already taken.'
+
+			return
+		fi
+	fi
+
+	local -a signals=("$@")
+	[[ $# -gt 0 ]] || signals=(EXIT HUP INT KILL QUIT TERM)
+
+	local signal
+	for signal in "${signals[@]}"; do
+		# shellcheck disable=2064
+		builtin trap "_defer_ $signal" "$signal"
+	done
+
+	# Prevent using trap
+	trap() {
+		.bug 'Using trap is forbidden; please use defer.* functions.'
+	}
+
+	# shellcheck disable=2139
+	alias .untrap="trap - ${signals[*]}"
+
+	_defer_() {
+		local -r SIGNAL=$1 ERR=$?
+
+		.callback defer
+
+		if [[ -v _defer_clean_ ]] && [[ "${#_defer_clean_[@]}" -gt 0 ]]; then
+			rm -rf -- "${_defer_clean_[@]}"
+		fi
+
+		builtin trap - EXIT
+
+		if [[ $SIGNAL = INT ]] || [[ $SIGNAL = QUIT ]]; then
+			builtin trap - "$SIGNAL"; kill -s "$SIGNAL" "$$"
+		fi
+
+		return "$ERR"
+	}
+
+	readonly -f _defer_
+}
+
+# file.sh - File related operations
+
+file.chmog() {
+	local mog=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mode owner group
+	IFS=: read -r mode owner group <<<"$mog"
+
+	[[ -z ${mode:-}  ]] || .must -- chmod "$mode"
+	[[ -z ${owner:-} ]] || .must -- chown "$owner"
+	[[ -z ${group:-} ]] || .must -- chgrp "$group"
+}
+
+file.cp() {
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+	local mog=${1:-}
+
+	local dir=${dst%/*}
+	[[ -d $dir ]] || .must -- mkdir -p "$dir"
+
+	cp -a "$src" "$dst"
+
+	[[ -z ${mog:-} ]] || file.chmog "$mog" "$dst"
+}
+
+file.download() {
+	local    url=${1?${FUNCNAME[0]}: missing argument};                shift
+	local -n file_download_dst_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local download
+	temp.file download
+
+	.getting "Downloading $url"
+	.must -- http.get "$url" >"$download"
+	.must -- chmod 644 "$download"
+
+	# shellcheck disable=2034
+	file_download_dst_=$download
+}
+
+file.enter() {
+	local dir=${1:-}
+
+	[[ -n $dir ]] || return 0
+
+	if [[ -d $dir ]]; then
+		.must -- cd "$dir"
+	else
+		dir=${dir%/*}
+		[[ -d $dir ]] || .die "No path found to enter: $dir"
+		.must -- cd "$dir"
+	fi
+
+	# shellcheck disable=2128
+	echo "$PWD"
+}
+
+file.ln() {
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+	local mog=${1:-}
+
+	local dir=${dst%/*}
+	[[ -d $dir ]] || .must -- mkdir -p "$dir"
+
+	src=$(realpath -m --relative-base "${dst%/*}" "$src")
+	.must -- ln -sf "$src" "$dst"
+
+	[[ -z ${mog:-} ]] || file.chmog "$mog" "$dst"
+}
+
+file.cp() {
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+	local mog=${1:-}
+
+	local dir=${dst%/*}
+	[[ -d $dir ]] || .must -- mkdir -p "$dir"
+
+	mv -f "$src" "$dst"
+
+	[[ -z ${mog:-} ]] || file.chmog "$mog" "$dst"
+}
+
+file.run() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ -f $file ]] || [[ $file =~ [.][^./]+$ ]] || file=$file.sh
+
+	filetype.runnable "$file" || .die "File is not runnable: $file"
+
+	local -a env=()
+	flag.env_ env
+
+	local -a argv=(env "${env[@]}")
+
+	if [[ ! -x "$file" ]]; then
+		if filetype.interpretable "$file"; then
+			local -a shebang
+			filetype.shebang "$file" shebang
+
+			# shellcheck disable=2206
+			argv+=("${shebang[@]}")
+		fi
+	fi
+
+	argv+=("$file")
+
+	"${argv[@]}"
+}
+
+# filetype.sh - Filetype detection
+
+filetype.compressed() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime; mime=$(file --mime-type --brief "$file")
+
+	case $mime in
+	application/gzip|application/zip|application/x-xz|application/x-bzip2|application/x-zstd)
+		local zip=$mime; zip=${zip##*/}; zip=${zip##*-}
+
+		return 0 ;;
+	*)
+		return 1 ;;
+	esac
+}
+
+filetype.executable() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime encoding
+
+	IFS='; ' read -r mime encoding < <(file --mime --brief "$file")
+
+	if [[ $encoding =~ binary$ ]]; then
+		if [[ $mime  =~ -executable$ ]]; then
+			return 0
+		fi
+	fi
+
+	return 1
+}
+
+filetype.interpretable() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime encoding
+
+	IFS='; ' read -r mime encoding < <(file --mime --brief "$file")
+
+	if [[ ! $encoding =~ binary$ ]]; then
+		if head -n 1 "$file" | grep -q '^#!' 2>/dev/null; then
+			return 0
+		fi
+	fi
+
+	return 1
+}
+
+filetype.mime() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	file --mime-type --brief "$file"
+}
+
+filetype.mimez() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	file --mime-type --brief --uncompress-noreport "$file"
+}
+
+filetype.runnable() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mime encoding
+
+	IFS='; ' read -r mime encoding < <(file --mime --brief "$file")
+
+	if [[ $encoding =~ binary$ ]]; then
+		if [[ $mime  =~ -executable$ ]]; then
+			return 0
+		fi
+	else
+		if head -n 1 "$file" | grep -q '^#!' 2>/dev/null; then
+			return 0
+		fi
+	fi
+
+	return 1
+}
+
+filetype.runnables() {
+	local    file=${1?${FUNCNAME[0]}: missing argument};                shift
+	local -n filetype_runnables_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	if [[ -d $file ]]; then
+		local f
+		for f in "$file"/*; do
+			filetype.runnable "$f" || continue
+			filetype_runnables_+=("$f")
+		done
+	elif filetype.runnable "$file"; then
+		filetype_runnables_+=("$file")
+	fi
+}
+
+filetype.shebang() {
+	local    file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n lib_filetype_shebang_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	# shellcheck disable=2034
+	local lib_filetype_shebang_string
+
+	lib_filetype_shebang_string_=$(head -n 1 "$file" 2>/dev/null || true)
+	lib_filetype_shebang_string_=${lib_filetype_shebang_string_#\#!}
+	lib_filetype_shebang_string_=${lib_filetype_shebang_string_# }
+
+	# shellcheck disable=2034,2206
+	lib_filetype_shebang_=($lib_filetype_shebang_string_)
+}
+
+# flag.sh - Flag handling
+
+flag.args_() {
+	flag.values '^[1-9][0-9]*$' "$@"
+}
+
+flag.env_() {
+	flag.values '^[[:alpha:]_][[:alnum:]_]*$' "$@"
+}
+
+flag.false() {
+	! flag.true "$@"
+}
+
+flag.load() {
+	local -n _load_src_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!_load_src_[@]}"; do
+		# shellcheck disable=2034
+		_[$key]=${_load_src_[$key]}
+	done
+}
+
+flag.nil() {
+	[[ ${_[$1]:-} = "$NIL" ]]
+}
+
+flag.parse_() {
+	if .contains -help "$@"; then
+		flag.usage_and_bye_
+	fi
+
+	local -A flag_result_
+
+	local -i argc=0
+	while [[ $# -gt 0 ]]; do
+		local key value
+
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+			key=${1%%=*}; value=${1#*=}
+			if [[ $key =~ ^-.+$ ]] && [[ ! -v _[$key] ]]; then
+				.die "Unrecognized flag: $key"
+			fi
+		elif [[ $1 == '--' ]] && [[ -z ${_[.dash]:-} ]]; then
+			shift
+			break
+		else
+			key=$((++argc)); value=$1
+		fi
+
+		# shellcheck disable=2034
+		flag_result_["$key"]=${value:-${_["$key"]:-}}
+
+		shift
+	done
+
+	flag.load flag_result_
+
+	flag._validate_ $argc
+}
+
+flag.peek_() {
+	if .contains -help "$@"; then
+		flag.usage_and_bye_
+	fi
+
+	local -A flag_result_
+
+	local -i argc=0
+	while [[ $# -gt 0 ]]; do
+		local key value
+
+		if [[ $1 =~ ^-*[[:alpha:]_][[:alnum:]_]*= ]]; then
+			key=${1%%=*}; value=${1#*=}
+		elif [[ $1 == '--' ]] && [[ -z ${_[.dash]:-} ]]; then
+			shift
+			break
+		else
+			key=$((++argc)); value=$1
+		fi
+
+		# shellcheck disable=2034
+		flag_result_["$key"]=${value:-${_["$key"]:-}}
+
+		shift
+	done
+
+	flag.load flag_result_
+
+	flag._validate_ $argc
+}
+
+flag.values() {
+	local pattern=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local -a keys
+
+	mapfile -t keys < <(
+		for key in "${!_[@]}"; do
+			[[ $key =~ $pattern ]] || continue
+
+			echo "$key"
+		done | sort -u
+	)
+
+	local key
+
+	if [[ $# -gt 0 ]]; then
+		local -n _values_=$1
+
+		for key in "${keys[@]}"; do
+			_values_+=("${_[$key]}")
+		done
+
+		_values_=("${_values_[@]}")
+	else
+		for key in "${keys[@]}"; do
+			echo "${_[$key]}"
+		done
+	fi
+}
+
+flag.true() {
+	.bool "${_[$1]:-}"
+}
+
+flag.usage_() {
+	if [[ -n ${_[.help]:-} ]]; then
+		# shellcheck disable=2128
+		.say "Usage: ${PROGNAME[*]} ${_[.help]}"
+	else
+		# shellcheck disable=2128
+		.say "Usage: ${PROGNAME[*]}"
+	fi
+}
+
+flag.usage_and_die_() {
+	flag.usage_
+
+	.die "$@"
+}
+
+# shellcheck disable=2120
+flag.usage_and_bye_() {
+	flag.usage_
+
+	.bye "$@"
+}
+
+# flag - Private functions
+
+flag._args_() {
+	local n=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local argc=${_[.argc]:-0}
+
+	[[ $argc != '-' ]] || return 0
+
+	local lo hi
+
+	if [[ $argc =~ ^[0-9]+$ ]]; then
+		lo=$argc; hi=$argc
+	elif [[ $argc =~ ^[0-9]*-[0-9]*$ ]]; then
+		IFS=- read -r lo hi <<<"$argc"
+	else
+		.bug "Incorrect range: $argc"
+	fi
+
+	local message
+	if   [[ -n ${lo:-} ]] && [[ $n -lt $lo ]]; then
+		message='Too few arguments'
+	elif [[ -n ${hi:-} ]] && [[ $n -gt $hi ]]; then
+		message='Too many arguments'
+	else
+		return 0
+	fi
+
+	flag.usage_and_die_ "$message"
+}
+
+flag._nils_() {
+	local -a required=()
+
+	local key
+	for key in "${!_[@]}"; do
+		if flag.nil "$key"; then
+			required+=("$key")
+		fi
+	done
+
+	[[ ${#required[@]} -eq 0 ]] || .die "Value missing for: ${required[*]}"
+}
+
+flag._validate_() {
+	flag._args_ "$@"
+	flag._nils_
+}
+
+# flag - Protected functions
+
+.bool() {
+	local value=${1:-}
+
+	value=${value,,}
+
+	case $value in
+	true|t|1|on|yes|y)
+		return 0
+		;;
+	false|f|0|off|no|n|"")
+		return 1
+		;;
+	*)
+		.bug "Invalid boolean: $value"
+	esac
+}
+
+# flag - Init
+
+flag._init() {
+	shopt -s expand_aliases
+
+	# shellcheck disable=2142
+	alias flag.parse='flag.parse_ "$@"; local -a __argv__ ARGV=("$@"); flag.args_ __argv__; set -- "${__argv__[@]}"; unset -v __argv__'
+
+	# shellcheck disable=2142
+	alias flag.peek='flag.peek_ "$@"; local -a __argv__=() ARGV=("$@"); flag.args_ __argv__; set -- "${__argv__[@]}"; unset -v __argv__'
+
+	# shellcheck disable=2034
+	declare -gr NIL="\0"
+}
+
+flag._init
+
+# git.sh - Git functions
+
+git.clone() {
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+	local ref=${1:-}
+
+	[[ -e $dst ]] || .die "Destination already exists: $dst"
+
+	local -a options=(
+		'--single-branch'
+	)
+
+	[[ -z ${ref:-} ]] || options+=(
+		'--branch'
+		"$ref"
+	)
+
+	.must -- git clone "${options[@]}" "$src" "$dst"
+
+	if [[ -n ${ref:-} ]] && git.ref.is "$ref" tag; then
+		git.set.immutable true
+	fi
+}
+
+git.default-branch() {
+	local repo=${1:-.}
+
+	git.must "$repo" sane
+
+	git -C "$repo" symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'
+}
+
+git.is() {
+	local repo=${1?${FUNCNAME[0]}: missing argument};    shift
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local func=git.is."$feature"-
+
+	.callable "$func" || .bug "No such predicate: $feature"
+
+	"$func" "$repo"
+}
+
+git.must() {
+	local repo=${1?${FUNCNAME[0]}: missing argument};    shift
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	git.is "$repo" "$feature" || .die "Repository is not ${feature//-/ }: $repo"
+}
+
+git.ref.is() {
+	local repo=${1?${FUNCNAME[0]}: missing argument}; shift
+	local ref=${1?${FUNCNAME[0]}: missing argument};  shift
+	local type=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	case $type in
+	branch)
+		git -C "$repo" show-ref -q --verify "refs/heads/$ref" &>/dev/null
+		;;
+	tag)
+		git -C "$repo" show-ref -q --verify "refs/tags/$ref" &>/dev/null
+		;;
+	remote)
+		git -C "$repo" show-ref -q --verify "refs/remote/$ref" &>/dev/null
+		;;
+	hash|commit)
+		git -C "$repo" rev-parse --verify "$ref^{commit}" &>/dev/null
+		;;
+	*)
+		.bug "Unrecognized ref type: $type"
+
+		return 1
+	esac
+}
+
+git.reset() {
+	local repo=${1:-.}
+
+	.must -- git -C "$repo" --reset hard
+}
+
+git.set.immutable() {
+	local repo=${1:-.}
+
+	.must -- git -C "$repo" config --type bool core.x-immutable true
+}
+
+git.set.mutable() {
+	local repo=${1:-.}
+
+	.must -- git -C "$repo" config --type bool core.x-immutable false
+}
+
+git.switch() {
+	local repo=${1?${FUNCNAME[0]}: missing argument}; shift
+	local branch=${1:-}
+
+	[[ -n $branch ]] || branch=$(git.default-branch "$repo")
+
+	.must -- git -C "$repo" checkout --quiet "$branch"
+}
+
+git.top() {
+	local path=${1:-}
+
+	git.must.sane "$path" && .must -- cd "$(git.topdir "$path")"
+}
+
+git.topdir() {
+	local path=${1:-}
+
+	if [[ -n $path ]]; then
+		[[ -e $path ]] || .die "No such path found: $path"
+
+		local d
+		[[ -d $path ]] || d=${path%/*}
+
+		.must -- pushd "$d" &>/dev/null
+	fi
+
+	local dir
+	dir=$(git rev-parse --git-dir) && dir=$(cd "$dir" && pwd)/ && echo "${dir%%/.git/*}"
+
+	if [[ -n $path ]]; then
+		.must -- popd &>/dev/null
+	fi
+}
+
+git.update() {
+	local repo=${1:-.}
+
+	git.is "$repo" immutable || .must -- git pull -q
+}
+
+# Private functions
+
+git.is.clean-() {
+	local repo=${1:-.}
+
+	git -C "$repo" rev-parse --verify HEAD >/dev/null &&
+	git -C "$repo" update-index -q --ignore-submodules --refresh &&
+	git -C "$repo" diff-files --quiet --ignore-submodules &&
+	git -C "$repo" diff-index --cached --quiet --ignore-submodules HEAD --
+}
+
+git.is.git-() {
+	local repo=${1:-.}
+
+	[[ -d $repo/.git ]] && git rev-parse --resolve-git-dir "$repo/.git" &>/dev/null
+}
+
+git.is.immutable-() {
+	local repo=${1:-.}
+
+	[[ $(git -C "$repo" config --type bool core.x-immutable 2>/dev/null || true) = true ]]
+}
+
+git.is.sane-() {
+	local repo=${1:-.}
+
+	git -C "$repo" rev-parse --is-inside-work-tree &>/dev/null || return 1
+	git -C "$repo" rev-parse --verify HEAD >/dev/null          || return 1
+}
+
+git.is.sane-and-clean-() {
+	git.is.sane- "$@" && git.is.clean- "$@"
+}
+
+# http.sh - HTTP functions
+
+http.get() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $url =~ ^[^:]+:// ]] || url=https://$url
+
+	curl -fsSL "$url"
+}
+
+http.is() {
+	local url=${1?${FUNCNAME[0]}: missing argument};  shift
+	local code=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local response
+	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
+
+	if [[ ${code,,} = ok ]]; then
+		code=200
+	fi
+
+	[[ $response = "$code" ]]
+}
+
+# ui.sh - UI functions
+
+ui.out() {
+	local name=${1:-default}
+	shift || true
+
+	local sign=${_sign[$name]}
+
+	# shellcheck disable=2154
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	echo -en "${sign_color}${sign}${reset} "
+	.out "$@"
+	echo -en "$reset "
+}
+
+# shellcheck disable=2154
+ui.echo() {
+	[[ $# -gt 0 ]] || return 0
+
+	local message=$1
+
+	local name=${FUNCNAME[1]#*.}
+
+	local sign=${_sign[$name]}
+
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	if [[ -n ${sign:-} ]]; then
+		echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
+	else
+		echo -e "${text_color}${message}${reset}"
+	fi
+}
+
+# ui - Init
+
+# shellcheck disable=2034,2154
+ui.init_() {
+	declare -Ag _sign _sign_color _text_color
+
+	# Style
+
+	_sign[ask]='?';     _sign_color[ask]=+yellow;    _text_color[ask]=high
+	_sign[bug]='✖';     _sign_color[bug]=red;        _text_color[bug]=high
+	_sign[cry]='!';     _sign_color[cry]=+yellow;    _text_color[cry]=medium
+	_sign[die]='✗';     _sign_color[die]=+red;       _text_color[die]=high
+	_sign[hmm]='ℹ';     _sign_color[hmm]=-yellow;    _text_color[hmm]=low
+	_sign[say]='' ;     _sign_color[say]=+white;     _text_color[say]=medium
+
+	_sign[notok]='✗';   _sign_color[notok]=+red;     _text_color[notok]=high
+	_sign[ok]='✓';      _sign_color[ok]=+green;      _text_color[ok]=high
+
+	_sign[calling]='>'; _sign_color[calling]=+cyan;  _text_color[calling]=high
+	_sign[getting]='↓'; _sign_color[getting]=+cyan;  _text_color[getting]=low
+	_sign[running]='∙'; _sign_color[running]=+cyan;  _text_color[running]=low
+	_sign[default]='∙'; _sign_color[default]=+white; _text_color[default]=medium
+
+	color.expand _sign_color _text_color
+
+	.bug()     { ui.echo "$@" >&2; exit 127; }
+	.bye()     { ui.echo "$@" >&2; exit 0;   }
+	.calling() { ui.echo "$1" >&2; "${@:2}"; }
+	.cry()     { ui.echo "$@" >&2;           }
+	.die()     { ui.echo "$@" >&2; exit 1;   }
+	.getting() { ui.echo "$1" >&2; "${@:2}"; }
+	.hmm()     { ui.echo "$@" >&2;           }
+	.notok()   { ui.echo "$@" >&2;           }
+	.ok()      { ui.echo "$@" >&2;           }
+	.running() { ui.echo "$1" >&2; "${@:2}"; }
+	.say()     { ui.echo "$@" >&2;           }
+}
+
+ui.init_
+
+# temp.sh - Functions involving temporary directories or files
+
+# Remove temp files or directories
+temp.clean() {
+	while [[ $# -gt 0 ]]; do
+		local -n temp_clean_=$1; shift
+
+		rm -rf -- "$temp_clean_"
+	done
+}
+
+# Create a temp dir
+temp.dir() {
+	# shellcheck disable=2155
+	local -n temp_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local dir
+
+	# shellcheck disable=2128
+	dir=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || .die 'Fatal error: mktemp'
+	.clean "$dir"
+
+	# shellcheck disable=2034
+	temp_dir_=$dir
+}
+
+# Create a temp file
+temp.file() {
+	# shellcheck disable=2155
+	local -n temp_file_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local file
+
+	# shellcheck disable=2128
+	file=$(mktemp -p "${TMPDIR:-/tmp}" "$PROGNAME".XXXXXXXX) || .die 'Fatal error: mktemp'
+	.clean "$file"
+
+	# shellcheck disable=2034
+	temp_file_=$file
+}
+
+# Execute command in temp dir
+temp.inside() {
+	# shellcheck disable=2128
+	local temp_inside_ orig_dir_=$PWD
+	temp.dir temp_inside_
+
+	.must -- cd "$temp_inside_"
+	"$@"
+	.must -- cd "$orig_dir_"
+
+	rm -rf -- "$temp_inside_"
+}
+
+# url.sh - URL processing
+
+url.any() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local class
+	url.parse "$url" class
+
+	local expected
+	for expected; do
+		case $expected in
+		dir)
+			[[ -z ${class:-} ]] || return 0
+			;;
+		*)
+			[[ $expected != "${class:-}" ]] || return 0
+			;;
+		esac
+	done
+
+	return 1
+}
+
+url.is() {
+	local url=${1?${FUNCNAME[0]}: missing argument};      shift
+	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	url.any "$url" "$expected"
+}
+
+url.usl() {
+	usl "${_url_usl_args[@]}" "$@"
+}
+
+url.parse() {
+	eval -- "$(url.usl "$@")"
+}
+
+url.template() {
+	local name=${1?${FUNCNAME[0]}: missing argument};     shift
+	local template=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	_url_usl_args+=(
+		'-var' "$name = $template"
+	)
+}
+
+# url - Init
+
+url.init_() {
+	declare -ag _url_usl_args=()
+}
+
+url.init_
+
+zip.unpack.bz2() {
+	.must 'No program found: bzcat' .available bzcat && zip.prep_unzip_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	local temp_file
+	temp.file temp_file
+
+	bzcat "$in" >"$temp_file" && mv "$temp_file" "$out"
+}
+
+zip.unpack.gz() {
+	.must 'No program found: zcat' .available zcat && zip.prep_unzip_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	zip.prep_unzip_ zcat
+
+	local temp_file
+	temp.file temp_file
+
+	zcat "$in" >"$temp_file" && mv "$temp_file" "$out"
+}
+
+zip.unpack.tar.bz2() {
+	.must 'No program found: bzip2' .available bzip2 && zip.prep_untar_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	tar --strip-components=1 -jxf "$in" -C "$out"
+}
+
+zip.unpack.tar.gz() {
+	zip.prep_untar_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	tar --strip-components=1 -zxf "$in" -C "$out"
+}
+
+zip.unpack.tar.xz() {
+	.must 'No program found: xz' .available xz && zip.prep_untar_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	tar --strip-components=1 -Jxf "$in" -C "$out"
+}
+
+zip.unpack.tar.zst() {
+	.must 'No program found: zstd' .available zstd && zip.prep_untar_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	tar --strip-components=1 --zstd -xf "$in" -C "$out"
+}
+
+zip.unpack.xz() {
+	.must 'No program found: unxz' .available unxz && zip.prep_unzip_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	local temp_file
+	temp.file temp_file
+
+	unxz "$in" >"$temp_file" && mv "$temp_file" "$out"
+}
+
+zip.unpack.zip() {
+	.must 'No program found: unzip' .available unzip && zip.prep_unzip_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	unzip -q -d "$out" "$in"
+}
+
+zip.unpack.zst() {
+	.must 'No program found: zstdcat' .available zstdcat && zip.prep_unzip_ "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	local temp_file
+	temp.file temp_file
+
+	zstdcat -f "$in" >"$temp_file" && mv "$temp_file" "$out"
+}
+
+# Private functions
+
+zip.prep_untar_() {
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	[[ -n $out ]] || out=${in%.tar.*}
+
+	if [[ -e $out ]]; then
+		.die "Directory already exist: $out"
+	fi
+
+	.must -- mkdir -p "$out"
+}
+
+zip.prep_unzip_() {
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	[[ -n $out ]] || out=${in%.*}
+
+	if [[ -e $out ]]; then
+		.die "File already exist: $out"
+	fi
+}
+
+# src.sh - Source cache management
+
+src.del() {
+	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	src.planned- && src.rm-
+}
+
+src.enter() {
+	# shellcheck disable=2034
+	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	src.plan _src_ && src.apply-
+
+	src.enter-
+}
+
+src.get() {
+	# shellcheck disable=2034
+	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	src.plan _src_ && src.apply-
+}
+
+src.plan() {
+	# shellcheck disable=2034
+	local -n _src_plan_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	src.calculate- _src_plan_
+}
+
+src.purge() {
+	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	src.planned- && src.purge-
+}
+
+# Private functions
+
+src.apply-() {
+	src.init-
+
+	if [[ -e ${_src_[cache]} ]]; then
+		src.ok- || src.renew-
+	else
+		src.new-
+	fi
+}
+
+# shellcheck disable=2154
+src.calculate-() {
+	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ -n ${_src_[url]:-}    ]] || .bug "Cache URL missing"
+	[[ -n ${_src_[root]:-}   ]] || .bug "Cache root missing for URL: ${_src_[url]}"
+	[[ -n ${_src_[expiry]:-} ]] || .bug "Cache expiry missing for URL: ${_src_[url]}"
+
+	local url=${_src_[url]} class domain id inpath name ref scheme source
+
+	url.parse "$url" class domain id inpath name ref scheme source
+
+	_src_[class]=${class:-none}; _src_[domain]=$domain
+	_src_[id]=$id;               _src_[inpath]=$inpath;
+	_src_[name]=$name;           _src_[ref]=$ref
+	_src_[scheme]=$scheme;       _src_[source]=$source
+
+	_src_[caches]=${_src_[root]}/src;           _src_[interims]=${_src_[root]}/tmp
+	_src_[cache]=${_src_[caches]}/${_src_[id]}; _src_[interim]=${_src_[interims]}/${_src_[id]}
+}
+
+src.enter-() {
+	[[ -d ${_src_[cache]} ]] || return 0
+	.must -- cd "${_src_[cache]}"
+
+	[[ -d ${_src_[inpath]} ]] || return 0
+	.must -- cd "${_src_[inpath]}"
+}
+
+src.init-() {
+	[[ -d ${_src_[caches]}   ]] || .must -- mkdir -p "${_src_[caches]}"
+	[[ -d ${_src_[interims]} ]] || .must -- mkdir -p "${_src_[interims]}"
+}
+
+src.ln-() {
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	src.rm- && ln -sf "$dst" "${_src_[cache]}"
+}
+
+src.mv-() {
+	[[ -e ${_src_[interim]} ]] || return 0
+
+	src.rm- && mv "${_src_[interim]}" "${_src_[cache]}"
+}
+
+src.new-() {
+	if [[ ${_src_[scheme]} = file ]]; then
+		src.ln- "${_src_[source]}"
+	else
+		.clean "${_src_[interim]}"
+
+		src.rm-
+		src."${_src_[class]}".new-
+		src.mv-
+	fi
+
+	touch "${_src_[cache]}"
+}
+
+src.ok-() {
+	[[ -e ${_src_[cache]} ]] || return 1
+
+	.expired "${_src_[expiry]}" "${_src_[cache]}"
+}
+
+src.planned-() {
+	[[ -n ${_src_[cache]:-}   ]] || .bug "Unplanned cache: ${_src_[url]}"
+	[[ -n ${_src_[interim]:-} ]] || .bug "Unplanned interim: ${_src_[url]}"
+}
+
+src.purge-() {
+	rm -rf -- "${_src_[caches]}" "${_src_[interims]}"
+}
+
+src.renew-() {
+	if [[ ${_src_[scheme]} = file ]]; then
+		src.ln- "${_src_[source]}"
+	else
+		.clean "${_src_[interim]}"
+
+		src."${_src_[class]}".renew-
+		src.mv-
+	fi
+
+	touch "${_src_[cache]}"
+}
+
+src.rm-() {
+	rm -rf "${_src_[cache]}"
+}
+
+# Git
+
+src.git.new-() {
+	git.clone "${_src_[source]}" "${_src_[interim]}" "${_src_[ref]}"
+}
+
+src.git.renew-() {
+	git.reset "${_src_[cache]}" && git.update "${_src_[cache]}"
+}
+
+# Zip
+
+src.zip.new-() {
+	src.none.new-
+
+	zip.unpack "${_src_[interim]}" "${_src_[interim]}".unpack
+	rm -rf "${_src_[interim]}" && mv "${_src_[interim]}".unpack "${_src_[interim]}"
+}
+
+src.zip.renew-() {
+	src.zip.new-
+}
+
+# None
+
+src.none.new-() {
+	[[ ${_src_[scheme]} =~ ^http ]] || .bug "Unimplemented scheme: ${_src_[scheme]}"
+
+	http.get "${_src_[source]}" >"${_src_[interim]}"
+}
+
+src.none.renew-() {
+	src.none.new-
+}
+
+
+if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
+	main() {
+		:
+	}
+
+	main "$@"
+fi
