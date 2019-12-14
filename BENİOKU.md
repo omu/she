@@ -513,15 +513,80 @@ TODO
 - [X] Tüm yapıyı (policy dahil) BENİOKU'da dokümante et
 - [ ] Bootstrap betiklerini yaz
 
-
-DRAFT
------
-
-### scripts
+`x`
+---
 
 ```sh
-curl -fsSL https://x.omu.sh | bash -s -- foo bar
-x . foo bar
-
-. <(curl -fsSL https://x.omu.sh) _
+x USL [args]...
 ```
+
+Örnekler
+
+```sh
+x example.com/a.zip/b foo bar
+x github.com/owner/repo foo bar
+x . foo bar
+x default foo bar # curl -fsSL https://x.omu.sh | bash -s -- foo bar
+```
+
+Genel prensip:
+
+`USL [args]...`'da USL merkezinde (odağında) bir şeyin `args` ile çalıştırılması.  İzlenen adımlar sırasıyla: `fetch`,
+`focus`, `setup`, `handle`.  Bu adımların her biri bir eklentiyle gerçeklenir.
+
+### `fetch`
+
+USL'i uzaktaysa getirir
+
+- USL önbelleğe alınır
+
+- Eklenti girdisi: USL, önbellek kökü ve önbellek süresi
+- Eklenti çıktısı: Yerel hedef
+
+### `focus`
+
+USL'in merkezini belirler
+
+- Merkez verilen açık argümanla, yoksa ortam değişkeniyle belirlenir.  Örneğin fetch yapıldığında ilgili ön bellek
+  dosya/dizini açık argüman verilir.
+
+- Aksi halde yukarı doğru arama yapılır.  Sırasıyla META ve .git belirlenir.
+
+- Eklenti girdisi: Merkez dizin, ortam değişkeni, USL
+
+- Eklenti çıktısı: Merkez dizine geçilir
+
+### `setup`
+
+USL merkezinde handler ve/veya yapılandırmasını belirler
+
+- Merkezde varsa yapılandırma okunur.  Bu amaçla öncelik sırasıyla META, README frontmatter ve git yapılandırmasına bakılır.
+
+- Yapılandırma handler'ı ve/veya handler yapılandırmasını içerir.  Handler yoksa öntanımlı handler ve/veya öntanımlı
+  handler yapılandırması kullanılır.  Bu yapılırken dosyalar için ayrı, dizinler için ayrı öntanımlı handler'lar tanımlanır.
+
+- Eklenti girdisi: Merkez dizine geçildiğinden PWD, opsiyonel ortam değişkeni, yerel hedef
+
+- Eklenti çıktısı: Yapılandırılan handler
+
+### `handle`
+
+Handler'ı USL merkezinde hedef yolu ve uygun argümanlarla çalıştırır
+
+- Yapılandırılan handler çalıştırılır.
+
+- Eklenti girdisi: Merkez dizine geçildiğinden PWD, opsiyonel ortam değişkeni, yerel hedef, argümanlar
+
+Öntanımlı handler'lar:
+
+- Yerel hedef dosya ise runnable olup olmadığına bakarak ilgili argümanlarla çalıştır
+
+- Yerel hedef dizin ise
+
+  + Argüman varsa `%s` ilk argümanı göstermek üzere PWD'de sırasıyla `bin/%s`, `sbin/%s`, `script/%s.*`, `scripts/%s.*`
+    eşleştirmeleri başarılı ve tekil ise runnable olup olmadığına bak ve ilgili dosyayı kalan argümanlarla (merkezde) çalıştır.
+
+  + Argüman yoksa discovery yap ve listele
+
+Alternatif handler'lar eklentiler yoluyla yazılabilir.  Örneğin yapılandırmada listelenen komutlarla explicit
+eşleştirme yapan handler'lar gibi.
