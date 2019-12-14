@@ -1528,6 +1528,24 @@ src.none.renew-() {
 }
 
 
+# X
+
+fetch() {
+	:
+}
+
+focus() {
+	:
+}
+
+setup() {
+	:
+}
+
+handle() {
+	:
+}
+
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	main() {
 		:

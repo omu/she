@@ -14,6 +14,7 @@
 #=github.com/omu/home/src/sh/zip.sh
 #=github.com/omu/home/src/sh/src.sh
 
+#:cmd/x/default.sh
 #:cmd/x/x.sh
 
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
