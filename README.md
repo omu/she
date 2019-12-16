@@ -37,7 +37,6 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | available     | Return if program available                           |
 | bin install   | Install program to path                               |
 | bin use       | Use program by installing to a volatile path          |
-| call          | TODO                                                  |
 | contains      | Return if first argument found in remaining arguments |
 | deb add       | Add Debian repository                                 |
 | deb install   | Install Debian packages                               |

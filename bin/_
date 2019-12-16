@@ -1690,17 +1690,23 @@ ui.init_
 url.any() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local class
-	url.parse "$url" class
+	local class scheme
+	url.parse "$url" class scheme
 
 	local expected
 	for expected; do
 		case $expected in
+		local)
+			[[ 'file' != "${scheme:-}" ]] || return 0
+			;;
+		remote)
+			[[ 'file' = "${scheme:-}" ]] || return 0
+			;;
 		dir)
 			[[ -z ${class:-} ]] || return 0
 			;;
 		*)
-			[[ $expected != "${class:-}" ]] || return 0
+			[[ $scheme != "${class:-}" ]] || return 0
 			;;
 		esac
 	done
@@ -1993,7 +1999,7 @@ src.init-() {
 src.ln-() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src.rm- && ln -sf "$dst" "${_src_[cache]}"
+	src.rm- && cp -al "$dst" "${_src_[cache]}"
 }
 
 src.mv-() {
@@ -2769,33 +2775,6 @@ self:src() {
 	.available "$@"
 }
 
-# TODO
-:call() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-expiry]=-1
-		[-prefix]=$_RUN
-
-		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL [ARG]...'
-		[.argc]=2-
-	)
-
-	flag.parse
-
-	# shellcheck disable=2128
-	local url=$1
-	shift
-
-	local -A src=([url]="$url" [root]="${_[-prefix]}" [expiry]="${_[-expiry]}")
-
-	src.get src
-
-	local dst=${src[cache]}
-	[[ -z ${src[inpath]} ]] || dst=$dst/${src[inpath]}
-
-	:run "$dst" "$@"
-}
-
 # Return if first argument found in remaining arguments
 :contains() {
 	local -A _=(
@@ -3223,7 +3202,6 @@ zip:unpack() {
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		[':available']='Return if program available'
-		[':call']='TODO'
 		[':contains']='Return if first argument found in remaining arguments'
 		[':enter']='TODO'
 		[':expired']='Return if any of the files expired'
@@ -3284,7 +3262,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['available']=':available'
 		['bin install']='bin:install'
 		['bin use']='bin:use'
-		['call']=':call'
 		['contains']=':contains'
 		['deb add']='deb:add'
 		['deb install']='deb:install'

@@ -1191,17 +1191,23 @@ temp.inside() {
 url.any() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local class
-	url.parse "$url" class
+	local class scheme
+	url.parse "$url" class scheme
 
 	local expected
 	for expected; do
 		case $expected in
+		local)
+			[[ 'file' != "${scheme:-}" ]] || return 0
+			;;
+		remote)
+			[[ 'file' = "${scheme:-}" ]] || return 0
+			;;
 		dir)
 			[[ -z ${class:-} ]] || return 0
 			;;
 		*)
-			[[ $expected != "${class:-}" ]] || return 0
+			[[ $scheme != "${class:-}" ]] || return 0
 			;;
 		esac
 	done
@@ -1437,7 +1443,7 @@ src.init-() {
 src.ln-() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src.rm- && ln -sf "$dst" "${_src_[cache]}"
+	src.rm- && cp -al "$dst" "${_src_[cache]}"
 }
 
 src.mv-() {
@@ -1527,28 +1533,135 @@ src.none.renew-() {
 	src.none.new-
 }
 
+x() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-# X
+	local target center
 
-fetch() {
-	:
-}
+	if url.is "$url" local; then
+		target=$url
+	else
+		local -A src=([url]="$ur" [root]="${const[cache]}" [expiry]="${const[expiry]}")
 
-focus() {
-	:
-}
+		src.get src
 
-setup() {
-	:
-}
+		center=${src[cache]}
 
-handle() {
-	:
+		target=${src[cache]}
+		[[ -z ${src[inpath]:-} ]] || target=${src[cache]}/${src[inpath]}
+
+		[[ -e $target ]] || .die "No target found: $url"
+	fi
+
+	if [[ -d $target ]]; then
+		.running "Running directory target: $target"
+
+		discover() {
+			: # nop
+		}
+
+		focus() {
+			: # nop
+		}
+
+		setup() {
+			: # nop
+		}
+
+		handle() {
+			local target=${1?${FUNCNAME[0]}: missing argument}; shift
+
+			file.run "${X[target]}" "$@"
+		}
+	else
+		.running "Running file target: $target"
+
+		discover() {
+			: # nop
+		}
+
+		# shellcheck disable=2128
+		focus() {
+			local target=${1?${FUNCNAME[0]}: missing argument}; shift
+			local center=${1?${FUNCNAME[0]}: missing argument}; shift
+
+			if [[ -n ${center:-} ]]; then
+				.must -- cd "$center"
+
+				return 0
+			fi
+
+			.must -- cd "${X[target]}"
+
+			while :; do
+				if [[ -f .META ]] || [[ -d .git ]]; then
+					return 0
+				fi
+
+				if [[ $PWD == "/" ]]; then
+					break
+				fi
+
+				.must -- cd ..
+			done
+		}
+
+		setup() {
+			: # nop
+		}
+
+		handle() {
+			local target=${1?${FUNCNAME[0]}: missing argument}; shift
+
+			if [[ $# -eq 0 ]]; then
+				discover
+
+				return 0
+			fi
+
+			local cmd=$1; shift
+
+			local pattern found
+			for pattern in 'bin/%s' 'sbin/%s' 'script/%s' 'scripts/%s.sh'; do # FIXME
+				local file
+
+				# shellcheck disable=2059
+				printf -v file "$pattern" "$cmd"
+
+				if [[ -f $file ]]; then
+					found=$file
+					break
+				fi
+			done
+
+			[[ -n ${found:-} ]] || .die 'No runnable found'
+
+			filetype.runnable "$found" || .die "Not a runnable: $found"
+
+			file.run "$found" "$@"
+		}
+	fi
+
+	focus "$target" "$center" || .die 'Focus failed'
+	setup                     || .die 'Setup failed'
+	handle "$target" "$@"     || .die 'Handle failed'
 }
 
 if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
+	declare -Agr const=(
+		[cache]=/tmp/t
+		[expiry]=-1
+	)
+
 	main() {
-		:
+		local -A _=(
+			[.help]='URL|FILE [ARGS...]'
+			[.argc]=1-
+		)
+
+		flag.parse
+
+		x "$@"
 	}
 
 	main "$@"

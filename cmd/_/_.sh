@@ -12,33 +12,6 @@
 	.available "$@"
 }
 
-# TODO
-:call() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-expiry]=-1
-		[-prefix]=$_RUN
-
-		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL [ARG]...'
-		[.argc]=2-
-	)
-
-	flag.parse
-
-	# shellcheck disable=2128
-	local url=$1
-	shift
-
-	local -A src=([url]="$url" [root]="${_[-prefix]}" [expiry]="${_[-expiry]}")
-
-	src.get src
-
-	local dst=${src[cache]}
-	[[ -z ${src[inpath]} ]] || dst=$dst/${src[inpath]}
-
-	:run "$dst" "$@"
-}
-
 # Return if first argument found in remaining arguments
 :contains() {
 	local -A _=(

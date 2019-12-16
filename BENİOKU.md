@@ -534,7 +534,7 @@ USL'in merkezini belirler
 - Merkez verilen açık argümanla, yoksa ortam değişkeniyle belirlenir.  Örneğin fetch yapıldığında ilgili ön bellek
   dosya/dizini açık argüman verilir.
 
-- Aksi halde yukarı doğru arama yapılır.  Sırasıyla META ve .git belirlenir.
+- Aksi halde yukarı doğru arama yapılır.  Sırasıyla .META ve .git belirlenir.
 
 - Eklenti girdisi: Merkez dizin, ortam değişkeni, USL
 
@@ -544,7 +544,7 @@ USL'in merkezini belirler
 
 USL merkezinde handler ve/veya yapılandırmasını belirler
 
-- Merkezde varsa yapılandırma okunur.  Bu amaçla öncelik sırasıyla META, README frontmatter ve git yapılandırmasına bakılır.
+- Merkezde varsa yapılandırma okunur.  Bu amaçla öncelik sırasıyla .META, README frontmatter ve git yapılandırmasına bakılır.
 
 - Yapılandırma handler'ı ve/veya handler yapılandırmasını içerir.  Handler yoksa öntanımlı handler ve/veya öntanımlı
   handler yapılandırması kullanılır.  Bu yapılırken dosyalar için ayrı, dizinler için ayrı öntanımlı handler'lar tanımlanır.
