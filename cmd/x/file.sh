@@ -11,7 +11,7 @@ setup() {
 }
 
 handle() {
-	local target=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	file.run "${X[target]}" "$@"
+	file.run "${x[target]}" "$@"
 }

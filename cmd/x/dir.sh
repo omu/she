@@ -4,16 +4,15 @@ discover() {
 
 # shellcheck disable=2128
 focus() {
-	local target=${1?${FUNCNAME[0]}: missing argument}; shift
-	local center=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	if [[ -n ${center:-} ]]; then
-		.must -- cd "$center"
+	if [[ -n ${x[center]:-} ]]; then
+		.must -- cd "${x[center]}"
 
 		return 0
 	fi
 
-	.must -- cd "${X[target]}"
+	.must -- cd "${x[target]}"
 
 	while :; do
 		if [[ -f .META ]] || [[ -d .git ]]; then
@@ -33,7 +32,7 @@ setup() {
 }
 
 handle() {
-	local target=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	if [[ $# -eq 0 ]]; then
 		discover

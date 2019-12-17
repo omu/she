@@ -40,9 +40,7 @@
 	local url=$1
 	shift
 
-	local -A src=([url]="$url" [root]="${_[-prefix]}" [expiry]="${_[-expiry]}")
-
-	src.enter src
+	SRCTMP=${_[-prefix]} SRCTTL=${_[-expiry]} src.enter "$url"
 }
 
 # Return if any of the files expired
@@ -114,12 +112,10 @@
 	local url=$1 old_pwd=$PWD
 	shift
 
-	local -A src=([url]="$url" [root]="${_[-prefix]:-}" [expiry]="${_[-expiry]:-}")
+	local -A src=()
 
-	src.enter src
-
+	SRCTMP=${_[-prefix]} SRCTTL=${_[-expiry]} src.enter "$url" src
 	"$@" "${src[cache]}"
-
 	.must -- cd "$old_pwd"
 }
 
@@ -146,5 +142,5 @@ init.early_() {
 		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
 	fi
 
-	export PATH="$_RUN"/bin:"$PATH"
+	export PATH="$_RUN"/bin:"$PATH" SRCTMP="$_RUN"
 }

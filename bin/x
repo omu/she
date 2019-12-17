@@ -1227,7 +1227,11 @@ url.usl() {
 }
 
 url.parse() {
-	eval -- "$(url.usl "$@")"
+	local exp
+
+	exp=$(url.usl "$@") || return 1
+
+	eval -- "$exp"
 }
 
 url.template() {
@@ -1241,11 +1245,11 @@ url.template() {
 
 # url - Init
 
-url.init_() {
+url.init-() {
 	declare -ag _url_usl_args=()
 }
 
-url.init_
+url.init-
 
 zip.unpack.bz2() {
 	.must 'No program found: bzcat' .available bzcat && zip.prep_unzip_ "$@"
@@ -1360,44 +1364,74 @@ zip.prep_unzip_() {
 # src.sh - Source cache management
 
 src.del() {
-	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src.planned- && src.rm-
+	src.init-
+
+	if [[ $# -gt 0 ]]; then
+		# shellcheck disable=2178
+		local -n _src_=$1
+		shift
+	else
+		local -A _src_=()
+	fi
+
+	src.plan "$url" _src_ && src.rm-
 }
 
 src.enter() {
-	# shellcheck disable=2034
-	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src.plan _src_ && src.apply-
+	src.init-
 
+	if [[ $# -gt 0 ]]; then
+		# shellcheck disable=2178
+		local -n _src_=$1
+		shift
+	else
+		local -A _src_=()
+	fi
+
+	src.plan "$url" _src_ && src.apply-
 	src.enter-
 }
 
 src.get() {
-	# shellcheck disable=2034
-	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src.plan _src_ && src.apply-
+	src.init-
+
+	if [[ $# -gt 0 ]]; then
+		# shellcheck disable=2178
+		local -n _src_=$1
+		shift
+	else
+		local -A _src_=()
+	fi
+
+	src.plan "$url" _src_ && src.apply-
 }
 
+# shellcheck disable=2034
 src.plan() {
-	# shellcheck disable=2034
+	local url=${1?${FUNCNAME[0]}: missing argument};           shift
 	local -n _src_plan_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src.calculate- _src_plan_
+	src.init-
+
+	src.calculate- "$url" _src_plan_
 }
 
 src.purge() {
-	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
+	src.init-
 
-	src.planned- && src.purge-
+	rm -rf -- "$SRCTMP"/{src,tmp}
 }
 
 # Private functions
 
 src.apply-() {
-	src.init-
+	src.prep-
 
 	if [[ -e ${_src_[cache]} ]]; then
 		src.ok- || src.renew-
@@ -1408,23 +1442,13 @@ src.apply-() {
 
 # shellcheck disable=2154
 src.calculate-() {
-	local -n _src_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local url=${1?${FUNCNAME[0]}: missing argument};         shift
+	local -n _result_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ -n ${_src_[url]:-}    ]] || .bug "Cache URL missing"
-	[[ -n ${_src_[root]:-}   ]] || .bug "Cache root missing for URL: ${_src_[url]}"
-	[[ -n ${_src_[expiry]:-} ]] || .bug "Cache expiry missing for URL: ${_src_[url]}"
+	url.parse "$url" _result_ || .die "Error parsing URL: $url"
 
-	local url=${_src_[url]} class domain id inpath name ref scheme source
-
-	url.parse "$url" class domain id inpath name ref scheme source
-
-	_src_[class]=${class:-none}; _src_[domain]=$domain
-	_src_[id]=$id;               _src_[inpath]=$inpath;
-	_src_[name]=$name;           _src_[ref]=$ref
-	_src_[scheme]=$scheme;       _src_[source]=$source
-
-	_src_[caches]=${_src_[root]}/src;           _src_[interims]=${_src_[root]}/tmp
-	_src_[cache]=${_src_[caches]}/${_src_[id]}; _src_[interim]=${_src_[interims]}/${_src_[id]}
+	_result_[cache]=$SRCTMP/src/${_result_[id]}
+	_result_[interim]=$SRCTMP/tmp/${_result_[id]}
 }
 
 src.enter-() {
@@ -1435,9 +1459,9 @@ src.enter-() {
 	.must -- cd "${_src_[inpath]}"
 }
 
-src.init-() {
-	[[ -d ${_src_[caches]}   ]] || .must -- mkdir -p "${_src_[caches]}"
-	[[ -d ${_src_[interims]} ]] || .must -- mkdir -p "${_src_[interims]}"
+src.prep-() {
+	[[ -d $SRCTMP/src ]] || .must -- mkdir -p "$SRCTMP/src"
+	[[ -d $SRCTMP/tmp ]] || .must -- mkdir -p "$SRCTMP/tmp"
 }
 
 src.ln-() {
@@ -1469,16 +1493,12 @@ src.new-() {
 src.ok-() {
 	[[ -e ${_src_[cache]} ]] || return 1
 
-	.expired "${_src_[expiry]}" "${_src_[cache]}"
+	.expired "$SRCTTL" "${_src_[cache]}"
 }
 
 src.planned-() {
 	[[ -n ${_src_[cache]:-}   ]] || .bug "Unplanned cache: ${_src_[url]}"
 	[[ -n ${_src_[interim]:-} ]] || .bug "Unplanned interim: ${_src_[url]}"
-}
-
-src.purge-() {
-	rm -rf -- "${_src_[caches]}" "${_src_[interims]}"
 }
 
 src.renew-() {
@@ -1533,38 +1553,54 @@ src.none.renew-() {
 	src.none.new-
 }
 
-fetch() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+# src - Init
 
-	target='' center=''
+src.init-() {
+	[[ -n ${SRCTMP:-} ]] || .bug 'SRCTMP undefined'
+	[[ -n ${SRCTTL:-} ]] || SRCTTL=-1
+}
 
+init() {
+	local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
+	local url=${1?${FUNCNAME[0]}: missing argument};  shift
+
+	# shellcheck disable=2154
 	if url.is "$url" local; then
-		target=$url
+		x[target]=$url
 	else
-		local -A src=([url]="$ur" [root]="${const[cache]}" [expiry]="${const[expiry]}")
-
 		.getting "Fetching target: $url"
 
-		src.get src
+		local -A src=()
 
-		center=${src[cache]}
+		SRCTMP=${x[-cache]} SRCTTL=${_[-expiry]} src.get "$url" src
 
-		target=${src[cache]}
-		[[ -z ${src[inpath]:-} ]] || target=${src[cache]}/${src[inpath]}
+		x[center]=${src[cache]}
 
-		[[ -e $target ]] || .die "No target found: $url"
+		x[target]=${src[cache]}
+		[[ -z ${src[inpath]:-} ]] || x[target]=${src[cache]}/${src[inpath]}
+
+		[[ -e ${x[target]} ]] || .die "No target found: $url"
 	fi
 }
 
-x() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+main() {
+	local -A _=(
+		[.help]='[OPTIONS] URL|FILE [ARGS...]'
+		[.argc]=1-
 
-	local target center
+		[-cache]=/tmp/t
+		[-expiry]=-1
+	)
 
-	fetch "$url"  || .die 'Fetching failed'
+	flag.parse
 
-	if [[ -d $target ]]; then
-		.running "Running directory target: $target"
+	local url=$1
+	shift
+
+	init _ "$url"  || .die 'Fetching failed'
+
+	if [[ -d ${_[target]} ]]; then
+		.running "Running directory target: ${_[target]}"
 
 		discover() {
 			: # nop
@@ -1579,12 +1615,12 @@ x() {
 		}
 
 		handle() {
-			local target=${1?${FUNCNAME[0]}: missing argument}; shift
+			local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
 
-			file.run "${X[target]}" "$@"
+			file.run "${x[target]}" "$@"
 		}
 	else
-		.running "Running file target: $target"
+		.running "Running file target: ${_[target]}"
 
 		discover() {
 			: # nop
@@ -1592,16 +1628,15 @@ x() {
 
 		# shellcheck disable=2128
 		focus() {
-			local target=${1?${FUNCNAME[0]}: missing argument}; shift
-			local center=${1?${FUNCNAME[0]}: missing argument}; shift
+			local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
 
-			if [[ -n ${center:-} ]]; then
-				.must -- cd "$center"
+			if [[ -n ${x[center]:-} ]]; then
+				.must -- cd "${x[center]}"
 
 				return 0
 			fi
 
-			.must -- cd "${X[target]}"
+			.must -- cd "${x[target]}"
 
 			while :; do
 				if [[ -f .META ]] || [[ -d .git ]]; then
@@ -1621,7 +1656,7 @@ x() {
 		}
 
 		handle() {
-			local target=${1?${FUNCNAME[0]}: missing argument}; shift
+			local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
 
 			if [[ $# -eq 0 ]]; then
 				discover
@@ -1652,27 +1687,9 @@ x() {
 		}
 	fi
 
-	focus "$target" "$center" || .die 'Focus failed'
-	setup                     || .die 'Setup failed'
-	handle "$target" "$@"     || .die 'Handle failed'
+	focus  _      || .die 'Focus failed'
+	setup  _      || .die 'Setup failed'
+	handle _ "$@" || .die 'Handle failed'
 }
 
-if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
-	declare -Agr const=(
-		[cache]=/tmp/t
-		[expiry]=-1
-	)
-
-	main() {
-		local -A _=(
-			[.help]='URL|FILE [ARGS...]'
-			[.argc]=1-
-		)
-
-		flag.parse
-
-		x "$@"
-	}
-
-	main "$@"
-fi
+main "$@"

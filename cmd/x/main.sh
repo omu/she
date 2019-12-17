@@ -14,67 +14,58 @@
 #=github.com/omu/home/src/sh/zip.sh
 #=github.com/omu/home/src/sh/src.sh
 
-fetch() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+init() {
+	local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
+	local url=${1?${FUNCNAME[0]}: missing argument};  shift
 
-	target='' center=''
-
+	# shellcheck disable=2154
 	if url.is "$url" local; then
-		target=$url
+		x[target]=$url
 	else
-		local -A src=([url]="$ur" [root]="${const[cache]}" [expiry]="${const[expiry]}")
-
 		.getting "Fetching target: $url"
 
-		src.get src
+		local -A src=()
 
-		center=${src[cache]}
+		SRCTMP=${x[-cache]} SRCTTL=${_[-expiry]} src.get "$url" src
 
-		target=${src[cache]}
-		[[ -z ${src[inpath]:-} ]] || target=${src[cache]}/${src[inpath]}
+		x[center]=${src[cache]}
 
-		[[ -e $target ]] || .die "No target found: $url"
+		x[target]=${src[cache]}
+		[[ -z ${src[inpath]:-} ]] || x[target]=${src[cache]}/${src[inpath]}
+
+		[[ -e ${x[target]} ]] || .die "No target found: $url"
 	fi
 }
 
-x() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+main() {
+	local -A _=(
+		[.help]='[OPTIONS] URL|FILE [ARGS...]'
+		[.argc]=1-
 
-	local target center
+		[-cache]=/tmp/t
+		[-expiry]=-1
+	)
 
-	fetch "$url"  || .die 'Fetching failed'
+	flag.parse
 
-	if [[ -d $target ]]; then
-		.running "Running directory target: $target"
+	local url=$1
+	shift
+
+	init _ "$url"  || .die 'Fetching failed'
+
+	if [[ -d ${_[target]} ]]; then
+		.running "Running directory target: ${_[target]}"
 
 		#=cmd/x/file.sh
 	else
-		.running "Running file target: $target"
+		.running "Running file target: ${_[target]}"
 
 		#=cmd/x/dir.sh
 	fi
 
-	focus "$target" "$center" || .die 'Focus failed'
-	setup                     || .die 'Setup failed'
-	handle "$target" "$@"     || .die 'Handle failed'
+	focus  _      || .die 'Focus failed'
+	setup  _      || .die 'Setup failed'
+	handle _ "$@" || .die 'Handle failed'
 }
 
-if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
-	declare -Agr const=(
-		[cache]=/tmp/t
-		[expiry]=-1
-	)
-
-	main() {
-		local -A _=(
-			[.help]='URL|FILE [ARGS...]'
-			[.argc]=1-
-		)
-
-		flag.parse
-
-		x "$@"
-	}
-
-	main "$@"
-fi
+main "$@"
