@@ -14,15 +14,17 @@
 #=github.com/omu/home/src/sh/zip.sh
 #=github.com/omu/home/src/sh/src.sh
 
-x() {
+fetch() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local target center
+	target='' center=''
 
 	if url.is "$url" local; then
 		target=$url
 	else
 		local -A src=([url]="$ur" [root]="${const[cache]}" [expiry]="${const[expiry]}")
+
+		.getting "Fetching target: $url"
 
 		src.get src
 
@@ -33,6 +35,14 @@ x() {
 
 		[[ -e $target ]] || .die "No target found: $url"
 	fi
+}
+
+x() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local target center
+
+	fetch "$url"  || .die 'Fetching failed'
 
 	if [[ -d $target ]]; then
 		.running "Running directory target: $target"
