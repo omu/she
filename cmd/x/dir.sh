@@ -12,19 +12,7 @@ focus() {
 		return 0
 	fi
 
-	.must -- cd "${x[target]}"
-
-	while :; do
-		if [[ -f .META ]] || [[ -d .git ]]; then
-			return 0
-		fi
-
-		if [[ $PWD == "/" ]]; then
-			break
-		fi
-
-		.must -- cd ..
-	done
+	file.upcd "${x[target]}" .META .git
 }
 
 setup() {
@@ -42,20 +30,8 @@ handle() {
 
 	local cmd=$1; shift
 
-	local pattern found
-	for pattern in 'bin/%s' 'sbin/%s' 'script/%s' 'scripts/%s.sh'; do # FIXME
-		local file
-
-		# shellcheck disable=2059
-		printf -v file "$pattern" "$cmd"
-
-		if [[ -f $file ]]; then
-			found=$file
-			break
-		fi
-	done
-
-	[[ -n ${found:-} ]] || .die 'No runnable found'
+	local found
+	found=$(file.match "$cmd" './bin/%s' './sbin/%s' './script/%s' './scripts/%s.*') || .die "No runnable found"
 
 	filetype.runnable "$found" || .die "Not a runnable: $found"
 

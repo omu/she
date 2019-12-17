@@ -478,6 +478,30 @@ file.ln() {
 	[[ -z ${mog:-} ]] || file.chmog "$mog" "$dst"
 }
 
+file.match() {
+	local name=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local fmt
+
+	for fmt; do
+		local pattern
+
+		# shellcheck disable=2059
+		printf -v pattern "$fmt" "$name"
+
+		local -a matches=()
+
+		mapfile -t matches < <(find . -type f -path "$pattern" -true 2>/dev/null)
+
+		if [[ ${#matches[@]} -eq 1 ]]; then
+			echo "${matches[0]}"
+			return 0
+		fi
+	done
+
+	return 1
+}
+
 file.cp() {
 	local src=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -516,6 +540,29 @@ file.run() {
 	argv+=("$file")
 
 	"${argv[@]}"
+}
+
+file.upcd() {
+	local cwd=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	.must -- cd "$cwd"
+
+	while :; do
+		local try
+
+		for try; do
+			if [[ -e $try ]]; then
+				return 0
+			fi
+		done
+
+		# shellcheck disable=2128
+		if [[ $PWD == "/" ]]; then
+			break
+		fi
+
+		.must -- cd ..
+	done
 }
 
 # filetype.sh - Filetype detection
@@ -1560,6 +1607,7 @@ src.init-() {
 	[[ -n ${SRCTTL:-} ]] || SRCTTL=-1
 }
 
+
 init() {
 	local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
 	local url=${1?${FUNCNAME[0]}: missing argument};  shift
@@ -1636,19 +1684,7 @@ main() {
 				return 0
 			fi
 
-			.must -- cd "${x[target]}"
-
-			while :; do
-				if [[ -f .META ]] || [[ -d .git ]]; then
-					return 0
-				fi
-
-				if [[ $PWD == "/" ]]; then
-					break
-				fi
-
-				.must -- cd ..
-			done
+			file.upcd "${x[target]}" .META .git
 		}
 
 		setup() {
@@ -1666,20 +1702,8 @@ main() {
 
 			local cmd=$1; shift
 
-			local pattern found
-			for pattern in 'bin/%s' 'sbin/%s' 'script/%s' 'scripts/%s.sh'; do # FIXME
-				local file
-
-				# shellcheck disable=2059
-				printf -v file "$pattern" "$cmd"
-
-				if [[ -f $file ]]; then
-					found=$file
-					break
-				fi
-			done
-
-			[[ -n ${found:-} ]] || .die 'No runnable found'
+			local found
+			found=$(file.match "$cmd" './bin/%s' './sbin/%s' './script/%s' './scripts/%s.*') || .die "No runnable found"
 
 			filetype.runnable "$found" || .die "Not a runnable: $found"
 
