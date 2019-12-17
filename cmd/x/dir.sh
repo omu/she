@@ -28,9 +28,11 @@ handle() {
 		return 0
 	fi
 
-	local cmd=$1; shift
+	local cmd=$1
+	shift
 
 	local found
+
 	found=$(file.match "$cmd" './bin/%s' './sbin/%s' './script/%s' './scripts/%s.*') || .die "No runnable found"
 
 	filetype.runnable "$found" || .die "Not a runnable: $found"
