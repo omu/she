@@ -14,7 +14,6 @@
 #=github.com/omu/home/src/sh/zip.sh
 #=github.com/omu/home/src/sh/src.sh
 
-
 init() {
 	local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
 	local url=${1?${FUNCNAME[0]}: missing argument};  shift
