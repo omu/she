@@ -1127,6 +1127,7 @@ git.clone() {
 
 	local -a options=(
 		'--single-branch'
+		'--quiet'
 	)
 
 	[[ -z ${ref:-} ]] || options+=(
@@ -1134,6 +1135,7 @@ git.clone() {
 		"$ref"
 	)
 
+	.getting "Cloning $src"
 	.must -- git clone "${options[@]}" "$src" "$dst"
 
 	if [[ -n ${ref:-} ]] && git.ref.is "$ref" tag; then

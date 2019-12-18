@@ -22,8 +22,6 @@ init() {
 	if url.is "$url" local; then
 		x[target]=$url
 	else
-		.getting "Fetching target: $url"
-
 		src.get "$url" x
 
 		x[center]=${x[cache]}
