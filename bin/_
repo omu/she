@@ -138,6 +138,17 @@
 	unset _load_old_
 }
 
+.merge() {
+	local -n lhs=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n rhs=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!rhs[@]}"; do
+		# shellcheck disable=2034
+		lhs[$key]=${rhs[$key]}
+	done
+}
+
 .must() {
 	if [[ ${1:-} = -- ]]; then
 		shift
@@ -1969,8 +1980,6 @@ zip.prep_unzip_() {
 src.del() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src.init-
-
 	if [[ $# -gt 0 ]]; then
 		# shellcheck disable=2178
 		local -n _src_=$1
@@ -1984,8 +1993,6 @@ src.del() {
 
 src.enter() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	src.init-
 
 	if [[ $# -gt 0 ]]; then
 		# shellcheck disable=2178
@@ -2001,8 +2008,6 @@ src.enter() {
 
 src.get() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	src.init-
 
 	if [[ $# -gt 0 ]]; then
 		# shellcheck disable=2178
@@ -2020,15 +2025,20 @@ src.plan() {
 	local url=${1?${FUNCNAME[0]}: missing argument};           shift
 	local -n _src_plan_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	src.init-
-
 	src.calculate- "$url" _src_plan_
 }
 
 src.purge() {
-	src.init-
+	if [[ $# -gt 0 ]]; then
+		# shellcheck disable=2178
+		local -n _src_=$1
+		shift
 
-	rm -rf -- "$SRCTMP"/{src,tmp}
+		local caches=${_src_[cache]%/*} interims=${_src_[interim]%/*}
+		rm -rf -- "$caches" "$interims"
+	else
+		[[ -z ${SRCTMP:-} ]] || rm -rf -- "$SRCTMP"/{src,tmp}
+	fi
 }
 
 # Private functions
@@ -2043,15 +2053,25 @@ src.apply-() {
 	fi
 }
 
-# shellcheck disable=2154
+# shellcheck disable=2034,2154
 src.calculate-() {
-	local url=${1?${FUNCNAME[0]}: missing argument};         shift
-	local -n _result_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local url=${1?${FUNCNAME[0]}: missing argument};       shift
+	local -n _hash_=${1?${FUNCNAME[0]}: missing argument}; shift
 
+	local prefix=${_hash_[-prefix]:-}
+	if [[ -z $prefix ]]; then
+		[[ -n ${SRCTMP:-} ]] || .die 'SRCTMP undefined'
+
+		prefix=$SRCTMP
+	fi
+
+	local -A _result_
 	url.parse "$url" _result_ || .die "Error parsing URL: $url"
 
-	_result_[cache]=$SRCTMP/src/${_result_[id]}
-	_result_[interim]=$SRCTMP/tmp/${_result_[id]}
+	_result_[cache]=$prefix/src/${_result_[id]}
+	_result_[interim]=$prefix/tmp/${_result_[id]}
+
+	.merge _hash_ _result_
 }
 
 src.enter-() {
@@ -2063,8 +2083,10 @@ src.enter-() {
 }
 
 src.prep-() {
-	[[ -d $SRCTMP/src ]] || .must -- mkdir -p "$SRCTMP/src"
-	[[ -d $SRCTMP/tmp ]] || .must -- mkdir -p "$SRCTMP/tmp"
+	local caches=${_src_[cache]%/*} interims=${_src_[interim]%/*}
+
+	[[ -d $caches   ]] || .must -- mkdir -p "$caches"
+	[[ -d $interims ]] || .must -- mkdir -p "$interims"
 }
 
 src.ln-() {
@@ -2096,12 +2118,17 @@ src.new-() {
 src.ok-() {
 	[[ -e ${_src_[cache]} ]] || return 1
 
-	.expired "$SRCTTL" "${_src_[cache]}"
+	local ttl=${_src_[-ttl]:-}
+	[[ -n $ttl ]] || ttl=${SRCTTL:--1}
+
+	.expired "$ttl" "${_src_[cache]}"
 }
 
 src.planned-() {
-	[[ -n ${_src_[cache]:-}   ]] || .bug "Unplanned cache: ${_src_[url]}"
-	[[ -n ${_src_[interim]:-} ]] || .bug "Unplanned interim: ${_src_[url]}"
+	[[ -n ${_src_[source]:-}  ]] || .bug "Unplanned cache"
+
+	[[ -n ${_src_[cache]:-}   ]] || .bug "Unplanned cache: ${_src_[source]}"
+	[[ -n ${_src_[interim]:-} ]] || .bug "Unplanned interim: ${_src_[source]}"
 }
 
 src.renew-() {
@@ -2154,13 +2181,6 @@ src.none.new-() {
 
 src.none.renew-() {
 	src.none.new-
-}
-
-# src - Init
-
-src.init-() {
-	[[ -n ${SRCTMP:-} ]] || .bug 'SRCTMP undefined'
-	[[ -n ${SRCTTL:-} ]] || SRCTTL=-1
 }
 
 # Commands
@@ -2644,15 +2664,15 @@ filetype:is:runnable-() {
 # Git pull if repository expired
 git:update() {
 	local -A _=(
-		[-expiry]=3
+		[-ttl]=3
 
-		[.help]='[-expiry=MINUTES]'
+		[.help]='[-ttl=MINUTES]'
 		[.argc]=0
 	)
 
 	flag.parse
 
-	if .expired "${_[-expiry]}" .git/FETCH_HEAD; then
+	if .expired "${_[-ttl]}" .git/FETCH_HEAD; then
 		git.must.clean
 		.getting 'Updating repository' git pull --quiet origin
 	fi
@@ -2674,9 +2694,9 @@ git:install() {
 	local url=$1
 	shift
 
-	local -A src=([url]="$url" [root]="$_RUN" [expiry]=-1)
+	local -A src=()
 
-	src.get src
+	src.get "$url" src
 
 	[[ ${src[class]:-} = git ]] || .die "Not a git repository: $url"
 
@@ -2865,10 +2885,10 @@ self:src() {
 :enter() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-expiry]=-1
-		[-prefix]=$_RUN
+		[-ttl]=-1
+		[-cache]=$_RUN
 
-		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL'
+		[.help]='[-(cache=MINUTES|cache=DIR)] URL'
 		[.argc]=1
 	)
 
@@ -2877,21 +2897,21 @@ self:src() {
 	local url=$1
 	shift
 
-	SRCTMP=${_[-prefix]} SRCTTL=${_[-expiry]} src.enter "$url"
+	src.enter "$url" _
 }
 
 # Return if any of the files expired
 :expired() {
 	local -A _=(
-		[-expiry]=3
+		[-ttl]=3
 
-		[.help]='[-expiry=MINUTES] FILE...'
+		[.help]='[-ttl=MINUTES] FILE...'
 		[.argc]=1-
 	)
 
 	flag.parse
 
-	.expired "${_[-expiry]}" "$@"
+	.expired "${_[-ttl]}" "$@"
 }
 
 # Ensure the given command succeeds
@@ -2936,10 +2956,10 @@ self:src() {
 :with() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-expiry]=-1
-		[-prefix]=$_RUN
+		[-ttl]=-1
+		[-cache]=$_RUN
 
-		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL COMMAND [ARG]...'
+		[.help]='[-(ttl=MINUTES|cache=DIR)] URL COMMAND [ARG]...'
 		[.argc]=2-
 	)
 
@@ -2949,10 +2969,8 @@ self:src() {
 	local url=$1 old_pwd=$PWD
 	shift
 
-	local -A src=()
-
-	SRCTMP=${_[-prefix]} SRCTTL=${_[-expiry]} src.enter "$url" src
-	"$@" "${src[cache]}"
+	src.enter "$url" _
+	"$@" "${_[cache]}"
 	.must -- cd "$old_pwd"
 }
 

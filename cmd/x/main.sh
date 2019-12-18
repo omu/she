@@ -24,14 +24,12 @@ init() {
 	else
 		.getting "Fetching target: $url"
 
-		local -A src=()
+		src.get "$url" x
 
-		SRCTMP=${x[-cache]} SRCTTL=${_[-expiry]} src.get "$url" src
+		x[center]=${x[cache]}
 
-		x[center]=${src[cache]}
-
-		x[target]=${src[cache]}
-		[[ -z ${src[inpath]:-} ]] || x[target]=${src[cache]}/${src[inpath]}
+		x[target]=${x[cache]}
+		[[ -z ${x[inpath]:-} ]] || x[target]=${x[cache]}/${x[inpath]}
 
 		[[ -e ${x[target]} ]] || .die "No target found: $url"
 	fi
@@ -42,8 +40,8 @@ main() {
 		[.help]='[OPTIONS] URL|FILE [ARGS...]'
 		[.argc]=1-
 
-		[-cache]=/tmp/t
-		[-expiry]=-1
+		[-prefix]=/tmp/t
+		[-ttl]=-1
 	)
 
 	flag.parse

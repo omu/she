@@ -28,10 +28,10 @@
 :enter() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-expiry]=-1
-		[-prefix]=$_RUN
+		[-ttl]=-1
+		[-cache]=$_RUN
 
-		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL'
+		[.help]='[-(cache=MINUTES|cache=DIR)] URL'
 		[.argc]=1
 	)
 
@@ -40,21 +40,21 @@
 	local url=$1
 	shift
 
-	SRCTMP=${_[-prefix]} SRCTTL=${_[-expiry]} src.enter "$url"
+	src.enter "$url" _
 }
 
 # Return if any of the files expired
 :expired() {
 	local -A _=(
-		[-expiry]=3
+		[-ttl]=3
 
-		[.help]='[-expiry=MINUTES] FILE...'
+		[.help]='[-ttl=MINUTES] FILE...'
 		[.argc]=1-
 	)
 
 	flag.parse
 
-	.expired "${_[-expiry]}" "$@"
+	.expired "${_[-ttl]}" "$@"
 }
 
 # Ensure the given command succeeds
@@ -99,10 +99,10 @@
 :with() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-expiry]=-1
-		[-prefix]=$_RUN
+		[-ttl]=-1
+		[-cache]=$_RUN
 
-		[.help]='[-(expiry=MINUTES|prefix=DIR)] URL COMMAND [ARG]...'
+		[.help]='[-(ttl=MINUTES|cache=DIR)] URL COMMAND [ARG]...'
 		[.argc]=2-
 	)
 
@@ -112,10 +112,8 @@
 	local url=$1 old_pwd=$PWD
 	shift
 
-	local -A src=()
-
-	SRCTMP=${_[-prefix]} SRCTTL=${_[-expiry]} src.enter "$url" src
-	"$@" "${src[cache]}"
+	src.enter "$url" _
+	"$@" "${_[cache]}"
 	.must -- cd "$old_pwd"
 }
 

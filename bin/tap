@@ -138,6 +138,17 @@
 	unset _load_old_
 }
 
+.merge() {
+	local -n lhs=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n rhs=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!rhs[@]}"; do
+		# shellcheck disable=2034
+		lhs[$key]=${rhs[$key]}
+	done
+}
+
 .must() {
 	if [[ ${1:-} = -- ]]; then
 		shift

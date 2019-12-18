@@ -3,15 +3,15 @@
 # Git pull if repository expired
 git:update() {
 	local -A _=(
-		[-expiry]=3
+		[-ttl]=3
 
-		[.help]='[-expiry=MINUTES]'
+		[.help]='[-ttl=MINUTES]'
 		[.argc]=0
 	)
 
 	flag.parse
 
-	if .expired "${_[-expiry]}" .git/FETCH_HEAD; then
+	if .expired "${_[-ttl]}" .git/FETCH_HEAD; then
 		git.must.clean
 		.getting 'Updating repository' git pull --quiet origin
 	fi
@@ -33,9 +33,9 @@ git:install() {
 	local url=$1
 	shift
 
-	local -A src=([url]="$url" [root]="$_RUN" [expiry]=-1)
+	local -A src=()
 
-	src.get src
+	src.get "$url" src
 
 	[[ ${src[class]:-} = git ]] || .die "Not a git repository: $url"
 
