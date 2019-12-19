@@ -29,7 +29,7 @@
 	# shellcheck disable=2192
 	local -A _=(
 		[-ttl]=-1
-		[-cache]=$_RUN
+		[-prefix]=$_RUN
 
 		[.help]='[-(cache=MINUTES|cache=DIR)] URL'
 		[.argc]=1
@@ -92,7 +92,11 @@
 	)
 
 	flag.parse
-	:
+
+	# shellcheck disable=2034
+	local -a env=(); flag.env_ env
+
+	file.rune env "$@"
 }
 
 # TODO
@@ -100,7 +104,7 @@
 	# shellcheck disable=2192
 	local -A _=(
 		[-ttl]=-1
-		[-cache]=$_RUN
+		[-prefix]=$_RUN
 
 		[.help]='[-(ttl=MINUTES|cache=DIR)] URL COMMAND [ARG]...'
 		[.argc]=2-
@@ -115,30 +119,4 @@
 	src.enter "$url" _
 	"$@" "${_[cache]}"
 	.must -- cd "$old_pwd"
-}
-
-# cmd/_ - Init
-
-init.early_() {
-	# Default variable as a hash
-	declare -gA _=()
-
-	# shellcheck disable=2034
-
-	# Core environment
-	if [[ ${EUID:-} -eq 0 ]]; then
-		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
-		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
-		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
-	else
-		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
-		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
-		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
-
-		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
-		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
-		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
-	fi
-
-	export PATH="$_RUN"/bin:"$PATH" SRCTMP="$_RUN"
 }

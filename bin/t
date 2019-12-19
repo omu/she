@@ -72,7 +72,10 @@
 .expired() {
 	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ $expiry -gt 0 ]] || return 1
+	case $expiry in
+	-1) return 1 ;;
+	0)  return 0 ;;
+	esac
 
 	local file
 	for file; do
@@ -187,6 +190,30 @@
 }
 
 .prelude
+
+.runtime() {
+	# Default variable as a hash
+	declare -gA _=()
+
+	# shellcheck disable=2034
+
+	# Core environment
+	if [[ ${EUID:-} -eq 0 ]]; then
+		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
+		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
+		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
+	else
+		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
+		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
+		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
+
+		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
+		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
+		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
+	fi
+
+	export PATH="$_RUN"/bin:"$PATH" SRCTMP="$_RUN"
+}
 
 # assert.sh - Assertions
 
@@ -514,11 +541,58 @@ color.init_
 # flag.sh - Flag handling
 
 flag.args_() {
-	flag.values '^[1-9][0-9]*$' "$@"
+	local -a keys
+
+	mapfile -t keys < <(
+		for key in "${!_[@]}"; do
+			[[ $key =~ ^[1-9][0-9]*$ ]] || continue
+
+			echo "$key"
+		done | sort -u
+	)
+
+	local key
+
+	if [[ $# -gt 0 ]]; then
+		local -n _values_=$1
+
+		for key in "${keys[@]}"; do
+			_values_+=("${_[$key]}")
+		done
+
+		_values_=("${_values_[@]}")
+	else
+		for key in "${keys[@]}"; do
+			echo "${_[$key]}"
+		done
+	fi
 }
 
 flag.env_() {
-	flag.values '^[[:alpha:]_][[:alnum:]_]*$' "$@"
+	local -a keys
+
+	mapfile -t keys < <(
+		for key in "${!_[@]}"; do
+			[[ $key =~ ^[[:alpha:]_][[:alnum:]_]*$ ]] || continue
+
+			echo "$key"
+		done | sort -u
+	)
+
+	local key
+
+	if [[ $# -gt 0 ]]; then
+		# shellcheck disable=2178
+		local -n _values_=$1
+
+		for key in "${keys[@]}"; do
+			_values_+=("$key='${_[$key]}'")
+		done
+	else
+		for key in "${keys[@]}"; do
+			echo "$key='${_[$key]}'"
+		done
+	fi
 }
 
 flag.false() {
@@ -602,36 +676,6 @@ flag.peek_() {
 	flag.load flag_result_
 
 	flag._validate_ $argc
-}
-
-flag.values() {
-	local pattern=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local -a keys
-
-	mapfile -t keys < <(
-		for key in "${!_[@]}"; do
-			[[ $key =~ $pattern ]] || continue
-
-			echo "$key"
-		done | sort -u
-	)
-
-	local key
-
-	if [[ $# -gt 0 ]]; then
-		local -n _values_=$1
-
-		for key in "${keys[@]}"; do
-			_values_+=("${_[$key]}")
-		done
-
-		_values_=("${_values_[@]}")
-	else
-		for key in "${keys[@]}"; do
-			echo "${_[$key]}"
-		done
-	fi
 }
 
 flag.true() {
@@ -1241,7 +1285,10 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				.expired() {
 					local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
 
-					[[ $expiry -gt 0 ]] || return 1
+					case $expiry in
+					-1) return 1 ;;
+					0)  return 0 ;;
+					esac
 
 					local file
 					for file; do
@@ -1356,6 +1403,30 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				}
 
 				.prelude
+
+				.runtime() {
+					# Default variable as a hash
+					declare -gA _=()
+
+					# shellcheck disable=2034
+
+					# Core environment
+					if [[ ${EUID:-} -eq 0 ]]; then
+						readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
+						readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
+						readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
+					else
+						XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
+						XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
+						XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
+
+						readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
+						readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
+						readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
+					fi
+
+					export PATH="$_RUN"/bin:"$PATH" SRCTMP="$_RUN"
+				}
 
 				# assert.sh - Assertions
 

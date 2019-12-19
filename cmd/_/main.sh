@@ -58,6 +58,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				#:cmd/_/source.sh
 EOF
 		else
+			.runtime
 			.callback init
 			.dispatch "$@"
 		fi

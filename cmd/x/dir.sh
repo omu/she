@@ -21,6 +21,8 @@ setup() {
 
 handle() {
 	local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
+	# shellcheck disable=2034
+	local -n e=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	if [[ $# -eq 0 ]]; then
 		discover
@@ -37,5 +39,5 @@ handle() {
 
 	filetype.runnable "$found" || .die "Not a runnable: $found"
 
-	file.run "$found" "$@"
+	file.rune e "$found" "$@"
 }

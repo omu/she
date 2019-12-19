@@ -72,7 +72,10 @@
 .expired() {
 	local -i expiry=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	[[ $expiry -gt 0 ]] || return 1
+	case $expiry in
+	-1) return 1 ;;
+	0)  return 0 ;;
+	esac
 
 	local file
 	for file; do
@@ -187,6 +190,30 @@
 }
 
 .prelude
+
+.runtime() {
+	# Default variable as a hash
+	declare -gA _=()
+
+	# shellcheck disable=2034
+
+	# Core environment
+	if [[ ${EUID:-} -eq 0 ]]; then
+		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
+		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
+		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
+	else
+		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
+		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
+		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
+
+		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
+		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
+		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
+	fi
+
+	export PATH="$_RUN"/bin:"$PATH" SRCTMP="$_RUN"
+}
 
 # Libraries
 
@@ -644,8 +671,7 @@ file.download() {
 	local download
 	temp.file download
 
-	.getting "Downloading $url"
-	.must -- http.get "$url" >"$download"
+	http.download "$url" "$download"
 	.must -- chmod 644 "$download"
 
 	# shellcheck disable=2034
@@ -721,30 +747,14 @@ file.cp() {
 }
 
 file.run() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	# shellcheck disable=2034
+	local -A file_run_env_=()
 
-	[[ -f $file ]] || [[ $file =~ [.][^./]+$ ]] || file=$file.sh
+	file.run- file_run_env_ "$@"
+}
 
-	filetype.runnable "$file" || .die "File is not runnable: $file"
-
-	local -a env=()
-	flag.env_ env
-
-	local -a argv=(env "${env[@]}")
-
-	if [[ ! -x "$file" ]]; then
-		if filetype.interpretable "$file"; then
-			local -a shebang
-			filetype.shebang "$file" shebang
-
-			# shellcheck disable=2206
-			argv+=("${shebang[@]}")
-		fi
-	fi
-
-	argv+=("$file")
-
-	"${argv[@]}"
+file.rune() {
+	file.run- "$@"
 }
 
 file.upcd() {
@@ -768,6 +778,42 @@ file.upcd() {
 
 		.must -- cd ..
 	done
+}
+
+# file - Private functions
+
+file.run-() {
+	local -n file_env_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local file=${1?${FUNCNAME[0]}: missing argument};         shift
+
+	[[ -f $file ]] || [[ $file =~ [.][^./]+$ ]] || file=$file.sh
+
+	filetype.runnable "$file" || .die "File is not runnable: $file"
+
+	local -a argv=()
+
+	[[ ${#file_env_[@]} -eq 0 ]] || argv+=(env "${file_env_[@]}")
+
+	if [[ ! -x "$file" ]]; then
+		if filetype.interpretable "$file"; then
+			local -a shebang
+			filetype.shebang "$file" shebang
+
+			case ${shebang[0]} in
+			*/env)
+				[[ ${#file_env_[@]} -eq 0 ]] || argv+=("${shebang[@]:1}")
+				;;
+			*)
+				# shellcheck disable=2206
+				argv+=("${shebang[@]}")
+				;;
+			esac
+		fi
+	fi
+
+	argv+=("$file" "$@")
+
+	"${argv[@]}"
 }
 
 # filetype.sh - Filetype detection
@@ -884,11 +930,58 @@ filetype.shebang() {
 # flag.sh - Flag handling
 
 flag.args_() {
-	flag.values '^[1-9][0-9]*$' "$@"
+	local -a keys
+
+	mapfile -t keys < <(
+		for key in "${!_[@]}"; do
+			[[ $key =~ ^[1-9][0-9]*$ ]] || continue
+
+			echo "$key"
+		done | sort -u
+	)
+
+	local key
+
+	if [[ $# -gt 0 ]]; then
+		local -n _values_=$1
+
+		for key in "${keys[@]}"; do
+			_values_+=("${_[$key]}")
+		done
+
+		_values_=("${_values_[@]}")
+	else
+		for key in "${keys[@]}"; do
+			echo "${_[$key]}"
+		done
+	fi
 }
 
 flag.env_() {
-	flag.values '^[[:alpha:]_][[:alnum:]_]*$' "$@"
+	local -a keys
+
+	mapfile -t keys < <(
+		for key in "${!_[@]}"; do
+			[[ $key =~ ^[[:alpha:]_][[:alnum:]_]*$ ]] || continue
+
+			echo "$key"
+		done | sort -u
+	)
+
+	local key
+
+	if [[ $# -gt 0 ]]; then
+		# shellcheck disable=2178
+		local -n _values_=$1
+
+		for key in "${keys[@]}"; do
+			_values_+=("$key='${_[$key]}'")
+		done
+	else
+		for key in "${keys[@]}"; do
+			echo "$key='${_[$key]}'"
+		done
+	fi
 }
 
 flag.false() {
@@ -972,36 +1065,6 @@ flag.peek_() {
 	flag.load flag_result_
 
 	flag._validate_ $argc
-}
-
-flag.values() {
-	local pattern=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local -a keys
-
-	mapfile -t keys < <(
-		for key in "${!_[@]}"; do
-			[[ $key =~ $pattern ]] || continue
-
-			echo "$key"
-		done | sort -u
-	)
-
-	local key
-
-	if [[ $# -gt 0 ]]; then
-		local -n _values_=$1
-
-		for key in "${keys[@]}"; do
-			_values_+=("${_[$key]}")
-		done
-
-		_values_=("${_values_[@]}")
-	else
-		for key in "${keys[@]}"; do
-			echo "${_[$key]}"
-		done
-	fi
 }
 
 flag.true() {
@@ -1123,7 +1186,7 @@ git.clone() {
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
 	local ref=${1:-}
 
-	[[ -e $dst ]] || .die "Destination already exists: $dst"
+	.must "Destination already exists: $dst" [[ ! -e "$dst" ]]
 
 	local -a options=(
 		'--single-branch'
@@ -1197,7 +1260,7 @@ git.ref.is() {
 git.reset() {
 	local repo=${1:-.}
 
-	.must -- git -C "$repo" --reset hard
+	.must -- git -C "$repo" reset --hard
 }
 
 git.set.immutable() {
@@ -1250,7 +1313,10 @@ git.topdir() {
 git.update() {
 	local repo=${1:-.}
 
-	git.is "$repo" immutable || .must -- git pull -q
+	if ! git.is "$repo" immutable; then
+		.getting "Updating repo"
+		.must -- git pull -q
+	fi
 }
 
 # Private functions
@@ -1288,6 +1354,14 @@ git.is.sane-and-clean-() {
 }
 
 # http.sh - HTTP functions
+
+http.download() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	.getting 'Downloading file'
+	.must -- http.get "$url" >"$dst"
+}
 
 http.get() {
 	local url=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -1867,6 +1941,29 @@ virt.is.physical() {
 	! systemd-detect-virt -q
 }
 
+zip.unpack() {
+	local in=${1?${FUNCNAME[0]}: missing argument}; shift
+	local out=${1:-}
+
+	local ext=${in##*.}
+	.must "Extension required: $in" [[ -n "$ext" ]]
+
+	local type
+	case $in in
+	*.tar.*) type=tar.$ext ;;
+	*)       type=$ext     ;;
+	esac
+
+	[[ -n $out ]] || out=${in%.*}
+	.must "Destination already exists: $out" [[ ! -e "$out" ]]
+
+	local func=zip.unpack."$type"
+
+	.must "Unsupported compressed file: $in" .callable "$func"
+
+	"$func" "$in" "$out"
+}
+
 zip.unpack.bz2() {
 	.must 'No program found: bzcat' .available bzcat && zip.prep_unzip_ "$@"
 
@@ -2068,7 +2165,7 @@ src.calculate-() {
 	fi
 
 	local -A _result_
-	url.parse "$url" _result_ || .die "Error parsing URL: $url"
+	url.parse -bash=_result_ "$url" || .die "Error parsing URL: $url"
 
 	_result_[cache]=$prefix/src/${_result_[id]}
 	_result_[interim]=$prefix/tmp/${_result_[id]}
@@ -2082,6 +2179,19 @@ src.enter-() {
 
 	[[ -d ${_src_[inpath]} ]] || return 0
 	.must -- cd "${_src_[inpath]}"
+}
+
+src.handler-() {
+	local handler
+
+	case ${_src_[class]:-} in
+	"")                handler=none ;;
+	git)               handler=git ;;
+	zip|tar.gz|tar.xz) handler=zip ;;
+	*)                 .die "Unsupported class: ${_src_[class]}"
+	esac
+
+	echo "$handler"
 }
 
 src.prep-() {
@@ -2110,7 +2220,12 @@ src.new-() {
 		.clean "${_src_[interim]}"
 
 		src.rm-
-		src."${_src_[class]}".new-
+
+		local handler
+		handler=$(src.handler-) || exit $?
+
+		src."$handler".new-
+
 		src.mv-
 	fi
 
@@ -2121,9 +2236,9 @@ src.ok-() {
 	[[ -e ${_src_[cache]} ]] || return 1
 
 	local ttl=${_src_[-ttl]:-}
-	[[ -n $ttl ]] || ttl=${SRCTTL:--1}
+	[[ -n $ttl ]] || ttl=${SRCTTL:-30}
 
-	.expired "$ttl" "${_src_[cache]}"
+	! .expired "$ttl" "${_src_[cache]}"
 }
 
 src.planned-() {
@@ -2139,7 +2254,10 @@ src.renew-() {
 	else
 		.clean "${_src_[interim]}"
 
-		src."${_src_[class]}".renew-
+		local handler
+		handler=$(src.handler-) || exit $?
+
+		src."$handler".renew-
 		src.mv-
 	fi
 
@@ -2165,8 +2283,10 @@ src.git.renew-() {
 src.zip.new-() {
 	src.none.new-
 
-	zip.unpack "${_src_[interim]}" "${_src_[interim]}".unpack
-	rm -rf "${_src_[interim]}" && mv "${_src_[interim]}".unpack "${_src_[interim]}"
+	local dst="${_src_[interim]}".unpack
+
+	rm -rf -- "$dst" && zip.unpack "${_src_[interim]}" "$dst"
+	rm -rf -- "${_src_[interim]}" && mv "$dst" "${_src_[interim]}"
 }
 
 src.zip.renew-() {
@@ -2178,7 +2298,7 @@ src.zip.renew-() {
 src.none.new-() {
 	[[ ${_src_[scheme]} =~ ^http ]] || .bug "Unimplemented scheme: ${_src_[scheme]}"
 
-	http.get "${_src_[source]}" >"${_src_[interim]}"
+	http.download "${_src_[source]}" "${_src_[interim]}"
 }
 
 src.none.renew-() {
@@ -2888,7 +3008,7 @@ self:src() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-ttl]=-1
-		[-cache]=$_RUN
+		[-prefix]=$_RUN
 
 		[.help]='[-(cache=MINUTES|cache=DIR)] URL'
 		[.argc]=1
@@ -2951,7 +3071,11 @@ self:src() {
 	)
 
 	flag.parse
-	:
+
+	# shellcheck disable=2034
+	local -a env=(); flag.env_ env
+
+	file.rune env "$@"
 }
 
 # TODO
@@ -2959,7 +3083,7 @@ self:src() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-ttl]=-1
-		[-cache]=$_RUN
+		[-prefix]=$_RUN
 
 		[.help]='[-(ttl=MINUTES|cache=DIR)] URL COMMAND [ARG]...'
 		[.argc]=2-
@@ -2974,32 +3098,6 @@ self:src() {
 	src.enter "$url" _
 	"$@" "${_[cache]}"
 	.must -- cd "$old_pwd"
-}
-
-# cmd/_ - Init
-
-init.early_() {
-	# Default variable as a hash
-	declare -gA _=()
-
-	# shellcheck disable=2034
-
-	# Core environment
-	if [[ ${EUID:-} -eq 0 ]]; then
-		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
-		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
-		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
-	else
-		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
-		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
-		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
-
-		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
-		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
-		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
-	fi
-
-	export PATH="$_RUN"/bin:"$PATH" SRCTMP="$_RUN"
 }
 
 # cmd/text - Text manipulation commands
@@ -3276,7 +3374,7 @@ zip:unpack() {
 		fi
 	fi
 
-	.must "Not a compressed file of known type: $in" filetype:is:compressed_ "$in"
+	.must "Not a compressed file of known type: $in" filetype:is:compressed- "$in"
 
 	local func=zip.unpack.${_[.file.zip]:-}
 
@@ -3575,6 +3673,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				._ "$@"
 EOF
 		else
+			.runtime
 			.callback init
 			.dispatch "$@"
 		fi

@@ -2,6 +2,7 @@
 
 #=github.com/omu/home/src/sh/color.sh
 #=github.com/omu/home/src/sh/callback.sh
+#=github.com/omu/home/src/sh/debug.sh
 #=github.com/omu/home/src/sh/defer.sh
 #=github.com/omu/home/src/sh/file.sh
 #=github.com/omu/home/src/sh/filetype.sh
@@ -19,7 +20,7 @@ init() {
 	local url=${1?${FUNCNAME[0]}: missing argument};  shift
 
 	# shellcheck disable=2154
-	if url.is "$url" local; then
+	if false || url.is "$url" local; then
 		x[target]=$url
 	else
 		src.get "$url" x
@@ -34,34 +35,42 @@ init() {
 }
 
 main() {
+	.runtime
+
 	local -A _=(
 		[.help]='[OPTIONS] URL|FILE [ARGS...]'
 		[.argc]=1-
 
-		[-prefix]=/tmp/t
-		[-ttl]=-1
+		[-prefix]=$_RUN
+		[-ttl]=30
+		[-fresh]=false
 	)
 
 	flag.parse
 
+	flag.false -fresh || _[-ttl]=0
+
 	local url=$1
 	shift
+
+	# shellcheck disable=2034
+	local -a env=(); flag.env_ env
 
 	init _ "$url"  || .die 'Fetching failed'
 
 	if [[ -d ${_[target]} ]]; then
-		.running "Running directory target: ${_[target]}"
-
-		#=cmd/x/file.sh
-	else
-		.running "Running file target: ${_[target]}"
+		.running 'Running directory'
 
 		#=cmd/x/dir.sh
+	else
+		.running 'Running file'
+
+		#=cmd/x/file.sh
 	fi
 
-	focus  _      || .die 'Focus failed'
-	setup  _      || .die 'Setup failed'
-	handle _ "$@" || .die 'Handle failed'
+	focus  _          || .die 'Focus failed'
+	setup  _          || .die 'Setup failed'
+	handle _ env "$@" || .die 'Handle failed'
 }
 
 main "$@"
