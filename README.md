@@ -44,14 +44,12 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | deb uninstall | Uninstall Debian packages                             |
 | deb update    | Update Debian package index                           |
 | deb using     | Use given official Debian distributions               |
-| enter         | TODO                                                  |
 | expired       | Return if any of the files expired                    |
 | file chmog    | Change owner, group and mode                          |
 | file run      | Run program                                           |
 | filetype any  | Assert any file type                                  |
 | filetype is   | Assert file type                                      |
 | filetype mime | Print mime type                                       |
-| git install   | TODO                                                  |
 | git update    | Git pull if repository expired                        |
 | http any      | Assert HTTP response against any of the given codes   |
 | http get      | Get URL                                               |
@@ -61,12 +59,15 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | os codename   | Print distribution codename                           |
 | os dist       | Print distribution name                               |
 | os is         | Assert OS feature                                     |
-| run           | TODO                                                  |
+| run           | Run local file with optional environment              |
 | self install  | Install self                                          |
 | self name     | Print self name                                       |
 | self path     | Print self path                                       |
 | self src      | Print self source                                     |
 | should        | Ignore error if the given command fails               |
+| src enter     | Fetch and chdir to source                             |
+| src install   | Fetch and instal source into a known source tree      |
+| src with      | Fetch source and run given command inside it          |
 | text fix      | Append stdin content to the target file               |
 | text unfix    | Remove appended content                               |
 | ui bug        | Print bug message and exit failure                    |
@@ -87,7 +88,6 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | virt any      | Assert any of the virtualization types                |
 | virt is       | Assert virtualization type                            |
 | virt which    | Detect virtualization type                            |
-| with          | TODO                                                  |
 | zip unpack    | Unpack compressed file                                |
 <!-- _ end -->
 

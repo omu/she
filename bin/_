@@ -2800,36 +2800,6 @@ git:update() {
 	fi
 }
 
-# TODO
-git:install() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-prefix]="$_USR"/local/src
-
-		[.help]='[-prefix=DIR] URL|FILE'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	# shellcheck disable=2128
-	local url=$1
-	shift
-
-	local -A src=()
-
-	src.get "$url" src
-
-	[[ ${src[class]:-} = git ]] || .die "Not a git repository: $url"
-
-	local path="${src[domain]}"/"${src[name]}"
-	local dst="${_[-prefix]}"/"$path"
-
-	[[ -d $dst ]] || .die "Already installed: $dst"
-
-	file.cp "${src[cache]}" "$dst"
-}
-
 # cmd/http - HTTP commands
 
 # Assert HTTP response against any of the given codes
@@ -3003,25 +2973,6 @@ self:src() {
 	.contains "$@"
 }
 
-# TODO
-:enter() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-ttl]=-1
-		[-prefix]=$_RUN
-
-		[.help]='[-(cache=MINUTES|cache=DIR)] URL'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	local url=$1
-	shift
-
-	src.enter "$url" _
-}
-
 # Return if any of the files expired
 :expired() {
 	local -A _=(
@@ -3062,7 +3013,7 @@ self:src() {
 	.should "$@"
 }
 
-# TODO
+# Run local file with optional environment
 :run() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -3078,8 +3029,59 @@ self:src() {
 	file.rune env "$@"
 }
 
-# TODO
-:with() {
+# cmd/src - Source management
+
+# Fetch and chdir to source
+src:enter() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-ttl]=-1
+		[-prefix]=$_RUN
+
+		[.help]='[-(cache=MINUTES|cache=DIR)] URL'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	local url=$1
+	shift
+
+	src.enter "$url" _
+}
+
+# Fetch and instal source into a known source tree
+src:install() {
+	# shellcheck disable=2192
+	local -A _=(
+		[-prefix]="$_USR"/local/src
+
+		[.help]='[-prefix=DIR] URL|FILE'
+		[.argc]=1
+	)
+
+	flag.parse
+
+	# shellcheck disable=2128
+	local url=$1
+	shift
+
+	local -A src=()
+
+	src.get "$url" src
+
+	[[ ${src[class]:-} = git ]] || .die "Not a git repository: $url"
+
+	local path="${src[domain]}"/"${src[name]}"
+	local dst="${_[-prefix]}"/"$path"
+
+	[[ -d $dst ]] || .die "Already installed: $dst"
+
+	file.cp "${src[cache]}" "$dst"
+}
+
+# Fetch source and run given command inside it
+src:with() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-ttl]=-1
@@ -3391,13 +3393,11 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	declare -Ag _help=(
 		[':available']='Return if program available'
 		[':contains']='Return if first argument found in remaining arguments'
-		[':enter']='TODO'
 		[':expired']='Return if any of the files expired'
 		[':must']='Ensure the given command succeeds'
-		[':run']='TODO'
+		[':run']='Run local file with optional environment'
 		[':should']='Ignore error if the given command fails'
 		[':version']='Return version'
-		[':with']='TODO'
 		['bin:install']='Install program to path'
 		['bin:use']='Use program by installing to a volatile path'
 		['deb:add']='Add Debian repository'
@@ -3411,7 +3411,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['filetype:any']='Assert any file type'
 		['filetype:is']='Assert file type'
 		['filetype:mime']='Print mime type'
-		['git:install']='TODO'
 		['git:update']='Git pull if repository expired'
 		['http:any']='Assert HTTP response against any of the given codes'
 		['http:get']='Get URL'
@@ -3424,6 +3423,9 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self:name']='Print self name'
 		['self:path']='Print self path'
 		['self:src']='Print self source'
+		['src:enter']='Fetch and chdir to source'
+		['src:install']='Fetch and instal source into a known source tree'
+		['src:with']='Fetch source and run given command inside it'
 		['text:fix']='Append stdin content to the target file'
 		['text:unfix']='Remove appended content'
 		['ui:bug']='Print bug message and exit failure'
@@ -3457,14 +3459,12 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['deb uninstall']='deb:uninstall'
 		['deb update']='deb:update'
 		['deb using']='deb:using'
-		['enter']=':enter'
 		['expired']=':expired'
 		['file chmog']='file:chmog'
 		['file run']='file:run'
 		['filetype any']='filetype:any'
 		['filetype is']='filetype:is'
 		['filetype mime']='filetype:mime'
-		['git install']='git:install'
 		['git update']='git:update'
 		['http any']='http:any'
 		['http get']='http:get'
@@ -3480,6 +3480,9 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['self path']='self:path'
 		['self src']='self:src'
 		['should']=':should'
+		['src enter']='src:enter'
+		['src install']='src:install'
+		['src with']='src:with'
 		['text fix']='text:fix'
 		['text unfix']='text:unfix'
 		['ui bug']='ui:bug'
@@ -3500,7 +3503,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['virt any']='virt:any'
 		['virt is']='virt:is'
 		['virt which']='virt:which'
-		['with']=':with'
 		['zip unpack']='zip:unpack'
 	)
 

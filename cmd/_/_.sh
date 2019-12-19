@@ -24,25 +24,6 @@
 	.contains "$@"
 }
 
-# TODO
-:enter() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-ttl]=-1
-		[-prefix]=$_RUN
-
-		[.help]='[-(cache=MINUTES|cache=DIR)] URL'
-		[.argc]=1
-	)
-
-	flag.parse
-
-	local url=$1
-	shift
-
-	src.enter "$url" _
-}
-
 # Return if any of the files expired
 :expired() {
 	local -A _=(
@@ -83,7 +64,7 @@
 	.should "$@"
 }
 
-# TODO
+# Run local file with optional environment
 :run() {
 	# shellcheck disable=2192
 	local -A _=(
@@ -97,26 +78,4 @@
 	local -a env=(); flag.env_ env
 
 	file.rune env "$@"
-}
-
-# TODO
-:with() {
-	# shellcheck disable=2192
-	local -A _=(
-		[-ttl]=-1
-		[-prefix]=$_RUN
-
-		[.help]='[-(ttl=MINUTES|cache=DIR)] URL COMMAND [ARG]...'
-		[.argc]=2-
-	)
-
-	flag.parse
-
-	# shellcheck disable=2128
-	local url=$1 old_pwd=$PWD
-	shift
-
-	src.enter "$url" _
-	"$@" "${_[cache]}"
-	.must -- cd "$old_pwd"
 }

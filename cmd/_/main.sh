@@ -36,6 +36,7 @@
 #=cmd/_/os.sh
 #=cmd/_/self.sh
 #=cmd/_/_.sh
+#=cmd/_/src.sh
 #=cmd/_/text.sh
 #=cmd/_/ui.sh
 #=cmd/_/url.sh
