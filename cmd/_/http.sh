@@ -51,7 +51,7 @@ http:is() {
 	http:is- "$response" "$code"
 }
 
-# cmd/http - Protected functions
+# cmd/http - Private functions
 
 http:is-() {
 	local response=${1?${FUNCNAME[0]}: missing argument}; shift

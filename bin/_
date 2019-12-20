@@ -2370,7 +2370,7 @@ bin:use() {
 	bin.install- "$url" "${_[-prefix]}" "${_[-name]:-}"
 }
 
-# bin - Private functions
+# cmd/bin - Private functions
 
 bin.install-() {
 	local url="${1?${FUNCNAME[0]}: missing argument}";    shift
@@ -2497,7 +2497,7 @@ deb:using() {
 	deb:using- "$@"
 }
 
-# deb - Protected functions
+# cmd/deb - Private functions
 
 deb:add-() {
 	local repository=${_[repository]:-}
@@ -2696,7 +2696,7 @@ filetype:mime() {
 	fi
 }
 
-# filetype - Protected functions
+# cmd/filetype - Private functions
 
 filetype:is-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -2875,7 +2875,7 @@ http:is() {
 	http:is- "$response" "$code"
 }
 
-# cmd/http - Protected functions
+# cmd/http - Private functions
 
 http:is-() {
 	local response=${1?${FUNCNAME[0]}: missing argument}; shift

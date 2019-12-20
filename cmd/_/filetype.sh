@@ -61,7 +61,7 @@ filetype:mime() {
 	fi
 }
 
-# filetype - Protected functions
+# cmd/filetype - Private functions
 
 filetype:is-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift

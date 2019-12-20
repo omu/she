@@ -40,7 +40,7 @@ bin:use() {
 	bin.install- "$url" "${_[-prefix]}" "${_[-name]:-}"
 }
 
-# bin - Private functions
+# cmd/bin - Private functions
 
 bin.install-() {
 	local url="${1?${FUNCNAME[0]}: missing argument}";    shift

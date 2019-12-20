@@ -95,7 +95,7 @@ deb:using() {
 	deb:using- "$@"
 }
 
-# deb - Protected functions
+# cmd/deb - Private functions
 
 deb:add-() {
 	local repository=${_[repository]:-}
