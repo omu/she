@@ -184,20 +184,29 @@
 
 	export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-	declare -ag PROGNAME=("${0##*/}") # Program name
+	# Program name
+	declare -gr PROGNAME=${0##*/}
 
-	declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
+	# Command names
+	declare -g CMDNAMES=()
 }
 
 .prelude
 
+# _.sh - Underscore spesific functions
+
+# Core environment
 .runtime() {
 	# Default variable as a hash
 	declare -gA _=()
 
-	# shellcheck disable=2034
+	# Recycle PWD as a hash
+	declare -Ag PWD
 
-	# Core environment
+	# shellcheck disable=2128
+	PWD[.]="$PWD"
+
+	# shellcheck disable=2034
 	if [[ ${EUID:-} -eq 0 ]]; then
 		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
 		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
@@ -280,7 +289,7 @@ color.setup() {
 # color - Init
 
 # shellcheck disable=2034
-color.init_() {
+color.init-() {
 	declare -Ag _color=(
 		# Basic colors with variants - prefix +: bold, prefix -: dim, suffix -: reverse
 
@@ -318,7 +327,7 @@ color.init_() {
 	)
 }
 
-color.init_
+color.init-
 
 # callback.sh - Handle callback functions
 
@@ -348,7 +357,7 @@ color.init_
 	done
 
 	local failer=$group.fail
-	.callable "$failer" || failer=.callback_fail_default_
+	.callable "$failer" || failer=.callback-fail-default-
 
 	local -i err=0
 
@@ -369,7 +378,7 @@ color.init_
 
 # Private functions
 
-.callback_fail_default_() {
+.callback-fail-default-() {
 	local func=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	case ${SIGNAL:-} in
@@ -762,7 +771,7 @@ filetype.shebang() {
 
 # flag.sh - Flag handling
 
-flag.args_() {
+flag.args() {
 	local -a keys
 
 	mapfile -t keys < <(
@@ -790,7 +799,7 @@ flag.args_() {
 	fi
 }
 
-flag.env_() {
+flag.env() {
 	local -a keys
 
 	mapfile -t keys < <(
@@ -835,9 +844,9 @@ flag.nil() {
 	[[ ${_[$1]:-} = "$NIL" ]]
 }
 
-flag.parse_() {
+flag.parse-() {
 	if .contains -help "$@"; then
-		flag.usage_and_bye_
+		flag.usage-and-bye
 	fi
 
 	local -A flag_result_
@@ -866,12 +875,12 @@ flag.parse_() {
 
 	flag.load flag_result_
 
-	flag._validate_ $argc
+	flag.validate- $argc
 }
 
-flag.peek_() {
+flag.peek-() {
 	if .contains -help "$@"; then
-		flag.usage_and_bye_
+		flag.usage-and-bye
 	fi
 
 	local -A flag_result_
@@ -897,39 +906,41 @@ flag.peek_() {
 
 	flag.load flag_result_
 
-	flag._validate_ $argc
+	flag.validate- $argc
 }
 
 flag.true() {
 	.bool "${_[$1]:-}"
 }
 
-flag.usage_() {
+flag.usage() {
+	local name="$PROGNAME ${CMDNAMES[*]}"
+
 	if [[ -n ${_[.help]:-} ]]; then
 		# shellcheck disable=2128
-		.say "Usage: ${PROGNAME[*]} ${_[.help]}"
+		.say "Usage: $name ${_[.help]}"
 	else
 		# shellcheck disable=2128
-		.say "Usage: ${PROGNAME[*]}"
+		.say "Usage: $name"
 	fi
 }
 
-flag.usage_and_die_() {
-	flag.usage_
+flag.usage-and-die() {
+	flag.usage
 
 	.die "$@"
 }
 
 # shellcheck disable=2120
-flag.usage_and_bye_() {
-	flag.usage_
+flag.usage-and-bye() {
+	flag.usage
 
 	.bye "$@"
 }
 
 # flag - Private functions
 
-flag._args_() {
+flag.args-() {
 	local n=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local argc=${_[.argc]:-0}
@@ -955,10 +966,10 @@ flag._args_() {
 		return 0
 	fi
 
-	flag.usage_and_die_ "$message"
+	flag.usage-and-die "$message"
 }
 
-flag._nils_() {
+flag.nils-() {
 	local -a required=()
 
 	local key
@@ -971,9 +982,9 @@ flag._nils_() {
 	[[ ${#required[@]} -eq 0 ]] || .die "Value missing for: ${required[*]}"
 }
 
-flag._validate_() {
-	flag._args_ "$@"
-	flag._nils_
+flag.validate-() {
+	flag.args- "$@"
+	flag.nils-
 }
 
 # flag - Protected functions
@@ -997,20 +1008,20 @@ flag._validate_() {
 
 # flag - Init
 
-flag._init() {
+flag.init-() {
 	shopt -s expand_aliases
 
 	# shellcheck disable=2142
-	alias flag.parse='flag.parse_ "$@"; local -a __argv__ ARGV=("$@"); flag.args_ __argv__; set -- "${__argv__[@]}"; unset -v __argv__'
+	alias flag.parse='flag.parse- "$@"; local -a __argv__ ARGV=("$@"); flag.args __argv__; set -- "${__argv__[@]}"; unset -v __argv__'
 
 	# shellcheck disable=2142
-	alias flag.peek='flag.peek_ "$@"; local -a __argv__=() ARGV=("$@"); flag.args_ __argv__; set -- "${__argv__[@]}"; unset -v __argv__'
+	alias flag.peek='flag.peek- "$@"; local -a __argv__=() ARGV=("$@"); flag.args __argv__; set -- "${__argv__[@]}"; unset -v __argv__'
 
 	# shellcheck disable=2034
 	declare -gr NIL="\0"
 }
 
-flag._init
+flag.init-
 
 # git.sh - Git functions
 
@@ -1256,7 +1267,7 @@ ui.echo() {
 # ui - Init
 
 # shellcheck disable=2034,2154
-ui.init_() {
+ui.init-() {
 	declare -Ag _sign _sign_color _text_color
 
 	# Style
@@ -1291,7 +1302,7 @@ ui.init_() {
 	.say()     { ui.echo "$@" >&2;           }
 }
 
-ui.init_
+ui.init-
 
 # temp.sh - Functions involving temporary directories or files
 
@@ -1436,7 +1447,7 @@ zip.unpack() {
 }
 
 zip.unpack.bz2() {
-	.must 'No program found: bzcat' .available bzcat && zip.prep_unzip_ "$@"
+	.must 'No program found: bzcat' .available bzcat && zip.prep-unzip- "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -1447,11 +1458,11 @@ zip.unpack.bz2() {
 }
 
 zip.unpack.gz() {
-	.must 'No program found: zcat' .available zcat && zip.prep_unzip_ "$@"
+	.must 'No program found: zcat' .available zcat && zip.prep-unzip- "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
-	zip.prep_unzip_ zcat
+	zip.prep-unzip- zcat
 
 	local temp_file
 	temp.file temp_file
@@ -1460,7 +1471,7 @@ zip.unpack.gz() {
 }
 
 zip.unpack.tar.bz2() {
-	.must 'No program found: bzip2' .available bzip2 && zip.prep_untar_ "$@"
+	.must 'No program found: bzip2' .available bzip2 && zip.prep-untar- "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -1468,7 +1479,7 @@ zip.unpack.tar.bz2() {
 }
 
 zip.unpack.tar.gz() {
-	zip.prep_untar_ "$@"
+	zip.prep-untar- "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -1476,7 +1487,7 @@ zip.unpack.tar.gz() {
 }
 
 zip.unpack.tar.xz() {
-	.must 'No program found: xz' .available xz && zip.prep_untar_ "$@"
+	.must 'No program found: xz' .available xz && zip.prep-untar- "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -1484,7 +1495,7 @@ zip.unpack.tar.xz() {
 }
 
 zip.unpack.tar.zst() {
-	.must 'No program found: zstd' .available zstd && zip.prep_untar_ "$@"
+	.must 'No program found: zstd' .available zstd && zip.prep-untar- "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -1492,7 +1503,7 @@ zip.unpack.tar.zst() {
 }
 
 zip.unpack.xz() {
-	.must 'No program found: unxz' .available unxz && zip.prep_unzip_ "$@"
+	.must 'No program found: unxz' .available unxz && zip.prep-unzip- "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -1503,7 +1514,7 @@ zip.unpack.xz() {
 }
 
 zip.unpack.zip() {
-	.must 'No program found: unzip' .available unzip && zip.prep_unzip_ "$@"
+	.must 'No program found: unzip' .available unzip && zip.prep-unzip- "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -1511,7 +1522,7 @@ zip.unpack.zip() {
 }
 
 zip.unpack.zst() {
-	.must 'No program found: zstdcat' .available zstdcat && zip.prep_unzip_ "$@"
+	.must 'No program found: zstdcat' .available zstdcat && zip.prep-unzip- "$@"
 
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
@@ -1523,7 +1534,7 @@ zip.unpack.zst() {
 
 # Private functions
 
-zip.prep_untar_() {
+zip.prep-untar-() {
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	[[ -n $out ]] || out=${in%.tar.*}
@@ -1535,7 +1546,7 @@ zip.prep_untar_() {
 	.must -- mkdir -p "$out"
 }
 
-zip.prep_unzip_() {
+zip.prep-unzip-() {
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
 
 	[[ -n $out ]] || out=${in%.*}
@@ -1815,7 +1826,7 @@ main() {
 	shift
 
 	# shellcheck disable=2034
-	local -a env=(); flag.env_ env
+	local -a env=(); flag.env env
 
 	init _ "$url"  || .die 'Fetching failed'
 

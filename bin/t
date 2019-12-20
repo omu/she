@@ -184,20 +184,29 @@
 
 	export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-	declare -ag PROGNAME=("${0##*/}") # Program name
+	# Program name
+	declare -gr PROGNAME=${0##*/}
 
-	declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
+	# Command names
+	declare -g CMDNAMES=()
 }
 
 .prelude
 
+# _.sh - Underscore spesific functions
+
+# Core environment
 .runtime() {
 	# Default variable as a hash
 	declare -gA _=()
 
-	# shellcheck disable=2034
+	# Recycle PWD as a hash
+	declare -Ag PWD
 
-	# Core environment
+	# shellcheck disable=2128
+	PWD[.]="$PWD"
+
+	# shellcheck disable=2034
 	if [[ ${EUID:-} -eq 0 ]]; then
 		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
 		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
@@ -375,7 +384,7 @@ color.setup() {
 # color - Init
 
 # shellcheck disable=2034
-color.init_() {
+color.init-() {
 	declare -Ag _color=(
 		# Basic colors with variants - prefix +: bold, prefix -: dim, suffix -: reverse
 
@@ -413,7 +422,7 @@ color.init_() {
 	)
 }
 
-color.init_
+color.init-
 
 # callback.sh - Handle callback functions
 
@@ -443,7 +452,7 @@ color.init_
 	done
 
 	local failer=$group.fail
-	.callable "$failer" || failer=.callback_fail_default_
+	.callable "$failer" || failer=.callback-fail-default-
 
 	local -i err=0
 
@@ -464,7 +473,7 @@ color.init_
 
 # Private functions
 
-.callback_fail_default_() {
+.callback-fail-default-() {
 	local func=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	case ${SIGNAL:-} in
@@ -540,7 +549,7 @@ color.init_
 
 # flag.sh - Flag handling
 
-flag.args_() {
+flag.args() {
 	local -a keys
 
 	mapfile -t keys < <(
@@ -568,7 +577,7 @@ flag.args_() {
 	fi
 }
 
-flag.env_() {
+flag.env() {
 	local -a keys
 
 	mapfile -t keys < <(
@@ -613,9 +622,9 @@ flag.nil() {
 	[[ ${_[$1]:-} = "$NIL" ]]
 }
 
-flag.parse_() {
+flag.parse-() {
 	if .contains -help "$@"; then
-		flag.usage_and_bye_
+		flag.usage-and-bye
 	fi
 
 	local -A flag_result_
@@ -644,12 +653,12 @@ flag.parse_() {
 
 	flag.load flag_result_
 
-	flag._validate_ $argc
+	flag.validate- $argc
 }
 
-flag.peek_() {
+flag.peek-() {
 	if .contains -help "$@"; then
-		flag.usage_and_bye_
+		flag.usage-and-bye
 	fi
 
 	local -A flag_result_
@@ -675,39 +684,41 @@ flag.peek_() {
 
 	flag.load flag_result_
 
-	flag._validate_ $argc
+	flag.validate- $argc
 }
 
 flag.true() {
 	.bool "${_[$1]:-}"
 }
 
-flag.usage_() {
+flag.usage() {
+	local name="$PROGNAME ${CMDNAMES[*]}"
+
 	if [[ -n ${_[.help]:-} ]]; then
 		# shellcheck disable=2128
-		.say "Usage: ${PROGNAME[*]} ${_[.help]}"
+		.say "Usage: $name ${_[.help]}"
 	else
 		# shellcheck disable=2128
-		.say "Usage: ${PROGNAME[*]}"
+		.say "Usage: $name"
 	fi
 }
 
-flag.usage_and_die_() {
-	flag.usage_
+flag.usage-and-die() {
+	flag.usage
 
 	.die "$@"
 }
 
 # shellcheck disable=2120
-flag.usage_and_bye_() {
-	flag.usage_
+flag.usage-and-bye() {
+	flag.usage
 
 	.bye "$@"
 }
 
 # flag - Private functions
 
-flag._args_() {
+flag.args-() {
 	local n=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local argc=${_[.argc]:-0}
@@ -733,10 +744,10 @@ flag._args_() {
 		return 0
 	fi
 
-	flag.usage_and_die_ "$message"
+	flag.usage-and-die "$message"
 }
 
-flag._nils_() {
+flag.nils-() {
 	local -a required=()
 
 	local key
@@ -749,9 +760,9 @@ flag._nils_() {
 	[[ ${#required[@]} -eq 0 ]] || .die "Value missing for: ${required[*]}"
 }
 
-flag._validate_() {
-	flag._args_ "$@"
-	flag._nils_
+flag.validate-() {
+	flag.args- "$@"
+	flag.nils-
 }
 
 # flag - Protected functions
@@ -775,20 +786,20 @@ flag._validate_() {
 
 # flag - Init
 
-flag._init() {
+flag.init-() {
 	shopt -s expand_aliases
 
 	# shellcheck disable=2142
-	alias flag.parse='flag.parse_ "$@"; local -a __argv__ ARGV=("$@"); flag.args_ __argv__; set -- "${__argv__[@]}"; unset -v __argv__'
+	alias flag.parse='flag.parse- "$@"; local -a __argv__ ARGV=("$@"); flag.args __argv__; set -- "${__argv__[@]}"; unset -v __argv__'
 
 	# shellcheck disable=2142
-	alias flag.peek='flag.peek_ "$@"; local -a __argv__=() ARGV=("$@"); flag.args_ __argv__; set -- "${__argv__[@]}"; unset -v __argv__'
+	alias flag.peek='flag.peek- "$@"; local -a __argv__=() ARGV=("$@"); flag.args __argv__; set -- "${__argv__[@]}"; unset -v __argv__'
 
 	# shellcheck disable=2034
 	declare -gr NIL="\0"
 }
 
-flag._init
+flag.init-
 
 # self.sh - Functions related to program itself
 
@@ -861,7 +872,7 @@ ui.echo() {
 # ui - Init
 
 # shellcheck disable=2034,2154
-ui.init_() {
+ui.init-() {
 	declare -Ag _sign _sign_color _text_color
 
 	# Style
@@ -896,7 +907,7 @@ ui.init_() {
 	.say()     { ui.echo "$@" >&2;           }
 }
 
-ui.init_
+ui.init-
 
 # cmd/t - Testing
 
@@ -1171,7 +1182,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 		local fun=${_command["$cmd"]}
 
-		PROGNAME+=("$cmd")
+		CMDNAMES+=("$cmd")
 
 		if [[ -n ${help:-} ]]; then
 			.say "${_help[$fun]:-}" ""
@@ -1200,8 +1211,8 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 		local fun=${_command["$cmd"]}
 
-		unset 'PROGNAME[${#PROGNAME[@]}-1]'
-		PROGNAME+=("$cmd")
+		unset 'CMDNAMES[${#CMDNAMES[@]}-1]'
+		CMDNAMES+=("$cmd")
 
 		"$fun" "${args[@]}"
 	}
@@ -1397,36 +1408,14 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 					export LC_ALL=C.UTF-8 LANG=C.UTF-8
 
-					declare -ag PROGNAME=("${0##*/}") # Program name
+					# Program name
+					declare -gr PROGNAME=${0##*/}
 
-					declare -Ag PWD; PWD[.]=$PWD      # Manage PWD
+					# Command names
+					declare -g CMDNAMES=()
 				}
 
 				.prelude
-
-				.runtime() {
-					# Default variable as a hash
-					declare -gA _=()
-
-					# shellcheck disable=2034
-
-					# Core environment
-					if [[ ${EUID:-} -eq 0 ]]; then
-						readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
-						readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
-						readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
-					else
-						XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
-						XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
-						XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
-
-						readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
-						readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
-						readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
-					fi
-
-					export PATH="$_RUN"/bin:"$PATH" SRCTMP="$_RUN"
-				}
 
 				# assert.sh - Assertions
 

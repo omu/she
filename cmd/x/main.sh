@@ -1,4 +1,5 @@
 #=github.com/omu/home/src/sh/!.sh
+#=github.com/omu/home/src/sh/_.sh
 
 #=github.com/omu/home/src/sh/color.sh
 #=github.com/omu/home/src/sh/callback.sh
@@ -54,7 +55,7 @@ main() {
 	shift
 
 	# shellcheck disable=2034
-	local -a env=(); flag.env_ env
+	local -a env=(); flag.env env
 
 	init _ "$url"  || .die 'Fetching failed'
 

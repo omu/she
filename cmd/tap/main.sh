@@ -1,4 +1,5 @@
 #=github.com/omu/home/src/sh/!.sh
+#=github.com/omu/home/src/sh/_.sh
 
 #=github.com/omu/home/src/sh/color.sh
 #=github.com/omu/home/src/sh/flag.sh

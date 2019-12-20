@@ -75,7 +75,7 @@
 	flag.parse
 
 	# shellcheck disable=2034
-	local -a env=(); flag.env_ env
+	local -a env=(); flag.env env
 
 	file.rune env "$@"
 }

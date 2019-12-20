@@ -108,7 +108,7 @@ deb:add-() {
 
 	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
 
-	[[ -z ${_[key]:-} ]] || deb.add_key "${_[key]}" || return 0
+	[[ -z ${_[key]:-} ]] || deb.add-key "${_[key]}" || return 0
 
 	echo "deb ${_[deb]}"  >/etc/apt/sources.list.d/"$repository".list
 	[[ -z ${_[src]:-} ]] || echo "deb-src ${_[src]}" >>/etc/apt/sources.list.d/"$repository".list
@@ -120,7 +120,7 @@ deb:install-() {
 	[[ $# -gt 0 ]] || return 0
 
 	if [[ -n ${_[repository]:-} ]]; then
-		deb.add_ repository="${_[repository]}" key="${_[key]:-}" deb="${_[deb]:-}" src="${_[src]:-}"
+		deb:add- repository="${_[repository]}" key="${_[key]:-}" deb="${_[deb]:-}" src="${_[src]:-}"
 	else
 		local arg
 
@@ -171,7 +171,7 @@ deb:install-() {
 	fi
 
 	deb.install "${opts[@]}" "${packages[@]}"
-	deb.install_manual "${urls[@]}"
+	deb.install-manual "${urls[@]}"
 }
 
 deb:using-() {
@@ -181,20 +181,20 @@ deb:using-() {
 		stable|testing|unstable|sid|experimental)
 			;;
 		*)
-			deb.dist_valid "$dist" || .cry "Skipping invalid distribution: $dist"
+			deb.dist-valid "$dist" || .cry "Skipping invalid distribution: $dist"
 			;;
 		esac
 
-		deb.dist_added "$dist" || deb:add- repository="$dist" deb="http://ftp.debian.org/debian $dist main contrib non-free"
+		deb.dist-added "$dist" || deb:add- repository="$dist" deb="http://ftp.debian.org/debian $dist main contrib non-free"
 	done
 }
 
 # cmd/deb - Init
 
-deb:init_() {
+deb:init-() {
 	.available apt-get || .die 'Only Debian and derivatives supported.'
 
 	export DEBIAN_FRONTEND=noninteractive APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=DontWarn
 }
 
-deb:init_
+deb:init-
