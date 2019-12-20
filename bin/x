@@ -3,8 +3,6 @@
 [ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
 
-# Protected functions
-
 .available() {
 	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
 }
@@ -386,7 +384,7 @@ color.init-
 	return $err
 }
 
-# Private functions
+# callback - Private functions
 
 .callback-fail-default-() {
 	local func=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -997,7 +995,7 @@ flag.validate-() {
 	flag.nils-
 }
 
-# flag - Protected functions
+# flag - Private functions
 
 .bool() {
 	local value=${1:-}
@@ -1173,7 +1171,7 @@ git.update() {
 	fi
 }
 
-# Private functions
+# git - Private functions
 
 git.is.clean-() {
 	local repo=${1:-.}
@@ -1534,7 +1532,7 @@ zip.unpack.zst() {
 	zstdcat -f "$in" >"$temp_file" && mv "$temp_file" "$out"
 }
 
-# Private functions
+# zip - Private functions
 
 zip.prep-untar-() {
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
@@ -1752,7 +1750,7 @@ src.rm-() {
 	rm -rf "${_src_[cache]}"
 }
 
-# Git
+# src - Git
 
 src.git.new-() {
 	git.clone "${_src_[source]}" "${_src_[interim]}" "${_src_[ref]}"
@@ -1762,7 +1760,7 @@ src.git.renew-() {
 	git.reset "${_src_[cache]}" && git.update "${_src_[cache]}"
 }
 
-# Zip
+# src - Zip
 
 src.zip.new-() {
 	src.none.new-
@@ -1777,7 +1775,7 @@ src.zip.renew-() {
 	src.zip.new-
 }
 
-# None
+# src - None
 
 src.none.new-() {
 	[[ ${_src_[scheme]} =~ ^http ]] || .bug "Unimplemented scheme: ${_src_[scheme]}"

@@ -3,8 +3,6 @@
 [ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
 
-# Protected functions
-
 .available() {
 	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
 }
@@ -370,6 +368,8 @@ color.init-() {
 
 color.init-
 
+# deb - Debian package management
+
 deb.add-key() {
 	local artifact=
 
@@ -387,12 +387,16 @@ deb.add-key() {
 	return "$err"
 }
 
-deb.update() {
-	if .expired 60 /var/cache/apt/pkgcache.bin; then
-		.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
+deb.dist-added() {
+	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
 
-		.getting 'Updating package index' apt-get update -y
-	fi
+	grep -qE "^deb.*\bdebian.org\b.*\b$dist\b" /etc/apt/*.list /etc/apt/sources.list.d/*.list
+}
+
+deb.dist-valid() {
+	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	http.is http://ftp.debian.org/debian/dists/"$dist"/ OK
 }
 
 deb.install() {
@@ -437,18 +441,6 @@ deb.install-manual() {
 	done
 }
 
-deb.dist-added() {
-	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	grep -qE "^deb.*\bdebian.org\b.*\b$dist\b" /etc/apt/*.list /etc/apt/sources.list.d/*.list
-}
-
-deb.dist-valid() {
-	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	http.is http://ftp.debian.org/debian/dists/"$dist"/ OK
-}
-
 deb.missings() {
 	local -n deb_missings_=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -473,6 +465,14 @@ deb.uninstall() {
 
 	.should -- apt-get autoremove -y
 	.should -- apt-get autoclean -y
+}
+
+deb.update() {
+	if .expired 60 /var/cache/apt/pkgcache.bin; then
+		.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
+
+		.getting 'Updating package index' apt-get update -y
+	fi
 }
 
 # deb - Private functions
@@ -588,7 +588,7 @@ deb.add-key-() {
 	return $err
 }
 
-# Private functions
+# callback - Private functions
 
 .callback-fail-default-() {
 	local func=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -1172,7 +1172,7 @@ flag.validate-() {
 	flag.nils-
 }
 
-# flag - Protected functions
+# flag - Private functions
 
 .bool() {
 	local value=${1:-}
@@ -1348,7 +1348,7 @@ git.update() {
 	fi
 }
 
-# Private functions
+# git - Private functions
 
 git.is.clean-() {
 	local repo=${1:-.}
@@ -1567,6 +1567,32 @@ path.normalize() {
 	done
 }
 
+path.subext() {
+	local -n path_subext_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    ext=${1?${FUNCNAME[0]}: missing argument};          shift
+
+	case $path_subext_ in
+	*.*)
+		path_subext_=${path_subext_%.*}
+		path_subext_=${path_subext_}.${ext}
+		;;
+	*)
+		;;
+	esac
+}
+
+path.suffixize() {
+	local -n path_suffixize_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    suffix=${1?${FUNCNAME[0]}: missing argument};          shift
+
+	local -A _
+	path.parse- "$path_suffixize_"
+
+	printf -v path_suffixize_ "%s/%s${suffix}%s" "${_[.dir]:-.}" "${_[.name]}" "${_[.dotext]}"
+}
+
+# path - Private functions
+
 # shellcheck disable=2034
 path.parse-() {
 	local -n path_parse_=_
@@ -1597,29 +1623,6 @@ path.parse-() {
 	fi
 }
 
-path.subext() {
-	local -n path_subext_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    ext=${1?${FUNCNAME[0]}: missing argument};          shift
-
-	case $path_subext_ in
-	*.*)
-		path_subext_=${path_subext_%.*}
-		path_subext_=${path_subext_}.${ext}
-		;;
-	*)
-		;;
-	esac
-}
-
-path.suffixize() {
-	local -n path_suffixize_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    suffix=${1?${FUNCNAME[0]}: missing argument};          shift
-
-	local -A _
-	path.parse- "$path_suffixize_"
-
-	printf -v path_suffixize_ "%s/%s${suffix}%s" "${_[.dir]:-.}" "${_[.name]}" "${_[.dotext]}"
-}
 
 # self.sh - Functions related to program itself
 
@@ -2071,7 +2074,7 @@ zip.unpack.zst() {
 	zstdcat -f "$in" >"$temp_file" && mv "$temp_file" "$out"
 }
 
-# Private functions
+# zip - Private functions
 
 zip.prep-untar-() {
 	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
@@ -2289,7 +2292,7 @@ src.rm-() {
 	rm -rf "${_src_[cache]}"
 }
 
-# Git
+# src - Git
 
 src.git.new-() {
 	git.clone "${_src_[source]}" "${_src_[interim]}" "${_src_[ref]}"
@@ -2299,7 +2302,7 @@ src.git.renew-() {
 	git.reset "${_src_[cache]}" && git.update "${_src_[cache]}"
 }
 
-# Zip
+# src - Zip
 
 src.zip.new-() {
 	src.none.new-
@@ -2314,7 +2317,7 @@ src.zip.renew-() {
 	src.zip.new-
 }
 
-# None
+# src - None
 
 src.none.new-() {
 	[[ ${_src_[scheme]} =~ ^http ]] || .bug "Unimplemented scheme: ${_src_[scheme]}"

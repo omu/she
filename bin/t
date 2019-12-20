@@ -3,8 +3,6 @@
 [ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
 [[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
 
-# Protected functions
-
 .available() {
 	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
 }
@@ -481,7 +479,7 @@ color.init-
 	return $err
 }
 
-# Private functions
+# callback - Private functions
 
 .callback-fail-default-() {
 	local func=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -775,7 +773,7 @@ flag.validate-() {
 	flag.nils-
 }
 
-# flag - Protected functions
+# flag - Private functions
 
 .bool() {
 	local value=${1:-}
@@ -1236,8 +1234,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 				[ -n "${BASH_VERSION:-}"        ] || { echo >&2 'Bash required.';                     exit 1; }
 				[[ ${BASH_VERSINFO[0]:-} -ge 4 ]] || { echo >&2 'Bash version 4 or higher required.'; exit 1; }
-
-				# Protected functions
 
 				.available() {
 					command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
