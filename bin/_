@@ -2726,8 +2726,6 @@ filetype:shebang-() {
 	filetype_shebang_=($filetype_shebang_string_)
 }
 
-# cmd/filetype - Protected functions
-
 filetype:is:compressed-() {
 	local file=${1?${FUNCNAME[0]}: missing argument}; shift
 
