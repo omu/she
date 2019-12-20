@@ -426,7 +426,7 @@ Stil
 
 - `lib` dizininde bulunan kitaplık fonksiyonları `<modül>.<tanımlayıcı>` biçimindedir
 
-- İsimleri alt tireyle (`_`) sonlanan fonksiyonlar korunmuş ("protected") fonksiyonlardır
+- İsimleri tireyle (`-`) sonlanan fonksiyonlar korunmuş ("protected") fonksiyonlardır
 
 - Korunmuş komut fonksiyonları tüm komut dosyalarında kullanılabilir
 
@@ -515,17 +515,8 @@ x default foo bar # curl -fsSL https://x.omu.sh | bash -s -- foo bar
 
 Genel prensip:
 
-`USL [args]...`'da USL merkezinde (odağında) bir şeyin `args` ile çalıştırılması.  İzlenen adımlar sırasıyla: `fetch`,
-`focus`, `setup`, `handle`.  Bu adımların her biri bir eklentiyle gerçeklenir.
-
-### `fetch`
-
-USL'i uzaktaysa getirir
-
-- USL önbelleğe alınır
-
-- Eklenti girdisi: USL, önbellek kökü ve önbellek süresi
-- Eklenti çıktısı: Yerel hedef
+`USL [args]...`'da USL merkezinde (odağında) bir şeyin `args` ile çalıştırılması.  İlk olarak USL uzaktaysa getirilir.
+Sonrasında adımlar sırasıyla: `focus`, `setup`, `handle`.  Bu adımların her biri bir eklentiyle gerçeklenir.
 
 ### `focus`
 
