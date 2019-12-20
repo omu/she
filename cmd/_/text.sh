@@ -3,7 +3,7 @@
 # Append stdin content to the target file
 text:fix() {
 	local -A _=(
-		[.help]='FILE [MARK]'
+	[.help]='<file> [<mark>]'
 		[.argc]=1-
 	)
 
@@ -15,7 +15,7 @@ text:fix() {
 # Remove appended content
 text:unfix() {
 	local -A _=(
-		[.help]='FILE [MARK]'
+		[.help]='<file> [<mark>]'
 		[.argc]=1-
 	)
 

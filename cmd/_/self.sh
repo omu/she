@@ -7,7 +7,7 @@ self:install() {
 		[-prefix]="$_USR"/bin
 		[-name]=$PROGNAME
 
-		[.help]=
+		[.help]='[-prefix=<dir>] [-name=<name>]'
 		[.argc]=0
 	)
 

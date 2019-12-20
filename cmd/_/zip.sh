@@ -6,7 +6,7 @@ zip:unpack() {
 		[-force]=false
 		[-clean]=false
 
-		[.help]='[-(force|clean)=BOOL] FILE [DIR]'
+		[.help]='[-force=<bool>] [-clean=<bool>] <file> [<dir>]'
 		[.argc]=1-
 	)
 

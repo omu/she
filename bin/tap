@@ -79,7 +79,11 @@
 
 	local file
 	for file; do
-		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
+		local t=d
+
+		[[ -d $file ]] || t=f
+
+		if [[ -e $file ]] && [[ -z $(find "$file" -type "$t" -mmin +"$expiry" 2>/dev/null) ]]; then
 			return 1
 		fi
 	done
@@ -105,6 +109,10 @@
 
 .piped() {
 	[[ ! -t 0 ]]
+}
+
+.privileged() {
+	.must 'Root permissions required; use sudo(1)' [[ ${EUID:-} -eq 0 ]]
 }
 
 .load() {

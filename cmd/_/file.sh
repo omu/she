@@ -4,7 +4,7 @@
 file:chmog() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='[MODE]:[OWNER]:[GROUP] FILE|DIR'
+		[.help]='[<mode>]:[<owner>]:[<group>] (<file> | <dir>)'
 		[.argc]=2
 	)
 
@@ -19,12 +19,17 @@ file:chmog() {
 file:run() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='FILE|DIR'
-		[.argc]=1
+		[.help]='(<file> | <dir>)'
+		[.argc]=1-
 	)
 
 	flag.parse
 
-	file:run_ "$@"
-	# TODO
+	local file=$1
+	shift
+
+	# shellcheck disable=2034
+	local -a env=(); flag.env env
+
+	file.rune env "$file" "$@"
 }

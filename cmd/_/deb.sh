@@ -2,8 +2,6 @@
 
 # Add Debian repository
 deb:add() {
-	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
-
 	# shellcheck disable=2192
 	local -A _=(
 		[repository]=$NIL
@@ -11,7 +9,7 @@ deb:add() {
 		[deb]=$NIL
 		[src]=
 
-		[.help]='repository=NAME deb=LINE [src=LINE] [key=URL]'
+		[.help]='repository=<name> deb=<line> [src=<line>] [key=<url>]'
 		[.argc]=0
 	)
 
@@ -22,8 +20,6 @@ deb:add() {
 
 # Install Debian packages
 deb:install() {
-	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
-
 	# shellcheck disable=2192
 	local -A _=(
 		[repository]=
@@ -34,7 +30,7 @@ deb:install() {
 		[-missings]=false
 		[-shiny]=false
 
-		[.help]='[-missings=BOOL] [-shiny=BOOL] [repository=NAME deb=LINE [src=LINE] [key=URL]] PACKAGE...'
+		[.help]='[-missings=<bool>] [-shiny=<bool>] [repository=<name> deb=<line> [src=<line>] [key=<url>]] <package>...'
 		[.argc]=1-
 	)
 
@@ -47,7 +43,7 @@ deb:install() {
 deb:missings() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='PACKAGE...'
+		[.help]='<package>...'
 	)
 
 	flag.parse
@@ -64,7 +60,7 @@ deb:missings() {
 deb:uninstall() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='PACKAGE...'
+		[.help]='<package>...'
 		[.argc]=1-
 	)
 
@@ -90,7 +86,7 @@ deb:update() {
 deb:using() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='DIST...'
+		[.help]='<dist>...'
 		[.argc]=1-
 	)
 
@@ -106,7 +102,7 @@ deb:add-() {
 
 	[[ -n $repository ]] || .bug "Undefined repository."
 
-	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
+	.privileged
 
 	[[ -z ${_[key]:-} ]] || deb.add-key "${_[key]}" || return 0
 
@@ -118,6 +114,8 @@ deb:add-() {
 
 deb:install-() {
 	[[ $# -gt 0 ]] || return 0
+
+	.privileged
 
 	if [[ -n ${_[repository]:-} ]]; then
 		deb:add- repository="${_[repository]}" key="${_[key]:-}" deb="${_[deb]:-}" src="${_[src]:-}"
@@ -135,12 +133,10 @@ deb:install-() {
 	for arg; do
 		local url=$arg
 
-		if url.is "$url" web; then
-			urls+=("$url")
-		elif url.is "$url" non; then
+		if url.is "$url" naked; then
 			non_urls+=("$url")
 		else
-			.die "Unsupported URL: $url"
+			urls+=("$url")
 		fi
 	done
 

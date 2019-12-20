@@ -3,7 +3,7 @@
 # Assert HTTP response against any of the given codes
 http:any() {
 	local -A _=(
-		[.help]='URL CODE...'
+		[.help]='<url> <code>...'
 		[.argc]=2-
 	)
 
@@ -25,7 +25,7 @@ http:any() {
 # Get URL
 http:get() {
 	local -A _=(
-		[.help]='URL'
+		[.help]='<url>'
 		[.argc]=1
 	)
 
@@ -37,7 +37,7 @@ http:get() {
 # Assert HTTP response against the given code
 http:is() {
 	local -A _=(
-		[.help]='URL CODE'
+		[.help]='<url> <code>'
 		[.argc]=2
 	)
 

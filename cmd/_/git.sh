@@ -5,7 +5,7 @@ git:update() {
 	local -A _=(
 		[-ttl]=3
 
-		[.help]='[-ttl=MINUTES]'
+		[.help]='[-ttl=<minutes>]'
 		[.argc]=0
 	)
 

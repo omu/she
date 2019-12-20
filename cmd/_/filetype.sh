@@ -5,7 +5,7 @@ filetype:any() {
 	local -A _=(
 		[-zip]=false
 
-		[.help]='FILE [TYPE...]'
+		[.help]='<file> [<type>...]'
 		[.argc]=2-
 	)
 
@@ -30,7 +30,7 @@ filetype:is() {
 	local -A _=(
 		[-zip]=false
 
-		[.help]='FILE TYPE'
+		[.help]='<file> <type>'
 		[.argc]=2
 	)
 
@@ -46,7 +46,7 @@ filetype:mime() {
 	local -A _=(
 		[-zip]=false
 
-		[.help]='FILE'
+		[.help]='<file>'
 		[.argc]=1
 	)
 

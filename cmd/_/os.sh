@@ -3,7 +3,7 @@
 # Assert any OS feature
 os:any() {
 	local -A _=(
-		[.help]='FEATURE...'
+		[.help]='<feature>...'
 		[.argc]=1-
 	)
 
@@ -29,7 +29,7 @@ os:dist() {
 # Assert OS feature
 os:is() {
 	local -A _=(
-		[.help]='FEATURE'
+		[.help]='<feature>'
 		[.argc]=1
 	)
 

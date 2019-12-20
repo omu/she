@@ -7,7 +7,7 @@ src:enter() {
 		[-ttl]=-1
 		[-prefix]=$_RUN
 
-		[.help]='[-(cache=MINUTES|cache=DIR)] URL'
+		[.help]='[-ttl=<minutes>] [-prefix=<dir>] (<url> | <dir>)'
 		[.argc]=1
 	)
 
@@ -25,7 +25,7 @@ src:install() {
 	local -A _=(
 		[-prefix]="$_USR"/local/src
 
-		[.help]='[-prefix=DIR] URL|FILE'
+		[.help]='[-prefix=<dir>] (<url> | <dir>)'
 		[.argc]=1
 	)
 
@@ -56,7 +56,7 @@ src:with() {
 		[-ttl]=-1
 		[-prefix]=$_RUN
 
-		[.help]='[-(ttl=MINUTES|cache=DIR)] URL COMMAND [ARG]...'
+		[.help]='[-ttl=<minutes>] [-prefix=<dir>] (<url> | <dir>) <command> [<arg>...]'
 		[.argc]=2-
 	)
 

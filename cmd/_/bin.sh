@@ -7,7 +7,7 @@ bin:install() {
 		[-prefix]="$_USR"/bin
 		[-name]=
 
-		[.help]='[-name=NAME] [-prefix=DIR] URL|FILE'
+		[.help]='[-name=<name>] [-prefix=<dir>] (<url> | <file>)'
 		[.argc]=1
 	)
 
@@ -27,7 +27,7 @@ bin:use() {
 		[-prefix]="$_RUN"/bin
 		[-name]=
 
-		[.help]='[-name=NAME] [-prefix=DIR] URL|FILE'
+		[.help]='[-name=<name>] [-prefix=<dir>] (<url> | <file>)'
 		[.argc]=1
 	)
 

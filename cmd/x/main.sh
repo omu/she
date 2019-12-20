@@ -21,7 +21,7 @@ init() {
 	local url=${1?${FUNCNAME[0]}: missing argument};  shift
 
 	# shellcheck disable=2154
-	if false || url.is "$url" local; then
+	if url.is "$url" local; then
 		x[target]=$url
 	else
 		src.get "$url" x
@@ -36,8 +36,6 @@ init() {
 }
 
 main() {
-	.runtime
-
 	local -A _=(
 		[.help]='[OPTIONS] URL|FILE [ARGS...]'
 		[.argc]=1-

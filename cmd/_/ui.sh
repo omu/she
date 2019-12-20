@@ -3,7 +3,7 @@
 # Print bug message and exit failure
 ui:bug() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -15,7 +15,7 @@ ui:bug() {
 # Print message and exit success
 ui:bye() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -27,7 +27,7 @@ ui:bye() {
 # Print message and run command
 ui:calling() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1-
 	)
 
@@ -39,7 +39,7 @@ ui:calling() {
 # Print warning message
 ui:cry() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -51,7 +51,7 @@ ui:cry() {
 # Print error message and exit failure
 ui:die() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -63,7 +63,7 @@ ui:die() {
 # Print message indicating a download and run command
 ui:getting() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1-
 	)
 
@@ -75,7 +75,7 @@ ui:getting() {
 # Print info message
 ui:hmm() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -87,7 +87,7 @@ ui:hmm() {
 # Print not ok message
 ui:notok() {
 	local -A _=(
-		[.help]='STRING'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -99,7 +99,7 @@ ui:notok() {
 # Print ok message
 ui:ok() {
 	local -A _=(
-		[.help]='STRING'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -111,7 +111,7 @@ ui:ok() {
 # Print a busy message run command
 ui:running() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1-
 	)
 
@@ -123,7 +123,7 @@ ui:running() {
 # Print message on stderr
 ui:say() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1
 	)
 

@@ -79,7 +79,11 @@
 
 	local file
 	for file; do
-		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
+		local t=d
+
+		[[ -d $file ]] || t=f
+
+		if [[ -e $file ]] && [[ -z $(find "$file" -type "$t" -mmin +"$expiry" 2>/dev/null) ]]; then
 			return 1
 		fi
 	done
@@ -105,6 +109,10 @@
 
 .piped() {
 	[[ ! -t 0 ]]
+}
+
+.privileged() {
+	.must 'Root permissions required; use sudo(1)' [[ ${EUID:-} -eq 0 ]]
 }
 
 .load() {
@@ -1362,38 +1370,30 @@ temp.inside() {
 
 # url.sh - URL processing
 
-url.any() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local class scheme
-	url.parse "$url" class scheme
-
-	local expected
-	for expected; do
-		case $expected in
-		local)
-			[[ 'file' != "${scheme:-}" ]] || return 0
-			;;
-		remote)
-			[[ 'file' = "${scheme:-}" ]] || return 0
-			;;
-		dir)
-			[[ -z ${class:-} ]] || return 0
-			;;
-		*)
-			[[ $scheme != "${class:-}" ]] || return 0
-			;;
-		esac
-	done
-
-	return 1
-}
-
 url.is() {
-	local url=${1?${FUNCNAME[0]}: missing argument};      shift
-	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+	local url=${1?${FUNCNAME[0]}: missing argument};     shift
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	url.any "$url" "$expected"
+	case $feature in
+	local)
+		[[ $url =~ ^(/.*|[.][.]?|[.][.]?/.*)$ ]]
+		;;
+	local+)
+		[[ $url =~ ^(/.*|[.][.]?|[.][.]?/.*|file://.+)$ ]]
+		;;
+	naked)
+		[[ ! $url =~ ^[^/]+:// ]] && [[ ! $url =~ ^(/.*|[.][.]?|[.][.]?/.*)$ ]]
+		;;
+	schemeless)
+		[[ ! $url =~ ^[^/]+:// ]]
+		;;
+	schemed)
+		[[ $url =~ ^[^/]+:// ]]
+		;;
+	*)
+		.bug "Unrecognized feature: $feature"
+		;;
+	esac
 }
 
 url.usl() {
@@ -1794,7 +1794,7 @@ init() {
 	local url=${1?${FUNCNAME[0]}: missing argument};  shift
 
 	# shellcheck disable=2154
-	if false || url.is "$url" local; then
+	if url.is "$url" local; then
 		x[target]=$url
 	else
 		src.get "$url" x
@@ -1809,8 +1809,6 @@ init() {
 }
 
 main() {
-	.runtime
-
 	local -A _=(
 		[.help]='[OPTIONS] URL|FILE [ARGS...]'
 		[.argc]=1-
@@ -1839,7 +1837,7 @@ main() {
 			: # nop
 		}
 
-		# shellcheck disable=2128
+		# shellcheck disable=2178
 		focus() {
 			local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -1856,6 +1854,7 @@ main() {
 			: # nop
 		}
 
+		# shellcheck disable=2178
 		handle() {
 			local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
 			# shellcheck disable=2034

@@ -3,7 +3,7 @@
 # Return if program available
 :available() {
 	local -A _=(
-		[.help]='PROGRAM'
+		[.help]='<program>'
 		[.argc]=1
 	)
 
@@ -15,7 +15,7 @@
 # Return if first argument found in remaining arguments
 :contains() {
 	local -A _=(
-		[.help]='NEEDLE HAYSTACK'
+		[.help]='<needle> <haystack>'
 		[.argc]=2-
 	)
 
@@ -29,7 +29,7 @@
 	local -A _=(
 		[-ttl]=3
 
-		[.help]='[-ttl=MINUTES] FILE...'
+		[.help]='[-ttl=<minutes>] <file>...'
 		[.argc]=1-
 	)
 
@@ -41,7 +41,7 @@
 # Ensure the given command succeeds
 :must() {
 	local -A _=(
-		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.help]='<message> (<arg>... | -- <arg>...)'
 		[.argc]=2-
 		[.dash]=true
 	)
@@ -54,7 +54,7 @@
 # Ignore error if the given command fails
 :should() {
 	local -A _=(
-		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.help]='<message> (<arg>... | -- <arg>...)'
 		[.argc]=2-
 		[.dash]=true
 	)
@@ -68,7 +68,7 @@
 :run() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='FILE|DIR [ARG]...'
+		[.help]='(<file> |<dir>) [<arg>...]'
 		[.argc]=2-
 	)
 

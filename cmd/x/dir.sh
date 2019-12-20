@@ -2,7 +2,7 @@ discover() {
 	: # nop
 }
 
-# shellcheck disable=2128
+# shellcheck disable=2178
 focus() {
 	local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
 
@@ -19,6 +19,7 @@ setup() {
 	: # nop
 }
 
+# shellcheck disable=2178
 handle() {
 	local -n x=${1?${FUNCNAME[0]}: missing argument}; shift
 	# shellcheck disable=2034

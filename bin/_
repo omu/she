@@ -79,7 +79,11 @@
 
 	local file
 	for file; do
-		if [[ -e $file ]] && [[ -z $(find "$file" -mmin +"$expiry" 2>/dev/null) ]]; then
+		local t=d
+
+		[[ -d $file ]] || t=f
+
+		if [[ -e $file ]] && [[ -z $(find "$file" -type "$t" -mmin +"$expiry" 2>/dev/null) ]]; then
 			return 1
 		fi
 	done
@@ -105,6 +109,10 @@
 
 .piped() {
 	[[ ! -t 0 ]]
+}
+
+.privileged() {
+	.must 'Root permissions required; use sudo(1)' [[ ${EUID:-} -eq 0 ]]
 }
 
 .load() {
@@ -409,15 +417,23 @@ deb.install-manual() {
 	local url
 
 	for url; do
-		local deb
+		local deb tmp
 
-		file.download "$url" deb
+		if url.is "$url" local; then
+			.must "No such file: $url" [[ -f "$url" ]]
+
+			deb=$url
+		else
+			file.download "$url" deb
+
+			tmp=$deb
+		fi
 
 		dpkg-deb --info "$deb" &>/dev/null || .die "Not a valid Debian package: $url"
 		dpkg -i -- "$deb" 2>/dev/null || true
 		apt-get -y install --no-install-recommends --fix-broken
 
-		rm -f -- "$deb"
+		[[ -z $tmp ]] || rm -f -- "$tmp"
 	done
 }
 
@@ -1834,38 +1850,30 @@ ui.init-
 
 # url.sh - URL processing
 
-url.any() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local class scheme
-	url.parse "$url" class scheme
-
-	local expected
-	for expected; do
-		case $expected in
-		local)
-			[[ 'file' != "${scheme:-}" ]] || return 0
-			;;
-		remote)
-			[[ 'file' = "${scheme:-}" ]] || return 0
-			;;
-		dir)
-			[[ -z ${class:-} ]] || return 0
-			;;
-		*)
-			[[ $scheme != "${class:-}" ]] || return 0
-			;;
-		esac
-	done
-
-	return 1
-}
-
 url.is() {
-	local url=${1?${FUNCNAME[0]}: missing argument};      shift
-	local expected=${1?${FUNCNAME[0]}: missing argument}; shift
+	local url=${1?${FUNCNAME[0]}: missing argument};     shift
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	url.any "$url" "$expected"
+	case $feature in
+	local)
+		[[ $url =~ ^(/.*|[.][.]?|[.][.]?/.*)$ ]]
+		;;
+	local+)
+		[[ $url =~ ^(/.*|[.][.]?|[.][.]?/.*|file://.+)$ ]]
+		;;
+	naked)
+		[[ ! $url =~ ^[^/]+:// ]] && [[ ! $url =~ ^(/.*|[.][.]?|[.][.]?/.*)$ ]]
+		;;
+	schemeless)
+		[[ ! $url =~ ^[^/]+:// ]]
+		;;
+	schemed)
+		[[ $url =~ ^[^/]+:// ]]
+		;;
+	*)
+		.bug "Unrecognized feature: $feature"
+		;;
+	esac
 }
 
 url.usl() {
@@ -2329,7 +2337,7 @@ bin:install() {
 		[-prefix]="$_USR"/bin
 		[-name]=
 
-		[.help]='[-name=NAME] [-prefix=DIR] URL|FILE'
+		[.help]='[-name=<name>] [-prefix=<dir>] (<url> | <file>)'
 		[.argc]=1
 	)
 
@@ -2349,7 +2357,7 @@ bin:use() {
 		[-prefix]="$_RUN"/bin
 		[-name]=
 
-		[.help]='[-name=NAME] [-prefix=DIR] URL|FILE'
+		[.help]='[-name=<name>] [-prefix=<dir>] (<url> | <file>)'
 		[.argc]=1
 	)
 
@@ -2396,8 +2404,6 @@ bin.install-() {
 
 # Add Debian repository
 deb:add() {
-	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
-
 	# shellcheck disable=2192
 	local -A _=(
 		[repository]=$NIL
@@ -2405,7 +2411,7 @@ deb:add() {
 		[deb]=$NIL
 		[src]=
 
-		[.help]='repository=NAME deb=LINE [src=LINE] [key=URL]'
+		[.help]='repository=<name> deb=<line> [src=<line>] [key=<url>]'
 		[.argc]=0
 	)
 
@@ -2416,8 +2422,6 @@ deb:add() {
 
 # Install Debian packages
 deb:install() {
-	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
-
 	# shellcheck disable=2192
 	local -A _=(
 		[repository]=
@@ -2428,7 +2432,7 @@ deb:install() {
 		[-missings]=false
 		[-shiny]=false
 
-		[.help]='[-missings=BOOL] [-shiny=BOOL] [repository=NAME deb=LINE [src=LINE] [key=URL]] PACKAGE...'
+		[.help]='[-missings=<bool>] [-shiny=<bool>] [repository=<name> deb=<line> [src=<line>] [key=<url>]] <package>...'
 		[.argc]=1-
 	)
 
@@ -2441,7 +2445,7 @@ deb:install() {
 deb:missings() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='PACKAGE...'
+		[.help]='<package>...'
 	)
 
 	flag.parse
@@ -2458,7 +2462,7 @@ deb:missings() {
 deb:uninstall() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='PACKAGE...'
+		[.help]='<package>...'
 		[.argc]=1-
 	)
 
@@ -2484,7 +2488,7 @@ deb:update() {
 deb:using() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='DIST...'
+		[.help]='<dist>...'
 		[.argc]=1-
 	)
 
@@ -2500,7 +2504,7 @@ deb:add-() {
 
 	[[ -n $repository ]] || .bug "Undefined repository."
 
-	.must 'Root permissions required; use sudo.' [[ ${EUID:-} -eq 0 ]]
+	.privileged
 
 	[[ -z ${_[key]:-} ]] || deb.add-key "${_[key]}" || return 0
 
@@ -2512,6 +2516,8 @@ deb:add-() {
 
 deb:install-() {
 	[[ $# -gt 0 ]] || return 0
+
+	.privileged
 
 	if [[ -n ${_[repository]:-} ]]; then
 		deb:add- repository="${_[repository]}" key="${_[key]:-}" deb="${_[deb]:-}" src="${_[src]:-}"
@@ -2529,12 +2535,10 @@ deb:install-() {
 	for arg; do
 		local url=$arg
 
-		if url.is "$url" web; then
-			urls+=("$url")
-		elif url.is "$url" non; then
+		if url.is "$url" naked; then
 			non_urls+=("$url")
 		else
-			.die "Unsupported URL: $url"
+			urls+=("$url")
 		fi
 	done
 
@@ -2599,7 +2603,7 @@ deb:init-
 file:chmog() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='[MODE]:[OWNER]:[GROUP] FILE|DIR'
+		[.help]='[<mode>]:[<owner>]:[<group>] (<file> | <dir>)'
 		[.argc]=2
 	)
 
@@ -2614,14 +2618,19 @@ file:chmog() {
 file:run() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='FILE|DIR'
-		[.argc]=1
+		[.help]='(<file> | <dir>)'
+		[.argc]=1-
 	)
 
 	flag.parse
 
-	file:run_ "$@"
-	# TODO
+	local file=$1
+	shift
+
+	# shellcheck disable=2034
+	local -a env=(); flag.env env
+
+	file.rune env "$file" "$@"
 }
 
 # cmd/filetype - Filetype detection
@@ -2631,7 +2640,7 @@ filetype:any() {
 	local -A _=(
 		[-zip]=false
 
-		[.help]='FILE [TYPE...]'
+		[.help]='<file> [<type>...]'
 		[.argc]=2-
 	)
 
@@ -2656,7 +2665,7 @@ filetype:is() {
 	local -A _=(
 		[-zip]=false
 
-		[.help]='FILE TYPE'
+		[.help]='<file> <type>'
 		[.argc]=2
 	)
 
@@ -2672,7 +2681,7 @@ filetype:mime() {
 	local -A _=(
 		[-zip]=false
 
-		[.help]='FILE'
+		[.help]='<file>'
 		[.argc]=1
 	)
 
@@ -2801,7 +2810,7 @@ git:update() {
 	local -A _=(
 		[-ttl]=3
 
-		[.help]='[-ttl=MINUTES]'
+		[.help]='[-ttl=<minutes>]'
 		[.argc]=0
 	)
 
@@ -2818,7 +2827,7 @@ git:update() {
 # Assert HTTP response against any of the given codes
 http:any() {
 	local -A _=(
-		[.help]='URL CODE...'
+		[.help]='<url> <code>...'
 		[.argc]=2-
 	)
 
@@ -2840,7 +2849,7 @@ http:any() {
 # Get URL
 http:get() {
 	local -A _=(
-		[.help]='URL'
+		[.help]='<url>'
 		[.argc]=1
 	)
 
@@ -2852,7 +2861,7 @@ http:get() {
 # Assert HTTP response against the given code
 http:is() {
 	local -A _=(
-		[.help]='URL CODE'
+		[.help]='<url> <code>'
 		[.argc]=2
 	)
 
@@ -2884,7 +2893,7 @@ http:is-() {
 # Assert any OS feature
 os:any() {
 	local -A _=(
-		[.help]='FEATURE...'
+		[.help]='<feature>...'
 		[.argc]=1-
 	)
 
@@ -2910,7 +2919,7 @@ os:dist() {
 # Assert OS feature
 os:is() {
 	local -A _=(
-		[.help]='FEATURE'
+		[.help]='<feature>'
 		[.argc]=1
 	)
 
@@ -2928,7 +2937,7 @@ self:install() {
 		[-prefix]="$_USR"/bin
 		[-name]=$PROGNAME
 
-		[.help]=
+		[.help]='[-prefix=<dir>] [-name=<name>]'
 		[.argc]=0
 	)
 
@@ -2965,7 +2974,7 @@ self:src() {
 # Return if program available
 :available() {
 	local -A _=(
-		[.help]='PROGRAM'
+		[.help]='<program>'
 		[.argc]=1
 	)
 
@@ -2977,7 +2986,7 @@ self:src() {
 # Return if first argument found in remaining arguments
 :contains() {
 	local -A _=(
-		[.help]='NEEDLE HAYSTACK'
+		[.help]='<needle> <haystack>'
 		[.argc]=2-
 	)
 
@@ -2991,7 +3000,7 @@ self:src() {
 	local -A _=(
 		[-ttl]=3
 
-		[.help]='[-ttl=MINUTES] FILE...'
+		[.help]='[-ttl=<minutes>] <file>...'
 		[.argc]=1-
 	)
 
@@ -3003,7 +3012,7 @@ self:src() {
 # Ensure the given command succeeds
 :must() {
 	local -A _=(
-		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.help]='<message> (<arg>... | -- <arg>...)'
 		[.argc]=2-
 		[.dash]=true
 	)
@@ -3016,7 +3025,7 @@ self:src() {
 # Ignore error if the given command fails
 :should() {
 	local -A _=(
-		[.help]='MESSAGE ARGS...|-- ARGS...'
+		[.help]='<message> (<arg>... | -- <arg>...)'
 		[.argc]=2-
 		[.dash]=true
 	)
@@ -3030,7 +3039,7 @@ self:src() {
 :run() {
 	# shellcheck disable=2192
 	local -A _=(
-		[.help]='FILE|DIR [ARG]...'
+		[.help]='(<file> |<dir>) [<arg>...]'
 		[.argc]=2-
 	)
 
@@ -3051,7 +3060,7 @@ src:enter() {
 		[-ttl]=-1
 		[-prefix]=$_RUN
 
-		[.help]='[-(cache=MINUTES|cache=DIR)] URL'
+		[.help]='[-ttl=<minutes>] [-prefix=<dir>] (<url> | <dir>)'
 		[.argc]=1
 	)
 
@@ -3069,7 +3078,7 @@ src:install() {
 	local -A _=(
 		[-prefix]="$_USR"/local/src
 
-		[.help]='[-prefix=DIR] URL|FILE'
+		[.help]='[-prefix=<dir>] (<url> | <dir>)'
 		[.argc]=1
 	)
 
@@ -3100,7 +3109,7 @@ src:with() {
 		[-ttl]=-1
 		[-prefix]=$_RUN
 
-		[.help]='[-(ttl=MINUTES|cache=DIR)] URL COMMAND [ARG]...'
+		[.help]='[-ttl=<minutes>] [-prefix=<dir>] (<url> | <dir>) <command> [<arg>...]'
 		[.argc]=2-
 	)
 
@@ -3120,7 +3129,7 @@ src:with() {
 # Append stdin content to the target file
 text:fix() {
 	local -A _=(
-		[.help]='FILE [MARK]'
+	[.help]='<file> [<mark>]'
 		[.argc]=1-
 	)
 
@@ -3132,7 +3141,7 @@ text:fix() {
 # Remove appended content
 text:unfix() {
 	local -A _=(
-		[.help]='FILE [MARK]'
+		[.help]='<file> [<mark>]'
 		[.argc]=1-
 	)
 
@@ -3146,7 +3155,7 @@ text:unfix() {
 # Print bug message and exit failure
 ui:bug() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -3158,7 +3167,7 @@ ui:bug() {
 # Print message and exit success
 ui:bye() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -3170,7 +3179,7 @@ ui:bye() {
 # Print message and run command
 ui:calling() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1-
 	)
 
@@ -3182,7 +3191,7 @@ ui:calling() {
 # Print warning message
 ui:cry() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -3194,7 +3203,7 @@ ui:cry() {
 # Print error message and exit failure
 ui:die() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -3206,7 +3215,7 @@ ui:die() {
 # Print message indicating a download and run command
 ui:getting() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1-
 	)
 
@@ -3218,7 +3227,7 @@ ui:getting() {
 # Print info message
 ui:hmm() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -3230,7 +3239,7 @@ ui:hmm() {
 # Print not ok message
 ui:notok() {
 	local -A _=(
-		[.help]='STRING'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -3242,7 +3251,7 @@ ui:notok() {
 # Print ok message
 ui:ok() {
 	local -A _=(
-		[.help]='STRING'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -3254,7 +3263,7 @@ ui:ok() {
 # Print a busy message run command
 ui:running() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1-
 	)
 
@@ -3266,7 +3275,7 @@ ui:running() {
 # Print message on stderr
 ui:say() {
 	local -A _=(
-		[.help]='MESSAGE'
+		[.help]='<message>'
 		[.argc]=1
 	)
 
@@ -3278,21 +3287,9 @@ ui:say() {
 # cmd/url - URL processing commands
 
 # Assert URL type
-url:any() {
-	local -A _=(
-		[.help]='URL CLASS...'
-		[.argc]=2-
-	)
-
-	flag.parse
-
-	url.any "$@"
-}
-
-# Assert URL type
 url:is() {
 	local -A _=(
-		[.help]='URL CLASS'
+		[.help]='<url> (local|local+|naked|schemed|schemeless)'
 		[.argc]=2
 	)
 
@@ -3304,17 +3301,13 @@ url:is() {
 # Parse and dump URL
 url:dump() {
 	local -A _=(
-		[.help]='URL ATTRIBUTE...'
+		[.help]='<url> <attribute>...'
 		[.argc]=2-
 	)
 
 	flag.parse
 
 	url.usl "$@"
-}
-
-init.url() {
-	url.template cache "$_RUN/{{ .source | pathescape }}"
 }
 
 # cmd/version - Print version
@@ -3333,7 +3326,7 @@ declare -gr VERSION=0.0.0
 # Assert any of the virtualization types
 virt:any() {
 	local -A _=(
-		[.help]='VIRTUALIZATION...'
+		[.help]='<virtualization>...'
 		[.argc]=1-
 	)
 
@@ -3345,7 +3338,7 @@ virt:any() {
 # Assert virtualization type
 virt:is() {
 	local -A _=(
-		[.help]='VIRTUALIZATION'
+		[.help]='<virtualization>'
 		[.argc]=1
 	)
 
@@ -3373,7 +3366,7 @@ zip:unpack() {
 		[-force]=false
 		[-clean]=false
 
-		[.help]='[-(force|clean)=BOOL] FILE [DIR]'
+		[.help]='[-force=<bool>] [-clean=<bool>] <file> [<dir>]'
 		[.argc]=1-
 	)
 
@@ -3452,7 +3445,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['ui:ok']='Print ok message'
 		['ui:running']='Print a busy message run command'
 		['ui:say']='Print message on stderr'
-		['url:any']='Assert URL type'
 		['url:dump']='Parse and dump URL'
 		['url:is']='Assert URL type'
 		['virt:any']='Assert any of the virtualization types'
@@ -3509,7 +3501,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['ui ok']='ui:ok'
 		['ui running']='ui:running'
 		['ui say']='ui:say'
-		['url any']='url:any'
 		['url dump']='url:dump'
 		['url is']='url:is'
 		['version']=':version'
@@ -3666,7 +3657,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 					_.enter() {
 						local dir
 
-						if dir=$("$_SELF" enter "$@") && [[ -n $dir ]]; then
+						if dir=$("$_SELF" src enter "$@") && [[ -n $dir ]]; then
 							pushd "$dir" &>/dev/null || exit
 						fi
 					}

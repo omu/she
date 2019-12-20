@@ -3,7 +3,7 @@
 # Assert any of the virtualization types
 virt:any() {
 	local -A _=(
-		[.help]='VIRTUALIZATION...'
+		[.help]='<virtualization>...'
 		[.argc]=1-
 	)
 
@@ -15,7 +15,7 @@ virt:any() {
 # Assert virtualization type
 virt:is() {
 	local -A _=(
-		[.help]='VIRTUALIZATION'
+		[.help]='<virtualization>'
 		[.argc]=1
 	)
 

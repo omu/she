@@ -81,7 +81,6 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | ui ok         | Print ok message                                      |
 | ui running    | Print a busy message run command                      |
 | ui say        | Print message on stderr                               |
-| url any       | Assert URL type                                       |
 | url dump      | Parse and dump URL                                    |
 | url is        | Assert URL type                                       |
 | version       | Return version                                        |
