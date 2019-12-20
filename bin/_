@@ -224,6 +224,8 @@
 	export PATH="$_RUN"/bin:"$PATH" SRCTMP="$_RUN"
 }
 
+.runtime
+
 # Libraries
 
 # array.sh - Array functions
@@ -3688,7 +3690,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				._ "$@"
 EOF
 		else
-			.runtime
 			.callback init
 			.dispatch "$@"
 		fi

@@ -224,6 +224,8 @@
 	export PATH="$_RUN"/bin:"$PATH" SRCTMP="$_RUN"
 }
 
+.runtime
+
 # assert.sh - Assertions
 
 assert.err() {
