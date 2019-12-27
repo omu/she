@@ -4,7 +4,7 @@
 bin:install() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_USR"/bin
+		[-prefix]="${PERSISTENT[bin]}"
 		[-name]=
 
 		[.help]='[-name=<name>] [-prefix=<dir>] (<url> | <file>)'
@@ -24,7 +24,7 @@ bin:install() {
 bin:use() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_RUN"/bin
+		[-prefix]="${VOLATILE[bin]}"
 		[-name]=
 
 		[.help]='[-name=<name>] [-prefix=<dir>] (<url> | <file>)'
@@ -47,9 +47,9 @@ bin.install-() {
 	local prefix="${1?${FUNCNAME[0]}: missing argument}"; shift
 	local name=${1:-}
 
-	local -A bin=([url]="$url" [root]="$_RUN" [expiry]=-1)
+	local -A bin=([ttl]=-1)
 
-	src.get bin
+	src.get "$url" bin
 
 	local -a bins=()
 	filetype.runnables "${bin[cache]}" bins
@@ -67,5 +67,5 @@ bin.install-() {
 		file.cp "$src" "$prefix"/"$name" 0755
 	done
 
-	src.del bin
+	src.del "$url" bin
 }

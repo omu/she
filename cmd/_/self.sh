@@ -4,7 +4,7 @@
 self:install() {
 	# shellcheck disable=2192,2128
 	local -A _=(
-		[-prefix]="$_USR"/bin
+		[-prefix]="${PERSISTENT[bin]}"
 		[-name]=$PROGNAME
 
 		[.help]='[-prefix=<dir>] [-name=<name>]'

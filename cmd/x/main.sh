@@ -37,12 +37,13 @@ init() {
 
 main() {
 	local -A _=(
-		[.help]='[OPTIONS] URL|FILE [ARGS...]'
+	[.help]='[-cachedir=<dir>] [-tempdir=<dir>] [-ttl=<minutes>] [-fresh=<bool>] (url | file | dir) [<arg>...]'
 		[.argc]=1-
 
-		[-prefix]=$_RUN
-		[-ttl]=30
+		[-cachedir]="${VOLATILE[src]}"
 		[-fresh]=false
+		[-tempdir]="${VOLATILE[tmp]}"
+		[-ttl]=30
 	)
 
 	flag.parse

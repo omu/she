@@ -56,19 +56,68 @@ Kullanıcı için `XDG_*` ortam değişkenleri için öntanımlı değerler aşa
 
 Çalışma ortamı:
 
-| Tür                    | İç değişken  | Kontrol eden değişken          | Öntanımlı kullanıcı değeri                             | Öntanımlı sistem değeri
-| ---------------------- | ------------ | ------------------------------ | ------------------------------------------------------ | ------------------------------------
-| Geçici dizin ağacı     | `_RUN`       | `UNDERSCORE_VOLATILE_PREFIX`   | `$XDG_RUNTIME_DIR/_`                                   | `/run/_`
-| Kalıcı dizin ağacı     | `_USR`       | `UNDERSCORE_PERSISTENT_PREFIX` | `$HOME/.local`                                         | `/usr/local`
-| Yapılandırma dizinleri | `_ETC`       | `UNDERSCORE_CONFIG_PATH`       | `/etc/_:/usr/local/etc/_:$XDG_CONFIG_HOME/_:$_RUN/etc` | `/etc/_:$_USR/etc/_:$_RUN/etc`
+| İç değişken  | Tür                    | Öntanımlı kullanıcı değeri  | Öntanımlı sistem değeri
+| ------------ | ---------------------- | --------------------------- | ------------------------------------
+| `bin`       | Programlar             | `~/.local/bin`              | `/usr/local/bin`
+| `doc`       | Dokümanlar             | `~/.local/doc`              | `/usr/local/doc`
+| `etc`       | Yapılandırmalar        | `~/.config`                 | `/usr/local/etc`
+| `lib`       | Kitaplıklar            | `~/.local/lib`              | `/usr/local/lib`
+| `opt`       | Vendor dosyaları       | `~/.local/opt`              | `/opt`
+| `run`       | Çalışma zamanı dizini  | `/run/user/1000`            | `/run`
+| `src`       | Kaynaklar              | `~/.local/src`              | `/usr/local/src`
+| `srv`       | Veri dosyaları         | `~/.local/srv`              | `/srv`
+| `tmp`       | Geçici dosyalar        | `$_RUN/_/tmp`               | `$_RUN/_/tmp`
+| `var`       | Değişken dosyalar      | `~/.cache`                  | `/var/local`
 
-Buna göre tipik dizin değerleri:
+### `etc`
 
-| Tür                                           | İç değişken  | Tipik kullanıcı değeri                                     | Tipik sistem değeri
-| --------------------------------------------- | ------------ | ---------------------------------------------------------- | -------------------------
-| Programlar için geçici kurulum dizini         | `_RUN/bin`   | `/run/user/1000/bin`                                       | `/run/_/bin`
-| Programlar için kalıcı kurulum dizini         | `_USR/bin`   | `~/.local/bin`                                             | `/usr/local/bin`
-| Yapılandırmalar (sondaki en yüksek öncelikli) | `_ETC`       | `/etc/_:/usr/local/etc/_:~/.config/_:/run/user/1000/_/etc` | `/etc/_:/usr/local/etc/_:/run/_/etc`
+Komutlar
+
+```sh
+_ (etc|var) (aget|aset|begin|end|get|pick|reset|set)
+```
+
+Dosya/dizin adlarında aşağıdaki kurallar:
+
+- Geçerli bir değişken adı olmalı
+- Yazmalar sadece dosyalar için geçerli
+- Başta ve sondaki `/` karakterleri kaldırılır; dosya yolu daima prefix'e görecelidir
+- Çıktı genel olarak bir Bash sözlüğüdür.  Sözlüğün öntanımlı adı `_`'dır.
+
+`etc` komutunda `/etc/_/var` (`$_ETC/var`) prefix dizini kullanılır; kayıtlar kalıcıdır.  `var` komutunda `/run/_/var`
+(`$_RUN/var`) prefix dizini altındaki "bucket" dizinleri kullanılır; kayıtlar geçicidir.  `var` komutunda genel olarak `$_VID`
+değişkeni ile kontrol edilen `$_RUN/var/${_VID:-1}` dizinleri kullanılır (yani öntanımlı dizin `/run/_/var/1`).
+Fakat `var begin` ile bu dizin `/run/_/var/<pid>` olarak değiştirilebilir (`$_VID` `<pid>` olarak alınarak).
+Bu mekanizma sayesinde "per session" veya "per process" değişkenler kullanılabilir.
+
+- `_ var begin` komutu `/run/_/var/<pid>` dizinini yoksa oluşturur ve `_VID=$PID` ortam değişkenini readonly olarak
+  export eder.
+
+- Müteakip `var` komutları `/run/_/var/$_VID` dizinini bucket olarak kullanır.  `_VID` tanımlı olmasına rağmen dizinin var
+  olmaması bir hatadır.  Aynı proseste `_VID`'nin birden fazla kez tanımlanmaya teşebbüs edilmesi hatadır (readonly);
+  `-try=true` seçeneğiyle `_VID` sadece tanımlı değilse oluşturulur.
+
+```sh
+_ etc get a/b/c e f         #=> c=([f]=VALUE [e]=VALUE)
+_ etc set a/b/c f=NEWVALUE  #=> c=([f]=NEWVALUE [e]=VALUE)
+_ etc pick a/b/c/f=NEWVALUE #=> _=([a/b/c/f]=NEWVALUE)
+```
+
+Tüm komutlar için seçenekler:
+
+- `-var=<name>` öntanımlı seçilen isim yerine kullanılacak sözlük ismi
+- `-assign=true` yeni sözlük oluşturmak yerine mevcut sözlüğe yaz
+
+`pick`:
+
+- `-strip=true` dönüş sözlüğündeki anahtarlarda en büyük ortak öneki çıkar
+- `-prefix=<dir>` tüm argümanlara uygulanacak ön ek
+- `...` rekürsif olarak tüm alt değişkenleri seçer
+
+`aset`:
+
+- `<path>`'ten sonraki argümanlar dizi elemanlarıdır
+- Argüman yoksa dizi elemanları (varsa) stdin'den okunur
 
 `t`
 ---

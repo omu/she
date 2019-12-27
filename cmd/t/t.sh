@@ -54,8 +54,10 @@ t:unlike() {
 t:temp() {
 	local tempdir
 
-	if [[ -n ${PWD[tmp]:-} ]]; then
-		tempdir=${PWD[tmp]}
+	[[ -v T ]] || declare -Ag T=()
+
+	if [[ -n ${T[tmp]:-} ]]; then
+		tempdir=${T[tmp]}
 
 		temp.clean tempdir
 	fi
@@ -65,7 +67,7 @@ t:temp() {
 	.must -- cd "$tempdir"
 
 	# shellcheck disable=2128
-	PWD[tmp]=$PWD
+	T[tmp]=$PWD
 }
 
 # Run all test suites defined so far

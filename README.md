@@ -44,6 +44,9 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | deb uninstall | Uninstall Debian packages                             |
 | deb update    | Update Debian package index                           |
 | deb using     | Use given official Debian distributions               |
+| etc get       | Get persistent variable(s)                            |
+| etc reset     | Reset persistent variable(s)                          |
+| etc set       | Set persistent variable(s)                            |
 | expired       | Return if any of the files expired                    |
 | file chmog    | Change owner, group and mode                          |
 | file run      | Run program                                           |
@@ -83,6 +86,9 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | ui say        | Print message on stderr                               |
 | url dump      | Parse and dump URL                                    |
 | url is        | Assert URL type                                       |
+| var get       | Get variable(s)                                       |
+| var reset     | Reset variable(s)                                     |
+| var set       | Set variable(s)                                       |
 | version       | Return version                                        |
 | virt any      | Assert any of the virtualization types                |
 | virt is       | Assert virtualization type                            |

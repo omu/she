@@ -25,11 +25,13 @@
 #=github.com/omu/home/src/sh/virt.sh
 #=github.com/omu/home/src/sh/zip.sh
 #=github.com/omu/home/src/sh/src.sh
+#=github.com/omu/home/src/sh/etc.sh
 
 # Commands
 
 #=cmd/_/bin.sh
 #=cmd/_/deb.sh
+#=cmd/_/etc.sh
 #=cmd/_/file.sh
 #=cmd/_/filetype.sh
 #=cmd/_/git.sh

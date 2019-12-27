@@ -90,7 +90,7 @@
 }
 
 .interactive() {
-	[[   -t 1 ]]
+	[[  -t 1 ]]
 }
 
 .out() {
@@ -206,28 +206,79 @@
 	# Default variable as a hash
 	declare -gA _=()
 
-	# Recycle PWD as a hash
-	declare -Ag PWD
-
-	# shellcheck disable=2128
-	PWD[.]="$PWD"
-
 	# shellcheck disable=2034
 	if [[ ${EUID:-} -eq 0 ]]; then
-		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
-		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
-		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
-	else
-		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
-		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
-		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
+		local volatile=/run/_ persistent=/usr/local
 
-		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
-		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
-		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
+		declare -Agr VOLATILE=(
+			[0]="$volatile"
+
+			[bin]="$volatile"/bin
+			[doc]="$volatile"/doc
+			[etc]="$volatile"/etc
+			[lib]="$volatile"/lib
+			[opt]="$volatile"/opt
+			[srv]="$volatile"/srv
+			[src]="$volatile"/src
+			[tmp]="$volatile"/tmp
+			[var]="$volatile"/var
+		)
+
+		declare -Agr PERSISTENT=(
+			[0]="$persistent"
+
+			[bin]="$persistent"/bin
+			[doc]="$persistent"/doc
+			[etc]="$persistent"/etc
+			[lib]="$persistent"/lib
+			[opt]=/opt
+			[src]="$persistent"/src
+			[srv]=/srv
+			[tmp]=/var/local/tmp
+			[var]=/var/local
+		)
+	else
+		local volatile=${XDG_RUNTIME_DIR:-/run/user/"$EUID"/_} persistent=~/.local
+
+		declare -Agr VOLATILE=(
+			[0]="$volatile"
+
+			[bin]="$volatile"/bin
+			[doc]="$volatile"/doc
+			[etc]="$volatile"/etc
+			[lib]="$volatile"/lib
+			[opt]="$volatile"/opt
+			[srv]="$volatile"/srv
+			[src]="$volatile"/src
+			[tmp]="$volatile"/tmp
+			[var]="$volatile"/var
+		)
+
+		declare -Agr PERSISTENT=(
+			[0]="$persistent"
+
+			[bin]="$persistent"/bin
+			[doc]="$persistent"/doc
+			[etc]="${XDG_CONFIG_HOME:-~/.config}"
+			[lib]="$persistent"/lib
+			[opt]="$persistent"/opt
+			[src]="$persistent"/src
+			[srv]="$persistent"/srv
+			[tmp]="${XDG_CACHE_HOME:-~/.cache}"/tmp
+			[var]="${XDG_CACHE_HOME:-~/.cache}"
+		)
 	fi
 
-	export PATH="$_RUN"/bin:"$PATH" SRCTMP="$_RUN"
+	local path
+	for path in "${PERSISTENT[bin]}" "${VOLATILE[bin]}"; do
+		case ":$PATH:" in
+		*:"$path":*)	                     ;;
+		*)		PATH="$path":"$PATH" ;;
+		esac
+	done
+
+	# shellcheck disable=2128
+	export PATH SRCCACHE="${VOLATILE[src]}" SRCTEMP="${VOLATILE[tmp]}"
 }
 
 .runtime
@@ -1044,6 +1095,12 @@ flag.parse-() {
 			key=${1%%=*}; value=${1#*=}
 			if [[ $key =~ ^-.+$ ]] && [[ ! -v _[$key] ]]; then
 				.die "Unrecognized flag: $key"
+			fi
+
+			if [[ $key =~ ^-.+$ ]]; then
+				[[ -v _[$key] ]] || .die "Unrecognized flag: $key"
+			elif [[ -n ${_[.raw]:-} ]]; then
+				key=$((++argc)); value=$1
 			fi
 		elif [[ $1 == '--' ]] && [[ -z ${_[.dash]:-} ]]; then
 			shift
@@ -2157,8 +2214,8 @@ src.purge() {
 		local -n _src_=$1
 		shift
 
-		local caches=${_src_[cache]%/*} interims=${_src_[interim]%/*}
-		rm -rf -- "$caches" "$interims"
+		local caches=${_src_[cache]%/*} temps=${_src_[temp]%/*}
+		rm -rf -- "$caches" "$temps"
 	else
 		[[ -z ${SRCTMP:-} ]] || rm -rf -- "$SRCTMP"/{src,tmp}
 	fi
@@ -2181,18 +2238,25 @@ src.calculate-() {
 	local url=${1?${FUNCNAME[0]}: missing argument};       shift
 	local -n _hash_=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	local prefix=${_hash_[-prefix]:-}
-	if [[ -z $prefix ]]; then
-		[[ -n ${SRCTMP:-} ]] || .die 'SRCTMP undefined'
+	local cachedir=${_hash_[-cachedir]:-}
+	if [[ -z $cachedir ]]; then
+		[[ -n ${SRCCACHE:-} ]] || .die 'SRCCACHE undefined'
 
-		prefix=$SRCTMP
+		cachedir=$SRCCACHE
+	fi
+
+	local tempdir=${_hash_[-tempdir]:-}
+	if [[ -z $tempdir ]]; then
+		[[ -n ${SRCTEMP:-} ]] || .die 'SRCTEMP undefined'
+
+		tempdir=$SRCTEMP
 	fi
 
 	local -A _result_
 	url.parse -bash=_result_ "$url" || .die "Error parsing URL: $url"
 
-	_result_[cache]=$prefix/src/${_result_[id]}
-	_result_[interim]=$prefix/tmp/${_result_[id]}
+	_result_[cache]=$cachedir/${_result_[id]}
+	_result_[temp]=$tempdir/${_result_[id]}
 
 	.merge _hash_ _result_
 }
@@ -2219,10 +2283,10 @@ src.handler-() {
 }
 
 src.prep-() {
-	local caches=${_src_[cache]%/*} interims=${_src_[interim]%/*}
+	local caches=${_src_[cache]%/*} temps=${_src_[temp]%/*}
 
-	[[ -d $caches   ]] || .must -- mkdir -p "$caches"
-	[[ -d $interims ]] || .must -- mkdir -p "$interims"
+	[[ -d $caches ]] || .must -- mkdir -p "$caches"
+	[[ -d $temps  ]] || .must -- mkdir -p "$temps"
 }
 
 src.ln-() {
@@ -2232,16 +2296,16 @@ src.ln-() {
 }
 
 src.mv-() {
-	[[ -e ${_src_[interim]} ]] || return 0
+	[[ -e ${_src_[temp]} ]] || return 0
 
-	src.rm- && mv "${_src_[interim]}" "${_src_[cache]}"
+	src.rm- && mv "${_src_[temp]}" "${_src_[cache]}"
 }
 
 src.new-() {
 	if [[ ${_src_[scheme]} = file ]]; then
 		src.ln- "${_src_[source]}"
 	else
-		.clean "${_src_[interim]}"
+		.clean "${_src_[temp]}"
 
 		src.rm-
 
@@ -2268,15 +2332,15 @@ src.ok-() {
 src.planned-() {
 	[[ -n ${_src_[source]:-}  ]] || .bug "Unplanned cache"
 
-	[[ -n ${_src_[cache]:-}   ]] || .bug "Unplanned cache: ${_src_[source]}"
-	[[ -n ${_src_[interim]:-} ]] || .bug "Unplanned interim: ${_src_[source]}"
+	[[ -n ${_src_[cache]:-} ]] || .bug "Unplanned cache: ${_src_[source]}"
+	[[ -n ${_src_[temp]:-}  ]] || .bug "Unplanned temp: ${_src_[source]}"
 }
 
 src.renew-() {
 	if [[ ${_src_[scheme]} = file ]]; then
 		src.ln- "${_src_[source]}"
 	else
-		.clean "${_src_[interim]}"
+		.clean "${_src_[temp]}"
 
 		local handler
 		handler=$(src.handler-) || exit $?
@@ -2295,7 +2359,7 @@ src.rm-() {
 # src - Git
 
 src.git.new-() {
-	git.clone "${_src_[source]}" "${_src_[interim]}" "${_src_[ref]}"
+	git.clone "${_src_[source]}" "${_src_[temp]}" "${_src_[ref]}"
 }
 
 src.git.renew-() {
@@ -2307,10 +2371,10 @@ src.git.renew-() {
 src.zip.new-() {
 	src.none.new-
 
-	local dst="${_src_[interim]}".unpack
+	local dst="${_src_[temp]}".unpack
 
-	rm -rf -- "$dst" && zip.unpack "${_src_[interim]}" "$dst"
-	rm -rf -- "${_src_[interim]}" && mv "$dst" "${_src_[interim]}"
+	rm -rf -- "$dst" && zip.unpack "${_src_[temp]}" "$dst"
+	rm -rf -- "${_src_[temp]}" && mv "$dst" "${_src_[temp]}"
 }
 
 src.zip.renew-() {
@@ -2322,11 +2386,145 @@ src.zip.renew-() {
 src.none.new-() {
 	[[ ${_src_[scheme]} =~ ^http ]] || .bug "Unimplemented scheme: ${_src_[scheme]}"
 
-	http.download "${_src_[source]}" "${_src_[interim]}"
+	http.download "${_src_[source]}" "${_src_[temp]}"
 }
 
 src.none.renew-() {
 	src.none.new-
+}
+
+# etc.sh - Simple configuration management
+
+# shellcheck disable=2034
+etc.get() {
+	local prefix="${1?${FUNCNAME[0]}: missing argument}";           shift
+	local namespace="${1?${FUNCNAME[0]}: missing argument}";        shift
+	local -n etc_accessor_="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local dir
+	dir=$(etc.namespace- "$prefix" "$namespace")
+
+	local -a args=("$@")
+
+	if [[ "${#args[@]}" -eq 0 ]]; then
+		if [[ -d $dir ]]; then
+			local f
+			for f in "$dir"/*; do
+				if [[ -f $f ]] && [[ -r $f ]]; then
+					args+=("${f##*/}")
+				fi
+			done
+		fi
+	fi
+
+	local -A variable=()
+
+	local arg name value
+
+	for arg in ${args[@]+"${args[@]}"}; do
+		if [[ "$arg" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+			name=$arg
+			[[ -r $dir/$name ]] || continue
+
+			value=$(<"$dir/$name")
+			variable[$name]=$value
+		else
+			.die "Invalid variable: $arg"
+		fi
+	done
+
+	[[ "${#variable[@]}" -gt 0 ]] || return 0
+
+	.merge etc_accessor_ variable
+}
+
+etc.reset() {
+	local prefix="${1?${FUNCNAME[0]}: missing argument}";    shift
+	local namespace="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local dir
+	dir=$(etc.namespace- "$prefix" "$namespace")
+
+	.must -- rm -rf "$dir"
+}
+
+# shellcheck disable=2034
+etc.set() {
+	local prefix="${1?${FUNCNAME[0]}: missing argument}";           shift
+	local namespace="${1?${FUNCNAME[0]}: missing argument}";        shift
+	local -n etc_accessor_="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local dir
+	dir=$(etc.namespace- "$prefix" "$namespace")
+
+	local -a args=("$@")
+
+	if [[ "${#args[@]}" -eq 0 ]]; then
+		if [[ -d $dir ]]; then
+			local f
+			for f in "$dir"/*; do
+				if [[ -f $f ]] && [[ -r $f ]]; then
+					args+=("${f##*/}")
+				fi
+			done
+		fi
+	fi
+
+	local -A variable=()
+	local -a writes=()
+
+	local arg name value
+
+	for arg in ${args[@]+"${args[@]}"}; do
+		if [[ "$arg" =~ ^[a-zA-Z_][a-zA-Z0-9_]*= ]]; then
+			name=${arg%%=*}
+			value=${arg#$name=}
+
+			variable[$name]=$value
+			writes+=("$name")
+		elif [[ "$arg" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+			.die "Value required: $arg"
+		else
+			.die "Invalid variable: $arg"
+		fi
+	done
+
+	if [[ ${#writes[@]} -gt 0 ]]; then
+		etc.prep- "$prefix"
+
+		[[ -d $dir ]] || mkdir -p "$dir"
+		for name in "${writes[@]}"; do
+			echo "${variable[$name]-}" >"$dir/$name"
+		done
+	fi
+
+	[[ "${#variable[@]}" -gt 0 ]] || return 0
+
+	.merge etc_accessor_ variable
+}
+
+etc.namespace-() {
+	local prefix="${1?${FUNCNAME[0]}: missing argument}";    shift
+	local namespace="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local dir
+
+	case $namespace in
+	""|.|/)
+		dir=$namespace
+		;;
+	*)
+		dir=$prefix/$namespace
+		;;
+	esac
+
+	.must -- readlink -m "$dir"
+}
+
+etc.prep-() {
+	local prefix="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	mkdir -p "$prefix" || .die "Prefix directory not writable: $prefix"
 }
 
 # Commands
@@ -2337,7 +2535,7 @@ src.none.renew-() {
 bin:install() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_USR"/bin
+		[-prefix]="${PERSISTENT[bin]}"
 		[-name]=
 
 		[.help]='[-name=<name>] [-prefix=<dir>] (<url> | <file>)'
@@ -2357,7 +2555,7 @@ bin:install() {
 bin:use() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_RUN"/bin
+		[-prefix]="${VOLATILE[bin]}"
 		[-name]=
 
 		[.help]='[-name=<name>] [-prefix=<dir>] (<url> | <file>)'
@@ -2380,9 +2578,9 @@ bin.install-() {
 	local prefix="${1?${FUNCNAME[0]}: missing argument}"; shift
 	local name=${1:-}
 
-	local -A bin=([url]="$url" [root]="$_RUN" [expiry]=-1)
+	local -A bin=([ttl]=-1)
 
-	src.get bin
+	src.get "$url" bin
 
 	local -a bins=()
 	filetype.runnables "${bin[cache]}" bins
@@ -2400,7 +2598,7 @@ bin.install-() {
 		file.cp "$src" "$prefix"/"$name" 0755
 	done
 
-	src.del bin
+	src.del "$url" bin
 }
 
 # cmd/deb - Debian package management
@@ -2599,6 +2797,83 @@ deb:init-() {
 }
 
 deb:init-
+
+# cmd/etc - Simple configuration management
+
+# Get persistent variable(s)
+etc:get() {
+	etc:get- "${PERSISTENT[etc]}"/_ "$@"
+}
+
+# Reset persistent variable(s)
+etc:reset() {
+	etc:reset- "${PERSISTENT[etc]}"/_ "$@"
+}
+
+# Set persistent variable(s)
+etc:set() {
+	etc:set- "${PERSISTENT[etc]}"/_ "$@"
+}
+
+# Get variable(s)
+var:get() {
+	etc:get- "${VOLATILE[var]}"/"${_VID:-1}" "$@"
+}
+
+# Reset variable(s)
+var:reset() {
+	etc:reset- "${VOLATILE[var]}"/"${_VID:-1}" "$@"
+}
+
+# Set variable(s)
+var:set() {
+	etc:set- "${VOLATILE[var]}"/"${_VID:-1}" "$@"
+}
+
+# cmd/etc - Private functions
+
+# Get variable(s)
+etc:get-() {
+	local prefix=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local -A _=(
+		[.help]='<namespace> [<variable>...]'
+		[.argc]=1-
+		[.raw]=true
+	)
+
+	flag.parse
+
+	local namespace=$1
+	shift
+
+	# shellcheck disable=2034
+	local -A result=()
+	etc.get "$prefix" "$namespace" result "$@"
+
+	.dbg result
+}
+
+etc:set-() {
+	local prefix=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local -A _=(
+		[.help]='<namespace> <variable>=<value>...'
+		[.argc]=2-
+		[.raw]=true
+	)
+
+	flag.parse
+
+	local namespace=$1
+	shift
+
+	# shellcheck disable=2034
+	local -A result=()
+	etc.set "$prefix" "$namespace" result "$@"
+
+	.dbg result
+}
 
 # cmd/file - File operations
 
@@ -2935,7 +3210,7 @@ os:is() {
 self:install() {
 	# shellcheck disable=2192,2128
 	local -A _=(
-		[-prefix]="$_USR"/bin
+		[-prefix]="${PERSISTENT[bin]}"
 		[-name]=$PROGNAME
 
 		[.help]='[-prefix=<dir>] [-name=<name>]'
@@ -3020,7 +3295,7 @@ self:src() {
 
 	flag.parse
 
-	.must -- "$@"
+	.must "$@"
 }
 
 # Ignore error if the given command fails
@@ -3059,9 +3334,10 @@ src:enter() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-ttl]=-1
-		[-prefix]=$_RUN
+		[-cachedir]="${VOLATILE[src]}"
+		[-tempdir]="${VOLATILE[tmp]}"
 
-		[.help]='[-ttl=<minutes>] [-prefix=<dir>] (<url> | <dir>)'
+		[.help]='[-ttl=<minutes>] [-cachedir=<dir>] [-tempdir=<dir>] (<url> | <dir>)'
 		[.argc]=1
 	)
 
@@ -3077,7 +3353,7 @@ src:enter() {
 src:install() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_USR"/local/src
+		[-prefix]="${PERSISTENT[src]}"
 
 		[.help]='[-prefix=<dir>] (<url> | <dir>)'
 		[.argc]=1
@@ -3108,15 +3384,15 @@ src:with() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-ttl]=-1
-		[-prefix]=$_RUN
+		[-cachedir]="${VOLATILE[src]}"
+		[-tempdir]="${VOLATILE[tmp]}"
 
-		[.help]='[-ttl=<minutes>] [-prefix=<dir>] (<url> | <dir>) <command> [<arg>...]'
+		[.help]='[-ttl=<minutes>] [-cachedir=<dir>] [-tempdir=<dir>] (<url> | <dir>) <command> [<arg>...]'
 		[.argc]=2-
 	)
 
 	flag.parse
 
-	# shellcheck disable=2128
 	local url=$1 old_pwd=$PWD
 	shift
 
@@ -3413,6 +3689,9 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['deb:uninstall']='Uninstall Debian packages'
 		['deb:update']='Update Debian package index'
 		['deb:using']='Use given official Debian distributions'
+		['etc:get']='Get persistent variable(s)'
+		['etc:reset']='Reset persistent variable(s)'
+		['etc:set']='Set persistent variable(s)'
 		['file:chmog']='Change owner, group and mode'
 		['file:run']='Run program'
 		['filetype:any']='Assert any file type'
@@ -3448,6 +3727,9 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['ui:say']='Print message on stderr'
 		['url:dump']='Parse and dump URL'
 		['url:is']='Assert URL type'
+		['var:get']='Get variable(s)'
+		['var:reset']='Reset variable(s)'
+		['var:set']='Set variable(s)'
 		['virt:any']='Assert any of the virtualization types'
 		['virt:is']='Assert virtualization type'
 		['virt:which']='Detect virtualization type'
@@ -3465,6 +3747,9 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['deb uninstall']='deb:uninstall'
 		['deb update']='deb:update'
 		['deb using']='deb:using'
+		['etc get']='etc:get'
+		['etc reset']='etc:reset'
+		['etc set']='etc:set'
 		['expired']=':expired'
 		['file chmog']='file:chmog'
 		['file run']='file:run'
@@ -3504,6 +3789,9 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['ui say']='ui:say'
 		['url dump']='url:dump'
 		['url is']='url:is'
+		['var get']='var:get'
+		['var reset']='var:reset'
+		['var set']='var:set'
 		['version']=':version'
 		['virt any']='virt:any'
 		['virt is']='virt:is'

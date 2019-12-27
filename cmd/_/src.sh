@@ -5,9 +5,10 @@ src:enter() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-ttl]=-1
-		[-prefix]=$_RUN
+		[-cachedir]="${VOLATILE[src]}"
+		[-tempdir]="${VOLATILE[tmp]}"
 
-		[.help]='[-ttl=<minutes>] [-prefix=<dir>] (<url> | <dir>)'
+		[.help]='[-ttl=<minutes>] [-cachedir=<dir>] [-tempdir=<dir>] (<url> | <dir>)'
 		[.argc]=1
 	)
 
@@ -23,7 +24,7 @@ src:enter() {
 src:install() {
 	# shellcheck disable=2192
 	local -A _=(
-		[-prefix]="$_USR"/local/src
+		[-prefix]="${PERSISTENT[src]}"
 
 		[.help]='[-prefix=<dir>] (<url> | <dir>)'
 		[.argc]=1
@@ -54,15 +55,15 @@ src:with() {
 	# shellcheck disable=2192
 	local -A _=(
 		[-ttl]=-1
-		[-prefix]=$_RUN
+		[-cachedir]="${VOLATILE[src]}"
+		[-tempdir]="${VOLATILE[tmp]}"
 
-		[.help]='[-ttl=<minutes>] [-prefix=<dir>] (<url> | <dir>) <command> [<arg>...]'
+		[.help]='[-ttl=<minutes>] [-cachedir=<dir>] [-tempdir=<dir>] (<url> | <dir>) <command> [<arg>...]'
 		[.argc]=2-
 	)
 
 	flag.parse
 
-	# shellcheck disable=2128
 	local url=$1 old_pwd=$PWD
 	shift
 

@@ -90,7 +90,7 @@
 }
 
 .interactive() {
-	[[   -t 1 ]]
+	[[  -t 1 ]]
 }
 
 .out() {
@@ -206,28 +206,79 @@
 	# Default variable as a hash
 	declare -gA _=()
 
-	# Recycle PWD as a hash
-	declare -Ag PWD
-
-	# shellcheck disable=2128
-	PWD[.]="$PWD"
-
 	# shellcheck disable=2034
 	if [[ ${EUID:-} -eq 0 ]]; then
-		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-/run/_}
-		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-/usr/local}
-		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:"$_USR"/etc/_:"$_RUN"/etc}
-	else
-		XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/"$EUID"}
-		XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME"/.config}
-		XDG_CACHE_HOME=${XDG_CACHE_HOME:-"$HOME"/.cache}
+		local volatile=/run/_ persistent=/usr/local
 
-		readonly _RUN=${UNDERSCORE_VOLATILE_PREFIX:-"$XDG_RUNTIME_DIR"/_}
-		readonly _USR=${UNDERSCORE_PERSISTENT_PREFIX:-"$HOME"/.local}
-		readonly _ETC=${UNDERSCORE_CONFIG_PATH:-/etc/_:/usr/local/etc/_:"$XDG_CONFIG_HOME"/_:"$_RUN"/etc}
+		declare -Agr VOLATILE=(
+			[0]="$volatile"
+
+			[bin]="$volatile"/bin
+			[doc]="$volatile"/doc
+			[etc]="$volatile"/etc
+			[lib]="$volatile"/lib
+			[opt]="$volatile"/opt
+			[srv]="$volatile"/srv
+			[src]="$volatile"/src
+			[tmp]="$volatile"/tmp
+			[var]="$volatile"/var
+		)
+
+		declare -Agr PERSISTENT=(
+			[0]="$persistent"
+
+			[bin]="$persistent"/bin
+			[doc]="$persistent"/doc
+			[etc]="$persistent"/etc
+			[lib]="$persistent"/lib
+			[opt]=/opt
+			[src]="$persistent"/src
+			[srv]=/srv
+			[tmp]=/var/local/tmp
+			[var]=/var/local
+		)
+	else
+		local volatile=${XDG_RUNTIME_DIR:-/run/user/"$EUID"/_} persistent=~/.local
+
+		declare -Agr VOLATILE=(
+			[0]="$volatile"
+
+			[bin]="$volatile"/bin
+			[doc]="$volatile"/doc
+			[etc]="$volatile"/etc
+			[lib]="$volatile"/lib
+			[opt]="$volatile"/opt
+			[srv]="$volatile"/srv
+			[src]="$volatile"/src
+			[tmp]="$volatile"/tmp
+			[var]="$volatile"/var
+		)
+
+		declare -Agr PERSISTENT=(
+			[0]="$persistent"
+
+			[bin]="$persistent"/bin
+			[doc]="$persistent"/doc
+			[etc]="${XDG_CONFIG_HOME:-~/.config}"
+			[lib]="$persistent"/lib
+			[opt]="$persistent"/opt
+			[src]="$persistent"/src
+			[srv]="$persistent"/srv
+			[tmp]="${XDG_CACHE_HOME:-~/.cache}"/tmp
+			[var]="${XDG_CACHE_HOME:-~/.cache}"
+		)
 	fi
 
-	export PATH="$_RUN"/bin:"$PATH" SRCTMP="$_RUN"
+	local path
+	for path in "${PERSISTENT[bin]}" "${VOLATILE[bin]}"; do
+		case ":$PATH:" in
+		*:"$path":*)	                     ;;
+		*)		PATH="$path":"$PATH" ;;
+		esac
+	done
+
+	# shellcheck disable=2128
+	export PATH SRCCACHE="${VOLATILE[src]}" SRCTEMP="${VOLATILE[tmp]}"
 }
 
 .runtime
@@ -646,6 +697,12 @@ flag.parse-() {
 			if [[ $key =~ ^-.+$ ]] && [[ ! -v _[$key] ]]; then
 				.die "Unrecognized flag: $key"
 			fi
+
+			if [[ $key =~ ^-.+$ ]]; then
+				[[ -v _[$key] ]] || .die "Unrecognized flag: $key"
+			elif [[ -n ${_[.raw]:-} ]]; then
+				key=$((++argc)); value=$1
+			fi
 		elif [[ $1 == '--' ]] && [[ -z ${_[.dash]:-} ]]; then
 			shift
 			break
@@ -973,8 +1030,10 @@ t:unlike() {
 t:temp() {
 	local tempdir
 
-	if [[ -n ${PWD[tmp]:-} ]]; then
-		tempdir=${PWD[tmp]}
+	[[ -v T ]] || declare -Ag T=()
+
+	if [[ -n ${T[tmp]:-} ]]; then
+		tempdir=${T[tmp]}
 
 		temp.clean tempdir
 	fi
@@ -984,7 +1043,7 @@ t:temp() {
 	.must -- cd "$tempdir"
 
 	# shellcheck disable=2128
-	PWD[tmp]=$PWD
+	T[tmp]=$PWD
 }
 
 # Run all test suites defined so far
@@ -1322,7 +1381,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				}
 
 				.interactive() {
-					[[   -t 1 ]]
+					[[  -t 1 ]]
 				}
 
 				.out() {
@@ -1671,8 +1730,10 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 				t:temp() {
 					local tempdir
 
-					if [[ -n ${PWD[tmp]:-} ]]; then
-						tempdir=${PWD[tmp]}
+					[[ -v T ]] || declare -Ag T=()
+
+					if [[ -n ${T[tmp]:-} ]]; then
+						tempdir=${T[tmp]}
 
 						temp.clean tempdir
 					fi
@@ -1682,7 +1743,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 					.must -- cd "$tempdir"
 
 					# shellcheck disable=2128
-					PWD[tmp]=$PWD
+					T[tmp]=$PWD
 				}
 
 				# Run all test suites defined so far

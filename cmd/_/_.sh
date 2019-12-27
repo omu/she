@@ -48,7 +48,7 @@
 
 	flag.parse
 
-	.must -- "$@"
+	.must "$@"
 }
 
 # Ignore error if the given command fails
