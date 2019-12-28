@@ -147,17 +147,6 @@
 	unset _load_old_
 }
 
-.merge() {
-	local -n lhs=${1?${FUNCNAME[0]}: missing argument}; shift
-	local -n rhs=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!rhs[@]}"; do
-		# shellcheck disable=2034
-		lhs[$key]=${rhs[$key]}
-	done
-}
-
 .must() {
 	if [[ ${1:-} = -- ]]; then
 		shift
@@ -208,9 +197,9 @@
 
 	# shellcheck disable=2034
 	if [[ ${EUID:-} -eq 0 ]]; then
-		local volatile=/run/_ persistent=/usr/local
+		local volatile=${1:-/run/_} persistent=${2:-/usr/local}
 
-		declare -Agr VOLATILE=(
+		[[ -v VOLATILE ]] || declare -Agr VOLATILE=(
 			[0]="$volatile"
 
 			[bin]="$volatile"/bin
@@ -224,7 +213,7 @@
 			[var]="$volatile"/var
 		)
 
-		declare -Agr PERSISTENT=(
+		[[ -v PERSISTENT ]] || declare -Agr PERSISTENT=(
 			[0]="$persistent"
 
 			[bin]="$persistent"/bin
@@ -234,13 +223,13 @@
 			[opt]=/opt
 			[src]="$persistent"/src
 			[srv]=/srv
-			[tmp]=/var/local/tmp
+			[tmp]="${TMPDIR:-/var/local/tmp}"
 			[var]=/var/local
 		)
 	else
-		local volatile=${XDG_RUNTIME_DIR:-/run/user/"$EUID"/_} persistent=~/.local
+		local volatile=${1:-${XDG_RUNTIME_DIR:-/run/user/"$EUID"/_}} persistent=${2:-~/.local}
 
-		declare -Agr VOLATILE=(
+		[[ -v VOLATILE ]] || declare -Agr VOLATILE=(
 			[0]="$volatile"
 
 			[bin]="$volatile"/bin
@@ -254,7 +243,7 @@
 			[var]="$volatile"/var
 		)
 
-		declare -Agr PERSISTENT=(
+		[[ -v PERSISTENT ]] || declare -Agr PERSISTENT=(
 			[0]="$persistent"
 
 			[bin]="$persistent"/bin
@@ -264,7 +253,7 @@
 			[opt]="$persistent"/opt
 			[src]="$persistent"/src
 			[srv]="$persistent"/srv
-			[tmp]="${XDG_CACHE_HOME:-~/.cache}"/tmp
+			[tmp]="${TMPDIR:-${XDG_CACHE_HOME:-~/.cache}/tmp}"
 			[var]="${XDG_CACHE_HOME:-~/.cache}"
 		)
 	fi
@@ -285,33 +274,75 @@
 
 # Libraries
 
-# array.sh - Array functions
+# meta - Meta functions
 
-# Return if array contains the given element
-array.contains() {
-	local -n array_contains_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    element=${1?${FUNCNAME[0]}: missing argument};         shift
+.dbg() {
+	[[ $# -gt 0 ]] || return 0
 
-	.contains "$element" "${array_contains_[@]}"
+	# shellcheck disable=2178,2155
+	local -n dbg_=$1
+
+	echo "${!dbg_}"
+
+	local key
+	for key in "${!dbg_[@]}"; do
+		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
+	done | sort
+
+	echo
 }
 
 # Duplicate array
-array.dup() {
-	local -n array_dup_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local -n array_dup_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+.dup() {
+	local -n dup_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n dup_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local key
-	for key in "${!array_dup_rhs_[@]}"; do
+	for key in "${!dup_rhs_[@]}"; do
 		# shellcheck disable=2034
-		array_dup_lhs_[$key]=${array_dup_rhs_[$key]}
+		dup_lhs_[$key]=${dup_rhs_[$key]}
 	done
 }
 
 # Join array with the given separator
-array.join() {
+.join() {
 	local IFS=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	echo "$*"
+	echo -n "$*"
+}
+
+.marshal() {
+	local -n marshal_=${1?${FUNCNAME[0]}: missing argument}
+	local name=${2:-$1}
+
+	local -a pairs=()
+
+	local key
+	for key in "${!marshal_[@]}"; do
+		pairs+=("['$key']='${marshal_[$key]}'")
+	done
+
+	echo -n "$name=("; .join ' ' "${pairs[@]}"; echo ')'
+}
+
+.merge() {
+	local -n merge_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n merge_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!merge_rhs_[@]}"; do
+		# shellcheck disable=2034
+		merge_lhs_[$key]=${merge_rhs_[$key]}
+	done
+}
+
+.stacktrace() {
+	local -i i=1
+
+	while [[ -n ${BASH_SOURCE[$i]:-} ]]; do
+		echo "${BASH_SOURCE[$i]}":"${BASH_LINENO[$((i-1))]}":"${FUNCNAME[$i]}"\(\)
+		i=$((i + 1))
+	done | grep -v "^${BASH_SOURCE[0]}"
 }
 
 # color.sh - Colors
@@ -563,33 +594,6 @@ deb.add-key-() {
 	fi
 
 	temp.clean temp_file
-}
-
-# debug - Debug functions
-
-.dbg() {
-	[[ $# -gt 0 ]] || return 0
-
-	# shellcheck disable=2178,2155
-	local -n dbg_=$1
-
-	echo "${!dbg_}"
-
-	local key
-	for key in "${!dbg_[@]}"; do
-		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
-	done | sort
-
-	echo
-}
-
-.stacktrace() {
-	local -i i=1
-
-	while [[ -n ${BASH_SOURCE[$i]:-} ]]; do
-		echo "${BASH_SOURCE[$i]}":"${BASH_LINENO[$((i-1))]}":"${FUNCNAME[$i]}"\(\)
-		i=$((i + 1))
-	done | grep -v "^${BASH_SOURCE[0]}"
 }
 
 # callback.sh - Handle callback functions
@@ -2397,12 +2401,12 @@ src.none.renew-() {
 
 # shellcheck disable=2034
 etc.get() {
-	local prefix="${1?${FUNCNAME[0]}: missing argument}";           shift
-	local namespace="${1?${FUNCNAME[0]}: missing argument}";        shift
-	local -n etc_accessor_="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local prefix="${1?${FUNCNAME[0]}: missing argument}";      shift
+	local bucket="${1?${FUNCNAME[0]}: missing argument}";      shift
+	local -n etc_get_="${1?${FUNCNAME[0]}: missing argument}"; shift
 
 	local dir
-	dir=$(etc.namespace- "$prefix" "$namespace")
+	dir=$(etc.bucket- "$prefix" "$bucket")
 
 	local -a args=("$@")
 
@@ -2435,27 +2439,27 @@ etc.get() {
 
 	[[ "${#variable[@]}" -gt 0 ]] || return 0
 
-	.merge etc_accessor_ variable
+	.merge etc_get_ variable
 }
 
 etc.reset() {
-	local prefix="${1?${FUNCNAME[0]}: missing argument}";    shift
-	local namespace="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local prefix="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local bucket="${1?${FUNCNAME[0]}: missing argument}"; shift
 
 	local dir
-	dir=$(etc.namespace- "$prefix" "$namespace")
+	dir=$(etc.bucket- "$prefix" "$bucket")
 
 	.must -- rm -rf "$dir"
 }
 
 # shellcheck disable=2034
 etc.set() {
-	local prefix="${1?${FUNCNAME[0]}: missing argument}";           shift
-	local namespace="${1?${FUNCNAME[0]}: missing argument}";        shift
-	local -n etc_accessor_="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local prefix="${1?${FUNCNAME[0]}: missing argument}";      shift
+	local bucket="${1?${FUNCNAME[0]}: missing argument}";      shift
+	local -n etc_set_="${1?${FUNCNAME[0]}: missing argument}"; shift
 
 	local dir
-	dir=$(etc.namespace- "$prefix" "$namespace")
+	dir=$(etc.bucket- "$prefix" "$bucket")
 
 	local -a args=("$@")
 
@@ -2492,7 +2496,7 @@ etc.set() {
 	if [[ ${#writes[@]} -gt 0 ]]; then
 		etc.prep- "$prefix"
 
-		[[ -d $dir ]] || mkdir -p "$dir"
+		[[ -d $dir ]] || .must -- mkdir -p "$dir"
 		for name in "${writes[@]}"; do
 			echo "${variable[$name]-}" >"$dir/$name"
 		done
@@ -2500,21 +2504,21 @@ etc.set() {
 
 	[[ "${#variable[@]}" -gt 0 ]] || return 0
 
-	.merge etc_accessor_ variable
+	.merge etc_set_ variable
 }
 
-etc.namespace-() {
-	local prefix="${1?${FUNCNAME[0]}: missing argument}";    shift
-	local namespace="${1?${FUNCNAME[0]}: missing argument}"; shift
+etc.bucket-() {
+	local prefix="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local bucket="${1?${FUNCNAME[0]}: missing argument}"; shift
 
 	local dir
 
-	case $namespace in
+	case $bucket in
 	""|.|/)
-		dir=$namespace
+		dir=$bucket
 		;;
 	*)
-		dir=$prefix/$namespace
+		dir=$prefix/$bucket
 		;;
 	esac
 
@@ -2837,42 +2841,50 @@ etc:get-() {
 	local prefix=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local -A _=(
-		[.help]='<namespace> [<variable>...]'
+		[-var]=''
+
+		[.help]='<bucket> [<variable>...]'
 		[.argc]=1-
 		[.raw]=true
 	)
 
 	flag.parse
 
-	local namespace=$1
+	local bucket=$1
 	shift
+
+	local name=${_[-var]:-$bucket}
 
 	# shellcheck disable=2034
 	local -A result=()
-	etc.get "$prefix" "$namespace" result "$@"
+	etc.get "$prefix" "$bucket" result "$@"
 
-	.dbg result
+	.marshal result "$name"
 }
 
 etc:set-() {
 	local prefix=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local -A _=(
-		[.help]='<namespace> <variable>=<value>...'
+		[-var]=''
+
+		[.help]='<bucket> <variable>=<value>...'
 		[.argc]=2-
 		[.raw]=true
 	)
 
 	flag.parse
 
-	local namespace=$1
+	local bucket=$1
 	shift
+
+	local name=${_[-var]:-$bucket}
 
 	# shellcheck disable=2034
 	local -A result=()
-	etc.set "$prefix" "$namespace" result "$@"
+	etc.set "$prefix" "$bucket" result "$@"
 
-	.dbg result
+	.marshal result "$name"
 }
 
 # cmd/file - File operations
@@ -3923,47 +3935,76 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 						;;
 					esac
 
-					_.die() {
-						"$_SELF" die "$@"; exit $?
-					}
-
-					_.cry() {
-						"$_SELF" cry "$@"
+					_.bug() {
+						"$_SELF" "$@"; exit $?
 					}
 
 					_.bye() {
-						"$_SELF" bye "$@"; exit $?
+						"$_SELF" "$@"; exit $?
 					}
 
-					_.bug() {
-						"$_SELF" bug "$@"; exit $?
+					_.die() {
+						"$_SELF" "$@"; exit $?
+					}
+
+					_.etc() {
+						case ${2:-} in
+						get|set)
+							local exp
+
+							exp=$("$_SELF" "$@") || exit $?
+							eval -- "$exp"
+							;;
+						*)
+							"$_SELF" "$@"
+							;;
+						esac
+
+					}
+
+					_.src() {
+						case ${2:-} in
+						enter)
+							local dir
+							if dir=$("$_SELF" "$@") && [[ -n $dir ]]; then
+								pushd "$dir" &>/dev/null || exit
+							fi
+							;;
+						leave)
+							popd &>/dev/null || exit
+							;;
+						*)
+							"$_SELF" "$@"
+							;;
+						esac
 					}
 
 					_.must() {
-						"$_SELF" must "$@" || exit $?
+						"$_SELF" "$@" || exit $?
 					}
 
-					_.enter() {
-						local dir
+					_.var() {
+						case ${2:-} in
+						get|set)
+							local exp
 
-						if dir=$("$_SELF" src enter "$@") && [[ -n $dir ]]; then
-							pushd "$dir" &>/dev/null || exit
-						fi
-					}
+							exp=$("$_SELF" "$@") || exit $?
+							eval -- "$exp"
+							;;
+						*)
+							"$_SELF" "$@"
+							;;
+						esac
 
-					_.leave() {
-						popd &>/dev/null || exit
 					}
 
 					unset -f "${FUNCNAME[0]}"
 				}
 
 				_() {
-					local cmd=$1
-
-					case $cmd in
-					die|cry|bye|bug|must|enter|leave) shift; _."$cmd" "$@" ;;
-					*)                                       "$_SELF" "$@" ;;
+					case ${1:-} in
+					bug|bye|die|etc|must|src|var) _."$1" "$@"   ;;
+					*)                            "$_SELF" "$@" ;;
 					esac
 				}
 

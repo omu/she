@@ -37,40 +37,48 @@ etc:get-() {
 	local prefix=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local -A _=(
-		[.help]='<namespace> [<variable>...]'
+		[-var]=''
+
+		[.help]='<bucket> [<variable>...]'
 		[.argc]=1-
 		[.raw]=true
 	)
 
 	flag.parse
 
-	local namespace=$1
+	local bucket=$1
 	shift
+
+	local name=${_[-var]:-$bucket}
 
 	# shellcheck disable=2034
 	local -A result=()
-	etc.get "$prefix" "$namespace" result "$@"
+	etc.get "$prefix" "$bucket" result "$@"
 
-	.dbg result
+	.marshal result "$name"
 }
 
 etc:set-() {
 	local prefix=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local -A _=(
-		[.help]='<namespace> <variable>=<value>...'
+		[-var]=''
+
+		[.help]='<bucket> <variable>=<value>...'
 		[.argc]=2-
 		[.raw]=true
 	)
 
 	flag.parse
 
-	local namespace=$1
+	local bucket=$1
 	shift
+
+	local name=${_[-var]:-$bucket}
 
 	# shellcheck disable=2034
 	local -A result=()
-	etc.set "$prefix" "$namespace" result "$@"
+	etc.set "$prefix" "$bucket" result "$@"
 
-	.dbg result
+	.marshal result "$name"
 }

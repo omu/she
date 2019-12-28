@@ -147,17 +147,6 @@
 	unset _load_old_
 }
 
-.merge() {
-	local -n lhs=${1?${FUNCNAME[0]}: missing argument}; shift
-	local -n rhs=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!rhs[@]}"; do
-		# shellcheck disable=2034
-		lhs[$key]=${rhs[$key]}
-	done
-}
-
 .must() {
 	if [[ ${1:-} = -- ]]; then
 		shift
@@ -208,9 +197,9 @@
 
 	# shellcheck disable=2034
 	if [[ ${EUID:-} -eq 0 ]]; then
-		local volatile=/run/_ persistent=/usr/local
+		local volatile=${1:-/run/_} persistent=${2:-/usr/local}
 
-		declare -Agr VOLATILE=(
+		[[ -v VOLATILE ]] || declare -Agr VOLATILE=(
 			[0]="$volatile"
 
 			[bin]="$volatile"/bin
@@ -224,7 +213,7 @@
 			[var]="$volatile"/var
 		)
 
-		declare -Agr PERSISTENT=(
+		[[ -v PERSISTENT ]] || declare -Agr PERSISTENT=(
 			[0]="$persistent"
 
 			[bin]="$persistent"/bin
@@ -234,13 +223,13 @@
 			[opt]=/opt
 			[src]="$persistent"/src
 			[srv]=/srv
-			[tmp]=/var/local/tmp
+			[tmp]="${TMPDIR:-/var/local/tmp}"
 			[var]=/var/local
 		)
 	else
-		local volatile=${XDG_RUNTIME_DIR:-/run/user/"$EUID"/_} persistent=~/.local
+		local volatile=${1:-${XDG_RUNTIME_DIR:-/run/user/"$EUID"/_}} persistent=${2:-~/.local}
 
-		declare -Agr VOLATILE=(
+		[[ -v VOLATILE ]] || declare -Agr VOLATILE=(
 			[0]="$volatile"
 
 			[bin]="$volatile"/bin
@@ -254,7 +243,7 @@
 			[var]="$volatile"/var
 		)
 
-		declare -Agr PERSISTENT=(
+		[[ -v PERSISTENT ]] || declare -Agr PERSISTENT=(
 			[0]="$persistent"
 
 			[bin]="$persistent"/bin
@@ -264,7 +253,7 @@
 			[opt]="$persistent"/opt
 			[src]="$persistent"/src
 			[srv]="$persistent"/srv
-			[tmp]="${XDG_CACHE_HOME:-~/.cache}"/tmp
+			[tmp]="${TMPDIR:-${XDG_CACHE_HOME:-~/.cache}/tmp}"
 			[var]="${XDG_CACHE_HOME:-~/.cache}"
 		)
 	fi

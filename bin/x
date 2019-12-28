@@ -147,17 +147,6 @@
 	unset _load_old_
 }
 
-.merge() {
-	local -n lhs=${1?${FUNCNAME[0]}: missing argument}; shift
-	local -n rhs=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!rhs[@]}"; do
-		# shellcheck disable=2034
-		lhs[$key]=${rhs[$key]}
-	done
-}
-
 .must() {
 	if [[ ${1:-} = -- ]]; then
 		shift
@@ -208,9 +197,9 @@
 
 	# shellcheck disable=2034
 	if [[ ${EUID:-} -eq 0 ]]; then
-		local volatile=/run/_ persistent=/usr/local
+		local volatile=${1:-/run/_} persistent=${2:-/usr/local}
 
-		declare -Agr VOLATILE=(
+		[[ -v VOLATILE ]] || declare -Agr VOLATILE=(
 			[0]="$volatile"
 
 			[bin]="$volatile"/bin
@@ -224,7 +213,7 @@
 			[var]="$volatile"/var
 		)
 
-		declare -Agr PERSISTENT=(
+		[[ -v PERSISTENT ]] || declare -Agr PERSISTENT=(
 			[0]="$persistent"
 
 			[bin]="$persistent"/bin
@@ -234,13 +223,13 @@
 			[opt]=/opt
 			[src]="$persistent"/src
 			[srv]=/srv
-			[tmp]=/var/local/tmp
+			[tmp]="${TMPDIR:-/var/local/tmp}"
 			[var]=/var/local
 		)
 	else
-		local volatile=${XDG_RUNTIME_DIR:-/run/user/"$EUID"/_} persistent=~/.local
+		local volatile=${1:-${XDG_RUNTIME_DIR:-/run/user/"$EUID"/_}} persistent=${2:-~/.local}
 
-		declare -Agr VOLATILE=(
+		[[ -v VOLATILE ]] || declare -Agr VOLATILE=(
 			[0]="$volatile"
 
 			[bin]="$volatile"/bin
@@ -254,7 +243,7 @@
 			[var]="$volatile"/var
 		)
 
-		declare -Agr PERSISTENT=(
+		[[ -v PERSISTENT ]] || declare -Agr PERSISTENT=(
 			[0]="$persistent"
 
 			[bin]="$persistent"/bin
@@ -264,7 +253,7 @@
 			[opt]="$persistent"/opt
 			[src]="$persistent"/src
 			[srv]="$persistent"/srv
-			[tmp]="${XDG_CACHE_HOME:-~/.cache}"/tmp
+			[tmp]="${TMPDIR:-${XDG_CACHE_HOME:-~/.cache}/tmp}"
 			[var]="${XDG_CACHE_HOME:-~/.cache}"
 		)
 	fi
@@ -282,6 +271,77 @@
 }
 
 .runtime
+
+# meta - Meta functions
+
+.dbg() {
+	[[ $# -gt 0 ]] || return 0
+
+	# shellcheck disable=2178,2155
+	local -n dbg_=$1
+
+	echo "${!dbg_}"
+
+	local key
+	for key in "${!dbg_[@]}"; do
+		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
+	done | sort
+
+	echo
+}
+
+# Duplicate array
+.dup() {
+	local -n dup_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n dup_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!dup_rhs_[@]}"; do
+		# shellcheck disable=2034
+		dup_lhs_[$key]=${dup_rhs_[$key]}
+	done
+}
+
+# Join array with the given separator
+.join() {
+	local IFS=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	echo -n "$*"
+}
+
+.marshal() {
+	local -n marshal_=${1?${FUNCNAME[0]}: missing argument}
+	local name=${2:-$1}
+
+	local -a pairs=()
+
+	local key
+	for key in "${!marshal_[@]}"; do
+		pairs+=("['$key']='${marshal_[$key]}'")
+	done
+
+	echo -n "$name=("; .join ' ' "${pairs[@]}"; echo ')'
+}
+
+.merge() {
+	local -n merge_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n merge_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!merge_rhs_[@]}"; do
+		# shellcheck disable=2034
+		merge_lhs_[$key]=${merge_rhs_[$key]}
+	done
+}
+
+.stacktrace() {
+	local -i i=1
+
+	while [[ -n ${BASH_SOURCE[$i]:-} ]]; do
+		echo "${BASH_SOURCE[$i]}":"${BASH_LINENO[$((i-1))]}":"${FUNCNAME[$i]}"\(\)
+		i=$((i + 1))
+	done | grep -v "^${BASH_SOURCE[0]}"
+}
 
 # color.sh - Colors
 
@@ -445,33 +505,6 @@ color.init-
 	esac
 
 	.cry "Callback failed: $func"
-}
-
-# debug - Debug functions
-
-.dbg() {
-	[[ $# -gt 0 ]] || return 0
-
-	# shellcheck disable=2178,2155
-	local -n dbg_=$1
-
-	echo "${!dbg_}"
-
-	local key
-	for key in "${!dbg_[@]}"; do
-		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
-	done | sort
-
-	echo
-}
-
-.stacktrace() {
-	local -i i=1
-
-	while [[ -n ${BASH_SOURCE[$i]:-} ]]; do
-		echo "${BASH_SOURCE[$i]}":"${BASH_LINENO[$((i-1))]}":"${FUNCNAME[$i]}"\(\)
-		i=$((i + 1))
-	done | grep -v "^${BASH_SOURCE[0]}"
 }
 
 # defer.sh - Deferred functions

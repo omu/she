@@ -3,10 +3,9 @@
 
 # Libraries
 
-#=github.com/omu/home/src/sh/array.sh
+#=github.com/omu/home/src/sh/meta.sh
 #=github.com/omu/home/src/sh/color.sh
 #=github.com/omu/home/src/sh/deb.sh
-#=github.com/omu/home/src/sh/debug.sh
 #=github.com/omu/home/src/sh/callback.sh
 #=github.com/omu/home/src/sh/defer.sh
 #=github.com/omu/home/src/sh/file.sh
@@ -70,47 +69,76 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 						;;
 					esac
 
-					_.die() {
-						"$_SELF" die "$@"; exit $?
-					}
-
-					_.cry() {
-						"$_SELF" cry "$@"
+					_.bug() {
+						"$_SELF" "$@"; exit $?
 					}
 
 					_.bye() {
-						"$_SELF" bye "$@"; exit $?
+						"$_SELF" "$@"; exit $?
 					}
 
-					_.bug() {
-						"$_SELF" bug "$@"; exit $?
+					_.die() {
+						"$_SELF" "$@"; exit $?
+					}
+
+					_.etc() {
+						case ${2:-} in
+						get|set)
+							local exp
+
+							exp=$("$_SELF" "$@") || exit $?
+							eval -- "$exp"
+							;;
+						*)
+							"$_SELF" "$@"
+							;;
+						esac
+
+					}
+
+					_.src() {
+						case ${2:-} in
+						enter)
+							local dir
+							if dir=$("$_SELF" "$@") && [[ -n $dir ]]; then
+								pushd "$dir" &>/dev/null || exit
+							fi
+							;;
+						leave)
+							popd &>/dev/null || exit
+							;;
+						*)
+							"$_SELF" "$@"
+							;;
+						esac
 					}
 
 					_.must() {
-						"$_SELF" must "$@" || exit $?
+						"$_SELF" "$@" || exit $?
 					}
 
-					_.enter() {
-						local dir
+					_.var() {
+						case ${2:-} in
+						get|set)
+							local exp
 
-						if dir=$("$_SELF" src enter "$@") && [[ -n $dir ]]; then
-							pushd "$dir" &>/dev/null || exit
-						fi
-					}
+							exp=$("$_SELF" "$@") || exit $?
+							eval -- "$exp"
+							;;
+						*)
+							"$_SELF" "$@"
+							;;
+						esac
 
-					_.leave() {
-						popd &>/dev/null || exit
 					}
 
 					unset -f "${FUNCNAME[0]}"
 				}
 
 				_() {
-					local cmd=$1
-
-					case $cmd in
-					die|cry|bye|bug|must|enter|leave) shift; _."$cmd" "$@" ;;
-					*)                                       "$_SELF" "$@" ;;
+					case ${1:-} in
+					bug|bye|die|etc|must|src|var) _."$1" "$@"   ;;
+					*)                            "$_SELF" "$@" ;;
 					esac
 				}
 

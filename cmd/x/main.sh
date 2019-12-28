@@ -1,9 +1,9 @@
 #=github.com/omu/home/src/sh/!.sh
 #=github.com/omu/home/src/sh/_.sh
 
+#=github.com/omu/home/src/sh/meta.sh
 #=github.com/omu/home/src/sh/color.sh
 #=github.com/omu/home/src/sh/callback.sh
-#=github.com/omu/home/src/sh/debug.sh
 #=github.com/omu/home/src/sh/defer.sh
 #=github.com/omu/home/src/sh/file.sh
 #=github.com/omu/home/src/sh/filetype.sh
