@@ -3927,88 +3927,44 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 				declare -gr _SELF=$_SELF
 
-				._() {
+				_() {
 					case ${1:-} in
-					-root)
-						[[ ${EUID:-} -eq 0 ]] || { echo >&2 'Root privileges required.'; exit 1; }
-						shift
+					bug|bye|die)
+						"$_SELF" "$@"; exit $?
 						;;
-					esac
-
-					_.bug() {
-						"$_SELF" "$@"; exit $?
-					}
-
-					_.bye() {
-						"$_SELF" "$@"; exit $?
-					}
-
-					_.die() {
-						"$_SELF" "$@"; exit $?
-					}
-
-					_.etc() {
+					etc|var)
 						case ${2:-} in
 						get|set)
 							local exp
 
-							exp=$("$_SELF" "$@") || exit $?
+							exp=$("$_SELF" "$@") || exit
 							eval -- "$exp"
-							;;
-						*)
-							"$_SELF" "$@"
+
+							return
 							;;
 						esac
-
-					}
-
-					_.src() {
+						;;
+					src)
 						case ${2:-} in
 						enter)
 							local dir
 							if dir=$("$_SELF" "$@") && [[ -n $dir ]]; then
 								pushd "$dir" &>/dev/null || exit
 							fi
-							;;
-						leave)
-							popd &>/dev/null || exit
-							;;
-						*)
-							"$_SELF" "$@"
+
+							return
 							;;
 						esac
-					}
+						;;
+					must)
+						"$_SELF" "$@" || exit
 
-					_.must() {
-						"$_SELF" "$@" || exit $?
-					}
-
-					_.var() {
-						case ${2:-} in
-						get|set)
-							local exp
-
-							exp=$("$_SELF" "$@") || exit $?
-							eval -- "$exp"
-							;;
-						*)
-							"$_SELF" "$@"
-							;;
-						esac
-
-					}
-
-					unset -f "${FUNCNAME[0]}"
-				}
-
-				_() {
-					case ${1:-} in
-					bug|bye|die|etc|must|src|var) _."$1" "$@"   ;;
-					*)                            "$_SELF" "$@" ;;
+						return
+						;;
 					esac
-				}
 
-				._ "$@"
+					"$_SELF" "$@"
+				}
 EOF
 		else
 			.callback init
