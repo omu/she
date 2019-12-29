@@ -2433,7 +2433,7 @@ etc.get() {
 			value=$(<"$dir/$name")
 			variable[$name]=$value
 		else
-			.die "Invalid variable: $arg"
+			.die "Invalid variable name: $arg"
 		fi
 	done
 
@@ -2487,9 +2487,9 @@ etc.set() {
 			variable[$name]=$value
 			writes+=("$name")
 		elif [[ "$arg" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
-			.die "Value required: $arg"
+			.die "Value requiredi for variable: $arg"
 		else
-			.die "Invalid variable: $arg"
+			.die "Invalid variable name: $arg"
 		fi
 	done
 
