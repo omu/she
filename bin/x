@@ -1372,6 +1372,7 @@ ui.init-() {
 
 	_sign[ask]='?';     _sign_color[ask]=+yellow;    _text_color[ask]=high
 	_sign[bug]='✖';     _sign_color[bug]=red;        _text_color[bug]=high
+	_sign[bye]='ℹ';     _sign_color[bye]=-yellow;    _text_color[bye]=low
 	_sign[cry]='!';     _sign_color[cry]=+yellow;    _text_color[cry]=medium
 	_sign[die]='✗';     _sign_color[die]=+red;       _text_color[die]=high
 	_sign[hmm]='ℹ';     _sign_color[hmm]=-yellow;    _text_color[hmm]=low

@@ -62,7 +62,7 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | os codename   | Print distribution codename                           |
 | os dist       | Print distribution name                               |
 | os is         | Assert OS feature                                     |
-| run           | Run local file with optional environment              |
+| run           | Run a local or remote file with optional environment  |
 | self install  | Install self                                          |
 | self name     | Print self name                                       |
 | self path     | Print self path                                       |

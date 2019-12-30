@@ -80,7 +80,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 						;;
 					src)
 						case ${2:-} in
-						enter)
+						enter|install)
 							local dir
 							if dir=$("$_SELF" "$@") && [[ -n $dir ]]; then
 								pushd "$dir" &>/dev/null || exit

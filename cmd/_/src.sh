@@ -17,13 +17,14 @@ src:enter() {
 	local url=$1
 	shift
 
-	src.enter "$url" _
+	src.enter "$url" _ && echo "$PWD"
 }
 
 # Fetch and instal source into a known source tree
 src:install() {
 	# shellcheck disable=2192
 	local -A _=(
+		[-enter]=false
 		[-prefix]="${PERSISTENT[src]}"
 
 		[.help]='[-prefix=<dir>] (<url> | <dir>)'
@@ -45,9 +46,12 @@ src:install() {
 	local path="${src[domain]}"/"${src[name]}"
 	local dst="${_[-prefix]}"/"$path"
 
-	[[ -d $dst ]] || .die "Already installed: $dst"
-
-	file.cp "${src[cache]}" "$dst"
+	if [[ -d $dst ]]; then
+		flag.true -enter || .bye "Already installed: $dst"
+		.must -- pushd "$dst" >/dev/null && echo "$PWD"
+	else
+		file.cp "${src[cache]}" "$dst"  && echo "$PWD"
+	fi
 }
 
 # Fetch source and run given command inside it
