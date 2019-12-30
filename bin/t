@@ -81,7 +81,7 @@
 
 		[[ -d $file ]] || t=f
 
-		if [[ -e $file ]] && [[ -z $(find "$file" -type "$t" -mmin +"$expiry" 2>/dev/null) ]]; then
+		if [[ -e $file ]] && [[ -z $(find "$file" -maxdepth 0 -type "$t" -mmin +"$expiry" 2>/dev/null) ]]; then
 			return 1
 		fi
 	done
@@ -1433,7 +1433,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 						[[ -d $file ]] || t=f
 
-						if [[ -e $file ]] && [[ -z $(find "$file" -type "$t" -mmin +"$expiry" 2>/dev/null) ]]; then
+						if [[ -e $file ]] && [[ -z $(find "$file" -maxdepth 0 -type "$t" -mmin +"$expiry" 2>/dev/null) ]]; then
 							return 1
 						fi
 					done
