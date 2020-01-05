@@ -1,5 +1,6 @@
 #=github.com/omu/home/src/sh/!.sh
 #=github.com/omu/home/src/sh/_.sh
+#=github.com/omu/home/src/sh/runtime.sh
 
 # Libraries
 
@@ -99,6 +100,8 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 					"$_SELF" "$@"
 				}
+
+				[[ $# -eq 0 ]] || _ "$@"
 EOF
 		else
 			.callback init

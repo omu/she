@@ -1,5 +1,6 @@
 #=github.com/omu/home/src/sh/!.sh
 #=github.com/omu/home/src/sh/_.sh
+#=github.com/omu/home/src/sh/runtime.sh
 
 #=github.com/omu/home/src/sh/meta.sh
 #=github.com/omu/home/src/sh/assert.sh

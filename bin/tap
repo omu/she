@@ -7,16 +7,6 @@
 	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
 }
 
-.bug() {
-	if [[ $# -gt 0 ]]; then
-		echo -e >&2 "BUG: $*"
-	else
-		echo >&2 ""
-	fi
-
-	exit 127
-}
-
 .bye() {
 	if [[ $# -gt 0 ]]; then
 		echo -e >&2 "$*"
@@ -63,6 +53,47 @@
 	exit 1
 }
 
+.must() {
+	if [[ ${1:-} = -- ]]; then
+		shift
+
+		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .die "Command failed: $*"
+	else
+		eval -- "${@:2}" || .die "${1?${FUNCNAME[0]}: missing argument}"
+	fi
+}
+
+.privileged() {
+	.must 'Root permissions required; use sudo(1)' [[ ${EUID:-} -eq 0 ]]
+}
+
+# Init
+
+# shellcheck disable=2034,2128
+.prelude() {
+	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
+
+	export LC_ALL=C.UTF-8 LANG=C.UTF-8
+
+	# Program name
+	declare -gr PROGNAME=${0##*/}
+
+	# Command names
+	declare -g CMDNAMES=()
+}
+
+.prelude
+
+.bug() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "BUG: $*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 127
+}
+
 .err() {
 	.out "$@" >&2
 }
@@ -91,26 +122,6 @@
 
 .interactive() {
 	[[  -t 1 ]]
-}
-
-.out() {
-	local arg
-
-	for arg; do
-		echo -e "$arg"
-	done
-
-	if .piped; then
-		cat
-	fi
-}
-
-.piped() {
-	[[ ! -t 0 ]]
-}
-
-.privileged() {
-	.must 'Root permissions required; use sudo(1)' [[ ${EUID:-} -eq 0 ]]
 }
 
 .load() {
@@ -147,14 +158,20 @@
 	unset _load_old_
 }
 
-.must() {
-	if [[ ${1:-} = -- ]]; then
-		shift
+.out() {
+	local arg
 
-		eval -- "${@?${FUNCNAME[0]}: missing argument}" || .die "Command failed: $*"
-	else
-		eval -- "${@:2}" || .die "${1?${FUNCNAME[0]}: missing argument}"
+	for arg; do
+		echo -e "$arg"
+	done
+
+	if .piped; then
+		cat
 	fi
+}
+
+.piped() {
+	[[ ! -t 0 ]]
 }
 
 .say() {
@@ -170,107 +187,6 @@
 		eval -- "${@:2}" || .cry "${1?${FUNCNAME[0]}: missing argument}"
 	fi
 }
-
-# Init
-
-# shellcheck disable=2034,2128
-.prelude() {
-	set -Eeuo pipefail; shopt -s nullglob; [[ -z ${TRACE:-} ]] || set -x; unset CDPATH; IFS=$' \t\n'
-
-	export LC_ALL=C.UTF-8 LANG=C.UTF-8
-
-	# Program name
-	declare -gr PROGNAME=${0##*/}
-
-	# Command names
-	declare -g CMDNAMES=()
-}
-
-.prelude
-
-# _.sh - Underscore spesific functions
-
-# Core environment
-.runtime() {
-	# Default variable as a hash
-	declare -gA _=()
-
-	# shellcheck disable=2034
-	if [[ ${EUID:-} -eq 0 ]]; then
-		local volatile=${1:-/run/_} persistent=${2:-/usr/local}
-
-		[[ -v VOLATILE ]] || declare -Agr VOLATILE=(
-			[0]="$volatile"
-
-			[bin]="$volatile"/bin
-			[doc]="$volatile"/doc
-			[etc]="$volatile"/etc
-			[lib]="$volatile"/lib
-			[opt]="$volatile"/opt
-			[srv]="$volatile"/srv
-			[src]="$volatile"/src
-			[tmp]="$volatile"/tmp
-			[var]="$volatile"/var
-		)
-
-		[[ -v PERSISTENT ]] || declare -Agr PERSISTENT=(
-			[0]="$persistent"
-
-			[bin]="$persistent"/bin
-			[doc]="$persistent"/doc
-			[etc]="$persistent"/etc
-			[lib]="$persistent"/lib
-			[opt]=/opt
-			[src]="$persistent"/src
-			[srv]=/srv
-			[tmp]="${TMPDIR:-/var/local/tmp}"
-			[var]=/var/local
-		)
-	else
-		local volatile=${1:-${XDG_RUNTIME_DIR:-/run/user/"$EUID"/_}} persistent=${2:-~/.local}
-
-		[[ -v VOLATILE ]] || declare -Agr VOLATILE=(
-			[0]="$volatile"
-
-			[bin]="$volatile"/bin
-			[doc]="$volatile"/doc
-			[etc]="$volatile"/etc
-			[lib]="$volatile"/lib
-			[opt]="$volatile"/opt
-			[srv]="$volatile"/srv
-			[src]="$volatile"/src
-			[tmp]="$volatile"/tmp
-			[var]="$volatile"/var
-		)
-
-		[[ -v PERSISTENT ]] || declare -Agr PERSISTENT=(
-			[0]="$persistent"
-
-			[bin]="$persistent"/bin
-			[doc]="$persistent"/doc
-			[etc]="${XDG_CONFIG_HOME:-~/.config}"
-			[lib]="$persistent"/lib
-			[opt]="$persistent"/opt
-			[src]="$persistent"/src
-			[srv]="$persistent"/srv
-			[tmp]="${TMPDIR:-${XDG_CACHE_HOME:-~/.cache}/tmp}"
-			[var]="${XDG_CACHE_HOME:-~/.cache}"
-		)
-	fi
-
-	local path
-	for path in "${PERSISTENT[bin]}" "${VOLATILE[bin]}"; do
-		case ":$PATH:" in
-		*:"$path":*)	                     ;;
-		*)		PATH="$path":"$PATH" ;;
-		esac
-	done
-
-	# shellcheck disable=2128
-	export PATH SRCCACHE="${VOLATILE[src]}" SRCTEMP="${VOLATILE[tmp]}"
-}
-
-.runtime
 
 # color.sh - Colors
 
