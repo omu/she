@@ -2,11 +2,18 @@
 
 BIN = %w[_ t tap].freeze
 
+task all: %i[build lint]
+
 desc 'Build'
 task :build do
   BIN.each do |bin|
     sh "scedilla --program #{bin} --doc README.md cmd/#{bin}/main.sh bin/#{bin}"
   end
+end
+
+desc 'Clean'
+task :clean do
+  rm_f BIN.map { |prg| "bin/#{prg}" }
 end
 
 desc 'Lint'
@@ -17,12 +24,5 @@ task :lint do
   sh 'rubocop'           if ENV['lang'].nil? || ENV['lang'] == 'rb'
   sh 'markdownlint *.md' if ENV['lang'].nil? || ENV['lang'] == 'md'
 end
-
-desc 'Clean'
-task :clean do
-  rm_f BIN.map { |prg| "bin/#{prg}" }
-end
-
-task all: %i[build lint]
 
 task default: :build
