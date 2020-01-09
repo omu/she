@@ -1,17 +1,5 @@
 # file.sh - File related operations
 
-file.chmog() {
-	local mog=${1?${FUNCNAME[0]}: missing argument}; shift
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local mode owner group
-	IFS=: read -r mode owner group <<<"$mog"
-
-	[[ -z ${mode:-}  ]] || .must -- chmod "$mode"
-	[[ -z ${owner:-} ]] || .must -- chown "$owner"
-	[[ -z ${group:-} ]] || .must -- chgrp "$group"
-}
-
 file.cp() {
 	local src=${1?${FUNCNAME[0]}: missing argument}; shift
 	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
@@ -22,7 +10,7 @@ file.cp() {
 
 	cp -a "$src" "$dst"
 
-	[[ -z ${mog:-} ]] || file.chmog "$mog" "$dst"
+	[[ -z ${mog:-} ]] || .chmog "$mog" "$dst"
 }
 
 file.download() {
@@ -67,7 +55,7 @@ file.ln() {
 	src=$(realpath -m --relative-base "${dst%/*}" "$src")
 	.must -- ln -sf "$src" "$dst"
 
-	[[ -z ${mog:-} ]] || file.chmog "$mog" "$dst"
+	[[ -z ${mog:-} ]] || .chmog "$mog" "$dst"
 }
 
 file.match() {
@@ -104,7 +92,7 @@ file.cp() {
 
 	mv -f "$src" "$dst"
 
-	[[ -z ${mog:-} ]] || file.chmog "$mog" "$dst"
+	[[ -z ${mog:-} ]] || .chmog "$mog" "$dst"
 }
 
 file.run() {
