@@ -3003,7 +3003,7 @@ file:chmog() {
 
 	local mog=$1 dst=$2
 
-	file.chmog "$mog" "$dst"
+	.chmog "$mog" "$dst"
 }
 
 # Run program
