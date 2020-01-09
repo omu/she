@@ -7,6 +7,16 @@
 	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
 }
 
+.bug() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "BUG: $*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 127
+}
+
 .bye() {
 	if [[ $# -gt 0 ]]; then
 		echo -e >&2 "$*"
@@ -67,6 +77,30 @@
 	.must 'Root permissions required; use sudo(1)' [[ ${EUID:-} -eq 0 ]]
 }
 
+.say() {
+	echo -e "${@-""}" >&2
+}
+
+# Execute command in a temp dir
+.temping() {
+	[[ $# -gt 0 ]] || return 0
+
+	local dir=$PWD
+
+	local tmp
+	tmp=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || exit
+
+	.must -- cd "$tmp"
+
+	local err
+	("$@") || err=$?
+
+	.must -- cd "$dir"
+	.must -- rm -rf "$tmp"
+
+	return ${err:-0}
+}
+
 # Init
 
 # shellcheck disable=2034,2128
@@ -84,14 +118,20 @@
 
 .prelude
 
-.bug() {
-	if [[ $# -gt 0 ]]; then
-		echo -e >&2 "BUG: $*"
-	else
-		echo >&2 ""
-	fi
+# Generic libraries
 
-	exit 127
+# _.sh - Standard functions
+
+.chmog() {
+	local mog=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mode owner group
+	IFS=: read -r mode owner group <<<"$mog"
+
+	[[ -z ${mode:-}  ]] || .must -- chmod "$mode"
+	[[ -z ${owner:-} ]] || .must -- chown "$owner"
+	[[ -z ${group:-} ]] || .must -- chgrp "$group"
 }
 
 .err() {
@@ -158,6 +198,15 @@
 	unset _load_old_
 }
 
+.ncat() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $url =~ ^[^:]+:// ]] || url=https://$url
+
+	.getting "Getting $url"
+	.must -- curl -fsSL "$url"
+}
+
 .out() {
 	local arg
 
@@ -174,10 +223,6 @@
 	[[ ! -t 0 ]]
 }
 
-.say() {
-	echo -e "${@-""}"
-}
-
 .should() {
 	if [[ ${1:-} = -- ]]; then
 		shift
@@ -186,6 +231,76 @@
 	else
 		eval -- "${@:2}" || .cry "${1?${FUNCNAME[0]}: missing argument}"
 	fi
+}
+
+.sponge() {
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+	local mog=$1
+
+	[[ ! -t 0 ]] || .die 'No piped data found'
+
+	local dir
+	dir=${dst%/*}
+
+	if [[ -d $dir ]]; then
+		[[ -w $dir ]] || .die "Directory not writable: $dir"
+	else
+		.must "Cannot create directory: $dir" mkdir -p "$dir"
+	fi
+
+	.sponge-() {
+		local src=.tmp
+
+		.zcat >"$src"
+
+		[[ -z ${mog:-} ]] || .chmog "$mog" "$src"
+		mv "$src" "$dst"
+	}
+
+	.temping .sponge- && unset -f .convey-
+}
+
+# shellcheck disable=2120
+.zcat() {
+	local file=${1:-/dev/stdin}
+
+	local mime; mime=$(file --mime-type --brief "$file")
+
+	case $mime in
+	application/gzip)
+		.available zcat || .die "Required program: zcat"
+		zcat "$file"
+		;;
+	application/x-xz)
+		.available unxz || .die "Required program: unxz"
+		unxz "$file"
+		;;
+	application/x-bzip2)
+		.available bzcat || .die "Required program: bzcat"
+		bzcat "$file"
+		;;
+	application/x-zstd)
+		.available zstdcat || .die "Required program: zstdcat"
+		zstdcat -f "$file"
+		;;
+	application/zip)
+		.available bsdtar || .die "Required program: bsdtar"
+
+		.zcat-() {
+			.must -- mkdir .unpack && bsdtar -xf "$file" -C .unpack
+
+			local -a files; files=(.unpack/*)
+			[[ ${#files[@]} -eq 1 ]] || .die 'Multiple files found in zip archive'
+
+			cat "${files[0]}"
+		}
+
+		.temping .zcat- && unset -f .zcat-
+		;;
+	*)
+		cat "$file"
+		;;
+	esac
 }
 
 # color.sh - Colors
@@ -292,6 +407,84 @@ color.init-() {
 }
 
 color.init-
+
+# ui.sh - UI functions
+
+ui.out() {
+	local name=${1:-default}
+	shift || true
+
+	local sign=${_sign[$name]}
+
+	# shellcheck disable=2154
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	echo -en "${sign_color}${sign}${reset} "
+	.out "$@"
+	echo -en "$reset "
+}
+
+# shellcheck disable=2154
+ui.echo() {
+	[[ $# -gt 0 ]] || return 0
+
+	local message=$1
+
+	local name=${FUNCNAME[1]#*.}
+
+	local sign=${_sign[$name]}
+
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	if [[ -n ${sign:-} ]]; then
+		echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
+	else
+		echo -e "${text_color}${message}${reset}"
+	fi
+}
+
+# ui - Init
+
+# shellcheck disable=2034,2154
+ui.init-() {
+	declare -Ag _sign _sign_color _text_color
+
+	# Style
+
+	_sign[ask]='?';     _sign_color[ask]=+yellow;    _text_color[ask]=high
+	_sign[bug]='✖';     _sign_color[bug]=red;        _text_color[bug]=high
+	_sign[bye]='ℹ';     _sign_color[bye]=-yellow;    _text_color[bye]=low
+	_sign[cry]='!';     _sign_color[cry]=+yellow;    _text_color[cry]=medium
+	_sign[die]='✗';     _sign_color[die]=+red;       _text_color[die]=high
+	_sign[hmm]='ℹ';     _sign_color[hmm]=-yellow;    _text_color[hmm]=low
+	_sign[say]='' ;     _sign_color[say]=+white;     _text_color[say]=medium
+
+	_sign[notok]='✗';   _sign_color[notok]=+red;     _text_color[notok]=high
+	_sign[ok]='✓';      _sign_color[ok]=+green;      _text_color[ok]=high
+
+	_sign[calling]='>'; _sign_color[calling]=+cyan;  _text_color[calling]=high
+	_sign[getting]='↓'; _sign_color[getting]=+cyan;  _text_color[getting]=low
+	_sign[running]='∙'; _sign_color[running]=+cyan;  _text_color[running]=low
+	_sign[default]='∙'; _sign_color[default]=+white; _text_color[default]=medium
+
+	color.expand _sign_color _text_color
+
+	.bug()     { ui.echo "$@" >&2; exit 127; }
+	.bye()     { ui.echo "$@" >&2; exit 0;   }
+	.calling() { ui.echo "$1" >&2; "${@:2}"; }
+	.cry()     { ui.echo "$@" >&2;           }
+	.die()     { ui.echo "$@" >&2; exit 1;   }
+	.getting() { ui.echo "$1" >&2; "${@:2}"; }
+	.hmm()     { ui.echo "$@" >&2;           }
+	.notok()   { ui.echo "$@" >&2;           }
+	.ok()      { ui.echo "$@" >&2;           }
+	.running() { ui.echo "$1" >&2; "${@:2}"; }
+	.say()     { ui.echo "$@" >&2;           }
+}
+
+ui.init-
+
+# Custom libraries
 
 # flag.sh - Flag handling
 
@@ -553,81 +746,7 @@ flag.init-() {
 
 flag.init-
 
-# ui.sh - UI functions
-
-ui.out() {
-	local name=${1:-default}
-	shift || true
-
-	local sign=${_sign[$name]}
-
-	# shellcheck disable=2154
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	echo -en "${sign_color}${sign}${reset} "
-	.out "$@"
-	echo -en "$reset "
-}
-
-# shellcheck disable=2154
-ui.echo() {
-	[[ $# -gt 0 ]] || return 0
-
-	local message=$1
-
-	local name=${FUNCNAME[1]#*.}
-
-	local sign=${_sign[$name]}
-
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	if [[ -n ${sign:-} ]]; then
-		echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
-	else
-		echo -e "${text_color}${message}${reset}"
-	fi
-}
-
-# ui - Init
-
-# shellcheck disable=2034,2154
-ui.init-() {
-	declare -Ag _sign _sign_color _text_color
-
-	# Style
-
-	_sign[ask]='?';     _sign_color[ask]=+yellow;    _text_color[ask]=high
-	_sign[bug]='✖';     _sign_color[bug]=red;        _text_color[bug]=high
-	_sign[bye]='ℹ';     _sign_color[bye]=-yellow;    _text_color[bye]=low
-	_sign[cry]='!';     _sign_color[cry]=+yellow;    _text_color[cry]=medium
-	_sign[die]='✗';     _sign_color[die]=+red;       _text_color[die]=high
-	_sign[hmm]='ℹ';     _sign_color[hmm]=-yellow;    _text_color[hmm]=low
-	_sign[say]='' ;     _sign_color[say]=+white;     _text_color[say]=medium
-
-	_sign[notok]='✗';   _sign_color[notok]=+red;     _text_color[notok]=high
-	_sign[ok]='✓';      _sign_color[ok]=+green;      _text_color[ok]=high
-
-	_sign[calling]='>'; _sign_color[calling]=+cyan;  _text_color[calling]=high
-	_sign[getting]='↓'; _sign_color[getting]=+cyan;  _text_color[getting]=low
-	_sign[running]='∙'; _sign_color[running]=+cyan;  _text_color[running]=low
-	_sign[default]='∙'; _sign_color[default]=+white; _text_color[default]=medium
-
-	color.expand _sign_color _text_color
-
-	.bug()     { ui.echo "$@" >&2; exit 127; }
-	.bye()     { ui.echo "$@" >&2; exit 0;   }
-	.calling() { ui.echo "$1" >&2; "${@:2}"; }
-	.cry()     { ui.echo "$@" >&2;           }
-	.die()     { ui.echo "$@" >&2; exit 1;   }
-	.getting() { ui.echo "$1" >&2; "${@:2}"; }
-	.hmm()     { ui.echo "$@" >&2;           }
-	.notok()   { ui.echo "$@" >&2;           }
-	.ok()      { ui.echo "$@" >&2;           }
-	.running() { ui.echo "$1" >&2; "${@:2}"; }
-	.say()     { ui.echo "$@" >&2;           }
-}
-
-ui.init-
+# Commands
 
 # cmd/tap - TAP commands
 

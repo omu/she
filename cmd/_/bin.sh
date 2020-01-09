@@ -40,6 +40,20 @@ bin:use() {
 	bin.install- "$url" "${_[-prefix]}" "${_[-name]:-}"
 }
 
+bin.name() {
+	local raw="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local name=${1:-}
+
+	if [[ -n ${name:-} ]]; then
+		echo "$name"
+
+		return 0
+	fi
+
+	name=${url##*/}
+	# TODO
+}
+
 # cmd/bin - Private functions
 
 bin.install-() {
@@ -62,7 +76,9 @@ bin.install-() {
 
 	local src
 	for src in "${bins[@]}"; do
-		[[ -z $name ]] || name=${src##*/}
+		if [[ -z $name ]]; then
+			name=${src##*/}
+		fi
 
 		file.cp "$src" "$prefix"/"$name" 0755
 	done

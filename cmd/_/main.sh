@@ -1,31 +1,34 @@
 #=github.com/omu/home/src/sh/!.sh
+
+# Generic libraries
+
 #=github.com/omu/home/src/sh/_.sh
-#=github.com/omu/home/src/sh/runtime.sh
-
-# Libraries
-
-#=github.com/omu/home/src/sh/meta.sh
 #=github.com/omu/home/src/sh/color.sh
 #=github.com/omu/home/src/sh/deb.sh
-#=github.com/omu/home/src/sh/callback.sh
-#=github.com/omu/home/src/sh/defer.sh
-#=github.com/omu/home/src/sh/file.sh
-#=github.com/omu/home/src/sh/filetype.sh
-#=github.com/omu/home/src/sh/flag.sh
 #=github.com/omu/home/src/sh/git.sh
 #=github.com/omu/home/src/sh/http.sh
+#=github.com/omu/home/src/sh/meta.sh
 #=github.com/omu/home/src/sh/os.sh
-#=github.com/omu/home/src/sh/path.sh
-#=github.com/omu/home/src/sh/self.sh
 #=github.com/omu/home/src/sh/string.sh
-#=github.com/omu/home/src/sh/temp.sh
 #=github.com/omu/home/src/sh/text.sh
 #=github.com/omu/home/src/sh/ui.sh
-#=github.com/omu/home/src/sh/url.sh
 #=github.com/omu/home/src/sh/virt.sh
-#=github.com/omu/home/src/sh/zip.sh
-#=github.com/omu/home/src/sh/src.sh
-#=github.com/omu/home/src/sh/etc.sh
+
+# Custom libraries
+
+#=lib/callback.sh
+#=lib/defer.sh
+#=lib/etc.sh
+#=lib/file.sh
+#=lib/filetype.sh
+#=lib/flag.sh
+#=lib/path.sh
+#=lib/runtime.sh
+#=lib/self.sh
+#=lib/src.sh
+#=lib/temp.sh
+#=lib/url.sh
+#=lib/zip.sh
 
 # Commands
 
@@ -51,7 +54,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/
 	#/command/
 
-	#=github.com/omu/home/src/sh/main.sh
+	#=lib/main.sh
 
 	main() {
 		if ! .interactive && [[ $# -eq 0 ]]; then

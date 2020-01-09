@@ -1,15 +1,22 @@
 #=github.com/omu/home/src/sh/!.sh
-#=github.com/omu/home/src/sh/_.sh
-#=github.com/omu/home/src/sh/runtime.sh
 
-#=github.com/omu/home/src/sh/meta.sh
-#=github.com/omu/home/src/sh/assert.sh
+# Generic libraries
+
+#=github.com/omu/home/src/sh/_.sh
 #=github.com/omu/home/src/sh/color.sh
-#=github.com/omu/home/src/sh/callback.sh
-#=github.com/omu/home/src/sh/defer.sh
-#=github.com/omu/home/src/sh/flag.sh
-#=github.com/omu/home/src/sh/self.sh
+#=github.com/omu/home/src/sh/meta.sh
 #=github.com/omu/home/src/sh/ui.sh
+
+# Custom libraries
+
+#=lib/assert.sh
+#=lib/callback.sh
+#=lib/defer.sh
+#=lib/flag.sh
+#=lib/runtime.sh
+#=lib/self.sh
+
+# Commands
 
 #:cmd/t/t.sh
 #:cmd/t/version.sh
@@ -18,7 +25,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 	#/help/
 	#/command/
 
-	#=github.com/omu/home/src/sh/main.sh
+	#=lib/main.sh
 
 	main() {
 		if ! .interactive && [[ $# -eq 0 ]]; then
@@ -27,9 +34,9 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			sed 's/^\t\t\t\t//' <<'EOF'
 				#=github.com/omu/home/src/sh/!.sh
 
-				#=github.com/omu/home/src/sh/assert.sh
-				#=github.com/omu/home/src/sh/defer.sh
-				#=github.com/omu/home/src/sh/temp.sh: temp.dir temp.clean
+				#=lib/assert.sh
+				#=lib/defer.sh
+				#=lib/temp.sh: temp.dir temp.clean
 
 				#:cmd/t/t.sh
 

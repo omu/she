@@ -7,6 +7,16 @@
 	command -v "${1?${FUNCNAME[0]}: missing argument}" &>/dev/null
 }
 
+.bug() {
+	if [[ $# -gt 0 ]]; then
+		echo -e >&2 "BUG: $*"
+	else
+		echo >&2 ""
+	fi
+
+	exit 127
+}
+
 .bye() {
 	if [[ $# -gt 0 ]]; then
 		echo -e >&2 "$*"
@@ -67,6 +77,30 @@
 	.must 'Root permissions required; use sudo(1)' [[ ${EUID:-} -eq 0 ]]
 }
 
+.say() {
+	echo -e "${@-""}" >&2
+}
+
+# Execute command in a temp dir
+.temping() {
+	[[ $# -gt 0 ]] || return 0
+
+	local dir=$PWD
+
+	local tmp
+	tmp=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || exit
+
+	.must -- cd "$tmp"
+
+	local err
+	("$@") || err=$?
+
+	.must -- cd "$dir"
+	.must -- rm -rf "$tmp"
+
+	return ${err:-0}
+}
+
 # Init
 
 # shellcheck disable=2034,2128
@@ -84,14 +118,20 @@
 
 .prelude
 
-.bug() {
-	if [[ $# -gt 0 ]]; then
-		echo -e >&2 "BUG: $*"
-	else
-		echo >&2 ""
-	fi
+# Generic libraries
 
-	exit 127
+# _.sh - Standard functions
+
+.chmog() {
+	local mog=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local mode owner group
+	IFS=: read -r mode owner group <<<"$mog"
+
+	[[ -z ${mode:-}  ]] || .must -- chmod "$mode"
+	[[ -z ${owner:-} ]] || .must -- chown "$owner"
+	[[ -z ${group:-} ]] || .must -- chgrp "$group"
 }
 
 .err() {
@@ -158,6 +198,15 @@
 	unset _load_old_
 }
 
+.ncat() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $url =~ ^[^:]+:// ]] || url=https://$url
+
+	.getting "Getting $url"
+	.must -- curl -fsSL "$url"
+}
+
 .out() {
 	local arg
 
@@ -174,10 +223,6 @@
 	[[ ! -t 0 ]]
 }
 
-.say() {
-	echo -e "${@-""}"
-}
-
 .should() {
 	if [[ ${1:-} = -- ]]; then
 		shift
@@ -188,163 +233,74 @@
 	fi
 }
 
-# _.sh - Underscore spesific functions
+.sponge() {
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+	local mog=$1
 
-# Core environment
-# shellcheck disable=2120
-.runtime() {
-	# Default variable as a hash
-	declare -gA _=()
+	[[ ! -t 0 ]] || .die 'No piped data found'
 
-	# shellcheck disable=2034
-	if [[ ${EUID:-} -eq 0 ]]; then
-		local volatile=${1:-/run/_} persistent=${2:-/usr/local}
+	local dir
+	dir=${dst%/*}
 
-		[[ -v VOLATILE ]] || declare -Agr VOLATILE=(
-			[0]="$volatile"
-
-			[bin]="$volatile"/bin
-			[doc]="$volatile"/doc
-			[etc]="$volatile"/etc
-			[lib]="$volatile"/lib
-			[opt]="$volatile"/opt
-			[srv]="$volatile"/srv
-			[src]="$volatile"/src
-			[tmp]="$volatile"/tmp
-			[var]="$volatile"/var
-		)
-
-		[[ -v PERSISTENT ]] || declare -Agr PERSISTENT=(
-			[0]="$persistent"
-
-			[bin]="$persistent"/bin
-			[doc]="$persistent"/doc
-			[etc]="$persistent"/etc
-			[lib]="$persistent"/lib
-			[opt]=/opt
-			[src]="$persistent"/src
-			[srv]=/srv
-			[tmp]="${TMPDIR:-/var/local/tmp}"
-			[var]=/var/local
-		)
+	if [[ -d $dir ]]; then
+		[[ -w $dir ]] || .die "Directory not writable: $dir"
 	else
-		local volatile=${1:-${XDG_RUNTIME_DIR:-/run/user/"$EUID"/_}} persistent=${2:-~/.local}
-
-		[[ -v VOLATILE ]] || declare -Agr VOLATILE=(
-			[0]="$volatile"
-
-			[bin]="$volatile"/bin
-			[doc]="$volatile"/doc
-			[etc]="$volatile"/etc
-			[lib]="$volatile"/lib
-			[opt]="$volatile"/opt
-			[srv]="$volatile"/srv
-			[src]="$volatile"/src
-			[tmp]="$volatile"/tmp
-			[var]="$volatile"/var
-		)
-
-		[[ -v PERSISTENT ]] || declare -Agr PERSISTENT=(
-			[0]="$persistent"
-
-			[bin]="$persistent"/bin
-			[doc]="$persistent"/doc
-			[etc]="${XDG_CONFIG_HOME:-~/.config}"
-			[lib]="$persistent"/lib
-			[opt]="$persistent"/opt
-			[src]="$persistent"/src
-			[srv]="$persistent"/srv
-			[tmp]="${TMPDIR:-${XDG_CACHE_HOME:-~/.cache}/tmp}"
-			[var]="${XDG_CACHE_HOME:-~/.cache}"
-		)
+		.must "Cannot create directory: $dir" mkdir -p "$dir"
 	fi
 
-	local path
-	for path in "${PERSISTENT[bin]}" "${VOLATILE[bin]}"; do
-		case ":$PATH:" in
-		*:"$path":*)	                     ;;
-		*)		PATH="$path":"$PATH" ;;
-		esac
-	done
+	.sponge-() {
+		local src=.tmp
 
-	# shellcheck disable=2128
-	export PATH SRCCACHE="${VOLATILE[src]}" SRCTEMP="${VOLATILE[tmp]}"
+		.zcat >"$src"
+
+		[[ -z ${mog:-} ]] || .chmog "$mog" "$src"
+		mv "$src" "$dst"
+	}
+
+	.temping .sponge- && unset -f .convey-
 }
 
-# shellcheck disable=2119
-.runtime
+# shellcheck disable=2120
+.zcat() {
+	local file=${1:-/dev/stdin}
 
-# Libraries
+	local mime; mime=$(file --mime-type --brief "$file")
 
-# meta - Meta functions
+	case $mime in
+	application/gzip)
+		.available zcat || .die "Required program: zcat"
+		zcat "$file"
+		;;
+	application/x-xz)
+		.available unxz || .die "Required program: unxz"
+		unxz "$file"
+		;;
+	application/x-bzip2)
+		.available bzcat || .die "Required program: bzcat"
+		bzcat "$file"
+		;;
+	application/x-zstd)
+		.available zstdcat || .die "Required program: zstdcat"
+		zstdcat -f "$file"
+		;;
+	application/zip)
+		.available bsdtar || .die "Required program: bsdtar"
 
-.dbg() {
-	[[ $# -gt 0 ]] || return 0
+		.zcat-() {
+			.must -- mkdir .unpack && bsdtar -xf "$file" -C .unpack
 
-	# shellcheck disable=2178,2155
-	local -n dbg_=$1
+			local -a files; files=(.unpack/*)
+			[[ ${#files[@]} -eq 1 ]] || .die 'Multiple files found in zip archive'
 
-	echo "${!dbg_}"
+			cat "${files[0]}"
+		}
 
-	local key
-	for key in "${!dbg_[@]}"; do
-		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
-	done | sort
-
-	echo
-}
-
-# Duplicate array
-.dup() {
-	local -n dup_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local -n dup_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!dup_rhs_[@]}"; do
-		# shellcheck disable=2034
-		dup_lhs_[$key]=${dup_rhs_[$key]}
-	done
-}
-
-# Join array with the given separator
-.join() {
-	local IFS=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	echo -n "$*"
-}
-
-.marshal() {
-	local -n marshal_=${1?${FUNCNAME[0]}: missing argument}
-	local name=${2:-$1}
-
-	local -a pairs=()
-
-	local key
-	for key in "${!marshal_[@]}"; do
-		pairs+=("['$key']='${marshal_[$key]}'")
-	done
-
-	echo -n "$name=("; .join ' ' "${pairs[@]}"; echo ')'
-}
-
-.merge() {
-	local -n merge_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local -n merge_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local key
-	for key in "${!merge_rhs_[@]}"; do
-		# shellcheck disable=2034
-		merge_lhs_[$key]=${merge_rhs_[$key]}
-	done
-}
-
-.stacktrace() {
-	local -i i=1
-
-	while [[ -n ${BASH_SOURCE[$i]:-} ]]; do
-		echo "${BASH_SOURCE[$i]}":"${BASH_LINENO[$((i-1))]}":"${FUNCNAME[$i]}"\(\)
-		i=$((i + 1))
-	done | grep -v "^${BASH_SOURCE[0]}"
+		.temping .zcat- && unset -f .zcat-
+		;;
+	*)
+		cat "$file"
+		;;
+	esac
 }
 
 # color.sh - Colors
@@ -491,6 +447,23 @@ deb.install() {
 	.getting 'Installing packages' apt-get install --yes --no-install-recommends "$@"
 }
 
+deb.install-missing() {
+	[[ $# -gt 0 ]] || return 0
+
+	deb.update
+
+	local -a missings=()
+
+	local package
+	for package; do
+		deb.installed "$package" || missings+=("$package")
+	done
+
+	[[ ${#missings[@]} -gt 0 ]] || return 0
+
+	.getting 'Installing packages' apt-get install --yes --no-install-recommends "${missings[@]}"
+}
+
 deb.installed() {
 	local package="${1?${FUNCNAME[0]}: missing argument}"; shift
 
@@ -597,6 +570,584 @@ deb.add-key-() {
 
 	temp.clean temp_file
 }
+
+# git.sh - Git functions
+
+git.clone() {
+	local src=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+	local ref=${1:-}
+
+	.must "Destination already exists: $dst" [[ ! -e "$dst" ]]
+
+	local -a options=(
+		'--single-branch'
+		'--quiet'
+	)
+
+	[[ -z ${ref:-} ]] || options+=(
+		'--branch'
+		"$ref"
+	)
+
+	.getting "Cloning $src"
+	.must -- git clone "${options[@]}" "$src" "$dst"
+
+	if [[ -n ${ref:-} ]] && git.ref.is "$ref" tag; then
+		git.set.immutable true
+	fi
+}
+
+git.default-branch() {
+	local repo=${1:-.}
+
+	git.must "$repo" sane
+
+	git -C "$repo" symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'
+}
+
+git.is() {
+	local repo=${1?${FUNCNAME[0]}: missing argument};    shift
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local func=git.is."$feature"-
+
+	.callable "$func" || .bug "No such predicate: $feature"
+
+	"$func" "$repo"
+}
+
+git.must() {
+	local repo=${1?${FUNCNAME[0]}: missing argument};    shift
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	git.is "$repo" "$feature" || .die "Repository is not ${feature//-/ }: $repo"
+}
+
+git.ref.is() {
+	local repo=${1?${FUNCNAME[0]}: missing argument}; shift
+	local ref=${1?${FUNCNAME[0]}: missing argument};  shift
+	local type=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	case $type in
+	branch)
+		git -C "$repo" show-ref -q --verify "refs/heads/$ref" &>/dev/null
+		;;
+	tag)
+		git -C "$repo" show-ref -q --verify "refs/tags/$ref" &>/dev/null
+		;;
+	remote)
+		git -C "$repo" show-ref -q --verify "refs/remote/$ref" &>/dev/null
+		;;
+	hash|commit)
+		git -C "$repo" rev-parse --verify "$ref^{commit}" &>/dev/null
+		;;
+	*)
+		.bug "Unrecognized ref type: $type"
+
+		return 1
+	esac
+}
+
+git.reset() {
+	local repo=${1:-.}
+
+	.must -- git -C "$repo" reset --hard
+}
+
+git.set.immutable() {
+	local repo=${1:-.}
+
+	.must -- git -C "$repo" config --type bool core.x-immutable true
+}
+
+git.set.mutable() {
+	local repo=${1:-.}
+
+	.must -- git -C "$repo" config --type bool core.x-immutable false
+}
+
+git.switch() {
+	local repo=${1?${FUNCNAME[0]}: missing argument}; shift
+	local branch=${1:-}
+
+	[[ -n $branch ]] || branch=$(git.default-branch "$repo")
+
+	.must -- git -C "$repo" checkout --quiet "$branch"
+}
+
+git.top() {
+	local path=${1:-}
+
+	git.must.sane "$path" && .must -- cd "$(git.topdir "$path")"
+}
+
+git.topdir() {
+	local path=${1:-}
+
+	if [[ -n $path ]]; then
+		[[ -e $path ]] || .die "No such path found: $path"
+
+		local d
+		[[ -d $path ]] || d=${path%/*}
+
+		.must -- pushd "$d" &>/dev/null
+	fi
+
+	local dir
+	dir=$(git rev-parse --git-dir) && dir=$(cd "$dir" && pwd)/ && echo "${dir%%/.git/*}"
+
+	if [[ -n $path ]]; then
+		.must -- popd &>/dev/null
+	fi
+}
+
+git.update() {
+	local repo=${1:-.}
+
+	if ! git.is "$repo" immutable; then
+		.getting "Updating repo"
+		.must -- git pull -q
+	fi
+}
+
+# git - Private functions
+
+git.is.clean-() {
+	local repo=${1:-.}
+
+	git -C "$repo" rev-parse --verify HEAD >/dev/null &&
+	git -C "$repo" update-index -q --ignore-submodules --refresh &&
+	git -C "$repo" diff-files --quiet --ignore-submodules &&
+	git -C "$repo" diff-index --cached --quiet --ignore-submodules HEAD --
+}
+
+git.is.git-() {
+	local repo=${1:-.}
+
+	[[ -d $repo/.git ]] && git rev-parse --resolve-git-dir "$repo/.git" &>/dev/null
+}
+
+git.is.immutable-() {
+	local repo=${1:-.}
+
+	[[ $(git -C "$repo" config --type bool core.x-immutable 2>/dev/null || true) = true ]]
+}
+
+git.is.sane-() {
+	local repo=${1:-.}
+
+	git -C "$repo" rev-parse --is-inside-work-tree &>/dev/null || return 1
+	git -C "$repo" rev-parse --verify HEAD >/dev/null          || return 1
+}
+
+git.is.sane-and-clean-() {
+	git.is.sane- "$@" && git.is.clean- "$@"
+}
+
+# http.sh - HTTP functions
+
+http.download() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	.getting 'Downloading file'
+	.must -- .get "$url" >"$dst"
+}
+
+http.get() {
+	local url=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	[[ $url =~ ^[^:]+:// ]] || url=https://$url
+
+	curl -fsSL "$url"
+}
+
+http.is() {
+	local url=${1?${FUNCNAME[0]}: missing argument};  shift
+	local code=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local response
+	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
+
+	if [[ ${code,,} = ok ]]; then
+		code=200
+	fi
+
+	[[ $response = "$code" ]]
+}
+
+# meta - Meta functions
+
+.dbg() {
+	[[ $# -gt 0 ]] || return 0
+
+	# shellcheck disable=2178,2155
+	local -n dbg_=$1
+
+	echo "${!dbg_}"
+
+	local key
+	for key in "${!dbg_[@]}"; do
+		printf '  %-16s  %s\n' "${key}" "${dbg_[$key]}"
+	done | sort
+
+	echo
+}
+
+# Duplicate array
+.dup() {
+	local -n dup_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n dup_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!dup_rhs_[@]}"; do
+		# shellcheck disable=2034
+		dup_lhs_[$key]=${dup_rhs_[$key]}
+	done
+}
+
+# Join array with the given separator
+.join() {
+	local IFS=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	echo -n "$*"
+}
+
+.marshal() {
+	local -n marshal_=${1?${FUNCNAME[0]}: missing argument}
+	local name=${2:-$1}
+
+	local -a pairs=()
+
+	local key
+	for key in "${!marshal_[@]}"; do
+		pairs+=("['$key']='${marshal_[$key]}'")
+	done
+
+	echo -n "$name=("; .join ' ' "${pairs[@]}"; echo ')'
+}
+
+.merge() {
+	local -n merge_lhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local -n merge_rhs_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local key
+	for key in "${!merge_rhs_[@]}"; do
+		# shellcheck disable=2034
+		merge_lhs_[$key]=${merge_rhs_[$key]}
+	done
+}
+
+.stacktrace() {
+	local -i i=1
+
+	while [[ -n ${BASH_SOURCE[$i]:-} ]]; do
+		echo "${BASH_SOURCE[$i]}":"${BASH_LINENO[$((i-1))]}":"${FUNCNAME[$i]}"\(\)
+		i=$((i + 1))
+	done | grep -v "^${BASH_SOURCE[0]}"
+}
+
+# os.sh - OS related functions
+
+os.any() {
+	local feature
+
+	for feature; do
+		if os.is "$feature"; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+os.arch() {
+	local arch; arch=$(uname -m)
+
+	case $arch in
+	x86_64) echo amd64 ;;
+	i386|i686) echo 386 ;;
+	*) echo "$arch" ;;
+	esac
+}
+
+os.codename() {
+	lsb_release -sc
+}
+
+os.dist() {
+	# shellcheck disable=1091
+	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
+}
+
+os.is() {
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local func=os.is."${feature//\//+}"
+
+	if .callable "$func"; then
+		"$func"
+	else
+		local dist
+		dist=$(os.dist)
+
+		if [[ $dist = "$feature" ]]; then
+			return 0
+		fi
+
+		local codename
+		codename=$(os.codename)
+
+		if [[ $codename = "$feature" ]]; then
+			return 0
+		fi
+
+		return 1
+	fi
+}
+
+os.is.proxmox() {
+	.available pveversion && uname -a | grep -q -i pve
+}
+
+os.is.sid() {
+	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+}
+
+os.is.debian+sid() {
+	os.is.sid
+}
+
+os.is.debian+stable() {
+	! os.is.debian+unstable
+}
+
+os.is.debian+unstable() {
+	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
+}
+
+os.is.debian+testing() {
+	os.is.debian+unstable
+}
+
+os.name() {
+	local os; os=$(uname -s); os=${os,,}
+
+	echo "$os"
+}
+
+# string.sh - String manipulation
+
+string.delete-prefix() {
+	string.has-prefix-deleted "$@" || :
+}
+
+string.delete-suffix() {
+	string.has-suffix-deleted "$@" || :
+}
+
+string.has-prefix-deleted() {
+	local -n string_has_prefix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    prefix=${1?${FUNCNAME[0]}: missing argument};                     shift
+
+	if [[ $string_has_prefix_deleted_ =~ ^$prefix ]]; then
+		string_has_prefix_deleted_=${string_has_prefix_deleted_#$prefix}
+
+		return 0
+	fi
+
+	return 1
+}
+
+string.has-suffix-deleted() {
+	local -n string_has_suffix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
+	local    suffix=${1?${FUNCNAME[0]}: missing argument};                     shift
+
+	if [[ $string_has_suffix_deleted_ =~ $suffix$ ]]; then
+		string_has_suffix_deleted_=${string_has_suffix_deleted_%$suffix}
+
+		return 0
+	fi
+
+	return 1
+}
+
+# text.sh - Text blob manipulations
+
+text.fix() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local mark=${1:-_}
+
+	.must 'Input from stdin required' .piped
+	.must "No such file: $file" [[ -f "$file" ]]
+
+	text.unfix "$file" "$mark"
+
+	{
+		echo "# begin $mark"
+		cat
+		echo "# END $mark"
+	} >>"$file"
+}
+
+text.unfix() {
+	local file=${1?${FUNCNAME[0]}: missing argument}; shift
+	local mark=${1:-_}
+
+	.must "No such file: $file" [[ -f "$file" ]]
+
+	grep -qE "#\s+(begin|end)\s+$mark" "$file" || return 0
+	.must "No such file or file is not writable: $file" [[ -w "$file" ]]
+	sed -i "/begin $mark/,/end $mark/d" "$file"
+}
+
+# ui.sh - UI functions
+
+ui.out() {
+	local name=${1:-default}
+	shift || true
+
+	local sign=${_sign[$name]}
+
+	# shellcheck disable=2154
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	echo -en "${sign_color}${sign}${reset} "
+	.out "$@"
+	echo -en "$reset "
+}
+
+# shellcheck disable=2154
+ui.echo() {
+	[[ $# -gt 0 ]] || return 0
+
+	local message=$1
+
+	local name=${FUNCNAME[1]#*.}
+
+	local sign=${_sign[$name]}
+
+	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
+
+	if [[ -n ${sign:-} ]]; then
+		echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
+	else
+		echo -e "${text_color}${message}${reset}"
+	fi
+}
+
+# ui - Init
+
+# shellcheck disable=2034,2154
+ui.init-() {
+	declare -Ag _sign _sign_color _text_color
+
+	# Style
+
+	_sign[ask]='?';     _sign_color[ask]=+yellow;    _text_color[ask]=high
+	_sign[bug]='✖';     _sign_color[bug]=red;        _text_color[bug]=high
+	_sign[bye]='ℹ';     _sign_color[bye]=-yellow;    _text_color[bye]=low
+	_sign[cry]='!';     _sign_color[cry]=+yellow;    _text_color[cry]=medium
+	_sign[die]='✗';     _sign_color[die]=+red;       _text_color[die]=high
+	_sign[hmm]='ℹ';     _sign_color[hmm]=-yellow;    _text_color[hmm]=low
+	_sign[say]='' ;     _sign_color[say]=+white;     _text_color[say]=medium
+
+	_sign[notok]='✗';   _sign_color[notok]=+red;     _text_color[notok]=high
+	_sign[ok]='✓';      _sign_color[ok]=+green;      _text_color[ok]=high
+
+	_sign[calling]='>'; _sign_color[calling]=+cyan;  _text_color[calling]=high
+	_sign[getting]='↓'; _sign_color[getting]=+cyan;  _text_color[getting]=low
+	_sign[running]='∙'; _sign_color[running]=+cyan;  _text_color[running]=low
+	_sign[default]='∙'; _sign_color[default]=+white; _text_color[default]=medium
+
+	color.expand _sign_color _text_color
+
+	.bug()     { ui.echo "$@" >&2; exit 127; }
+	.bye()     { ui.echo "$@" >&2; exit 0;   }
+	.calling() { ui.echo "$1" >&2; "${@:2}"; }
+	.cry()     { ui.echo "$@" >&2;           }
+	.die()     { ui.echo "$@" >&2; exit 1;   }
+	.getting() { ui.echo "$1" >&2; "${@:2}"; }
+	.hmm()     { ui.echo "$@" >&2;           }
+	.notok()   { ui.echo "$@" >&2;           }
+	.ok()      { ui.echo "$@" >&2;           }
+	.running() { ui.echo "$1" >&2; "${@:2}"; }
+	.say()     { ui.echo "$@" >&2;           }
+}
+
+ui.init-
+
+# virt.sh - Virtualization functions
+
+virt.any() {
+	local virt
+
+	for virt; do
+		local func=virt.is."${virt}"
+
+		if .callable "$func"; then
+			"$func"
+		else
+			[[ $(virt.which) = "$virt" ]]
+		fi || continue
+
+		return 0
+	done
+
+	return 1
+}
+
+virt.is() {
+	local virt=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local func=virt.is."${virt}"
+
+	if .callable "$func"; then
+		"$func"
+	else
+		[[ $(virt.which) = "$virt" ]]
+	fi
+}
+
+virt.which() {
+	systemd-detect-virt || true
+}
+
+virt.is.any() {
+	[[ -z ${CI:-} ]] || return 0
+	[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
+
+	systemd-detect-virt -q
+}
+
+virt.is.chroot() {
+	systemd-detect-virt -qr
+}
+
+virt.is.container() {
+	systemd-detect-virt -qc
+}
+
+virt.is.physical() {
+	! systemd-detect-virt -q
+}
+
+virt.is.vagrant() {
+	virt.is.any || return 1
+
+	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
+}
+
+virt.is.virtual() {
+	systemd-detect-virt -q
+}
+
+virt.is.vm() {
+	systemd-detect-virt -qv
+}
+
+# Custom libraries
 
 # callback.sh - Handle callback functions
 
@@ -719,6 +1270,140 @@ deb.add-key-() {
 	}
 
 	readonly -f _defer_
+}
+
+# etc.sh - Simple configuration management
+
+# shellcheck disable=2034
+etc.get() {
+	local prefix="${1?${FUNCNAME[0]}: missing argument}";      shift
+	local bucket="${1?${FUNCNAME[0]}: missing argument}";      shift
+	local -n etc_get_="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local dir
+	dir=$(etc.bucket- "$prefix" "$bucket")
+
+	local -a args=("$@")
+
+	if [[ "${#args[@]}" -eq 0 ]]; then
+		if [[ -d $dir ]]; then
+			local f
+			for f in "$dir"/*; do
+				if [[ -f $f ]] && [[ -r $f ]]; then
+					args+=("${f##*/}")
+				fi
+			done
+		fi
+	fi
+
+	local -A variable=()
+
+	local arg name value
+
+	for arg in ${args[@]+"${args[@]}"}; do
+		if [[ "$arg" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+			name=$arg
+			[[ -r $dir/$name ]] || continue
+
+			value=$(<"$dir/$name")
+			variable[$name]=$value
+		else
+			.die "Invalid variable name: $arg"
+		fi
+	done
+
+	[[ "${#variable[@]}" -gt 0 ]] || return 0
+
+	.merge etc_get_ variable
+}
+
+etc.reset() {
+	local prefix="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local bucket="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local dir
+	dir=$(etc.bucket- "$prefix" "$bucket")
+
+	.must -- rm -rf "$dir"
+}
+
+# shellcheck disable=2034
+etc.set() {
+	local prefix="${1?${FUNCNAME[0]}: missing argument}";      shift
+	local bucket="${1?${FUNCNAME[0]}: missing argument}";      shift
+	local -n etc_set_="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local dir
+	dir=$(etc.bucket- "$prefix" "$bucket")
+
+	local -a args=("$@")
+
+	if [[ "${#args[@]}" -eq 0 ]]; then
+		if [[ -d $dir ]]; then
+			local f
+			for f in "$dir"/*; do
+				if [[ -f $f ]] && [[ -r $f ]]; then
+					args+=("${f##*/}")
+				fi
+			done
+		fi
+	fi
+
+	local -A variable=()
+	local -a writes=()
+
+	local arg name value
+
+	for arg in ${args[@]+"${args[@]}"}; do
+		if [[ "$arg" =~ ^[a-zA-Z_][a-zA-Z0-9_]*= ]]; then
+			name=${arg%%=*}
+			value=${arg#$name=}
+
+			variable[$name]=$value
+			writes+=("$name")
+		elif [[ "$arg" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+			.die "Value requiredi for variable: $arg"
+		else
+			.die "Invalid variable name: $arg"
+		fi
+	done
+
+	if [[ ${#writes[@]} -gt 0 ]]; then
+		etc.prep- "$prefix"
+
+		[[ -d $dir ]] || .must -- mkdir -p "$dir"
+		for name in "${writes[@]}"; do
+			echo "${variable[$name]-}" >"$dir/$name"
+		done
+	fi
+
+	[[ "${#variable[@]}" -gt 0 ]] || return 0
+
+	.merge etc_set_ variable
+}
+
+etc.bucket-() {
+	local prefix="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local bucket="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	local dir
+
+	case $bucket in
+	""|.|/)
+		dir=$bucket
+		;;
+	*)
+		dir=$prefix/$bucket
+		;;
+	esac
+
+	.must -- readlink -m "$dir"
+}
+
+etc.prep-() {
+	local prefix="${1?${FUNCNAME[0]}: missing argument}"; shift
+
+	mkdir -p "$prefix" || .die "Prefix directory not writable: $prefix"
 }
 
 # file.sh - File related operations
@@ -1271,285 +1956,6 @@ flag.init-() {
 
 flag.init-
 
-# git.sh - Git functions
-
-git.clone() {
-	local src=${1?${FUNCNAME[0]}: missing argument}; shift
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-	local ref=${1:-}
-
-	.must "Destination already exists: $dst" [[ ! -e "$dst" ]]
-
-	local -a options=(
-		'--single-branch'
-		'--quiet'
-	)
-
-	[[ -z ${ref:-} ]] || options+=(
-		'--branch'
-		"$ref"
-	)
-
-	.getting "Cloning $src"
-	.must -- git clone "${options[@]}" "$src" "$dst"
-
-	if [[ -n ${ref:-} ]] && git.ref.is "$ref" tag; then
-		git.set.immutable true
-	fi
-}
-
-git.default-branch() {
-	local repo=${1:-.}
-
-	git.must "$repo" sane
-
-	git -C "$repo" symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'
-}
-
-git.is() {
-	local repo=${1?${FUNCNAME[0]}: missing argument};    shift
-	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local func=git.is."$feature"-
-
-	.callable "$func" || .bug "No such predicate: $feature"
-
-	"$func" "$repo"
-}
-
-git.must() {
-	local repo=${1?${FUNCNAME[0]}: missing argument};    shift
-	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	git.is "$repo" "$feature" || .die "Repository is not ${feature//-/ }: $repo"
-}
-
-git.ref.is() {
-	local repo=${1?${FUNCNAME[0]}: missing argument}; shift
-	local ref=${1?${FUNCNAME[0]}: missing argument};  shift
-	local type=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	case $type in
-	branch)
-		git -C "$repo" show-ref -q --verify "refs/heads/$ref" &>/dev/null
-		;;
-	tag)
-		git -C "$repo" show-ref -q --verify "refs/tags/$ref" &>/dev/null
-		;;
-	remote)
-		git -C "$repo" show-ref -q --verify "refs/remote/$ref" &>/dev/null
-		;;
-	hash|commit)
-		git -C "$repo" rev-parse --verify "$ref^{commit}" &>/dev/null
-		;;
-	*)
-		.bug "Unrecognized ref type: $type"
-
-		return 1
-	esac
-}
-
-git.reset() {
-	local repo=${1:-.}
-
-	.must -- git -C "$repo" reset --hard
-}
-
-git.set.immutable() {
-	local repo=${1:-.}
-
-	.must -- git -C "$repo" config --type bool core.x-immutable true
-}
-
-git.set.mutable() {
-	local repo=${1:-.}
-
-	.must -- git -C "$repo" config --type bool core.x-immutable false
-}
-
-git.switch() {
-	local repo=${1?${FUNCNAME[0]}: missing argument}; shift
-	local branch=${1:-}
-
-	[[ -n $branch ]] || branch=$(git.default-branch "$repo")
-
-	.must -- git -C "$repo" checkout --quiet "$branch"
-}
-
-git.top() {
-	local path=${1:-}
-
-	git.must.sane "$path" && .must -- cd "$(git.topdir "$path")"
-}
-
-git.topdir() {
-	local path=${1:-}
-
-	if [[ -n $path ]]; then
-		[[ -e $path ]] || .die "No such path found: $path"
-
-		local d
-		[[ -d $path ]] || d=${path%/*}
-
-		.must -- pushd "$d" &>/dev/null
-	fi
-
-	local dir
-	dir=$(git rev-parse --git-dir) && dir=$(cd "$dir" && pwd)/ && echo "${dir%%/.git/*}"
-
-	if [[ -n $path ]]; then
-		.must -- popd &>/dev/null
-	fi
-}
-
-git.update() {
-	local repo=${1:-.}
-
-	if ! git.is "$repo" immutable; then
-		.getting "Updating repo"
-		.must -- git pull -q
-	fi
-}
-
-# git - Private functions
-
-git.is.clean-() {
-	local repo=${1:-.}
-
-	git -C "$repo" rev-parse --verify HEAD >/dev/null &&
-	git -C "$repo" update-index -q --ignore-submodules --refresh &&
-	git -C "$repo" diff-files --quiet --ignore-submodules &&
-	git -C "$repo" diff-index --cached --quiet --ignore-submodules HEAD --
-}
-
-git.is.git-() {
-	local repo=${1:-.}
-
-	[[ -d $repo/.git ]] && git rev-parse --resolve-git-dir "$repo/.git" &>/dev/null
-}
-
-git.is.immutable-() {
-	local repo=${1:-.}
-
-	[[ $(git -C "$repo" config --type bool core.x-immutable 2>/dev/null || true) = true ]]
-}
-
-git.is.sane-() {
-	local repo=${1:-.}
-
-	git -C "$repo" rev-parse --is-inside-work-tree &>/dev/null || return 1
-	git -C "$repo" rev-parse --verify HEAD >/dev/null          || return 1
-}
-
-git.is.sane-and-clean-() {
-	git.is.sane- "$@" && git.is.clean- "$@"
-}
-
-# http.sh - HTTP functions
-
-http.download() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	.getting 'Downloading file'
-	.must -- http.get "$url" >"$dst"
-}
-
-http.get() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ $url =~ ^[^:]+:// ]] || url=https://$url
-
-	curl -fsSL "$url"
-}
-
-http.is() {
-	local url=${1?${FUNCNAME[0]}: missing argument};  shift
-	local code=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local response
-	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
-
-	if [[ ${code,,} = ok ]]; then
-		code=200
-	fi
-
-	[[ $response = "$code" ]]
-}
-
-# os.sh - OS related functions
-
-os.any() {
-	local feature
-
-	for feature; do
-		if os.is "$feature"; then
-			return 0
-		fi
-	done
-
-	return 1
-}
-
-os.codename() {
-	lsb_release -sc
-}
-
-os.dist() {
-	# shellcheck disable=1091
-	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
-}
-
-os.is() {
-	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local func=os.is."${feature//\//+}"
-
-	if .callable "$func"; then
-		"$func"
-	else
-		local dist
-		dist=$(os.dist)
-
-		if [[ $dist = "$feature" ]]; then
-			return 0
-		fi
-
-		local codename
-		codename=$(os.codename)
-
-		if [[ $codename = "$feature" ]]; then
-			return 0
-		fi
-
-		return 1
-	fi
-}
-
-os.is.proxmox() {
-	.available pveversion && uname -a | grep -q -i pve
-}
-
-os.is.sid() {
-	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-}
-
-os.is.debian+sid() {
-	os.is.sid
-}
-
-os.is.debian+stable() {
-	! os.is.debian+unstable
-}
-
-os.is.debian+unstable() {
-	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-}
-
-os.is.debian+testing() {
-	os.is.debian+unstable
-}
-
 # path.sh - Path management
 
 path.base() {
@@ -1687,6 +2093,92 @@ path.parse-() {
 }
 
 
+# _.sh - Underscore spesific functions
+
+# Core environment
+# shellcheck disable=2120
+.runtime() {
+	# Default variable as a hash
+	declare -gA _=()
+
+	# shellcheck disable=2034
+	if [[ ${EUID:-} -eq 0 ]]; then
+		local volatile=${1:-/run/_} persistent=${2:-/usr/local}
+
+		[[ -v VOLATILE ]] || declare -Agr VOLATILE=(
+			[0]="$volatile"
+
+			[bin]="$volatile"/bin
+			[doc]="$volatile"/doc
+			[etc]="$volatile"/etc
+			[lib]="$volatile"/lib
+			[opt]="$volatile"/opt
+			[srv]="$volatile"/srv
+			[src]="$volatile"/src
+			[tmp]="$volatile"/tmp
+			[var]="$volatile"/var
+		)
+
+		[[ -v PERSISTENT ]] || declare -Agr PERSISTENT=(
+			[0]="$persistent"
+
+			[bin]="$persistent"/bin
+			[doc]="$persistent"/doc
+			[etc]="$persistent"/etc
+			[lib]="$persistent"/lib
+			[opt]=/opt
+			[src]="$persistent"/src
+			[srv]=/srv
+			[tmp]="${TMPDIR:-/var/local/tmp}"
+			[var]=/var/local
+		)
+	else
+		local volatile=${1:-${XDG_RUNTIME_DIR:-/run/user/"$EUID"/_}} persistent=${2:-~/.local}
+
+		[[ -v VOLATILE ]] || declare -Agr VOLATILE=(
+			[0]="$volatile"
+
+			[bin]="$volatile"/bin
+			[doc]="$volatile"/doc
+			[etc]="$volatile"/etc
+			[lib]="$volatile"/lib
+			[opt]="$volatile"/opt
+			[srv]="$volatile"/srv
+			[src]="$volatile"/src
+			[tmp]="$volatile"/tmp
+			[var]="$volatile"/var
+		)
+
+		[[ -v PERSISTENT ]] || declare -Agr PERSISTENT=(
+			[0]="$persistent"
+
+			[bin]="$persistent"/bin
+			[doc]="$persistent"/doc
+			[etc]="${XDG_CONFIG_HOME:-~/.config}"
+			[lib]="$persistent"/lib
+			[opt]="$persistent"/opt
+			[src]="$persistent"/src
+			[srv]="$persistent"/srv
+			[tmp]="${TMPDIR:-${XDG_CACHE_HOME:-~/.cache}/tmp}"
+			[var]="${XDG_CACHE_HOME:-~/.cache}"
+		)
+	fi
+
+	local path
+	for path in "${PERSISTENT[bin]}" "${VOLATILE[bin]}"; do
+		case ":$PATH:" in
+		*:"$path":*)	                     ;;
+		*)		PATH="$path":"$PATH" ;;
+		esac
+	done
+
+	# shellcheck disable=2128
+	export PATH SRCCACHE="${VOLATILE[src]}" SRCTEMP="${VOLATILE[tmp]}"
+}
+
+# shellcheck disable=2119
+.runtime
+
 # self.sh - Functions related to program itself
 
 self.name() {
@@ -1718,460 +2210,6 @@ self.src() {
 
 self.version() {
 	echo "${VERSION:-}"
-}
-
-# string.sh - String manipulation
-
-string.delete-prefix() {
-	string.has-prefix-deleted "$@" || :
-}
-
-string.delete-suffix() {
-	string.has-suffix-deleted "$@" || :
-}
-
-string.has-prefix-deleted() {
-	local -n string_has_prefix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    prefix=${1?${FUNCNAME[0]}: missing argument};                     shift
-
-	if [[ $string_has_prefix_deleted_ =~ ^$prefix ]]; then
-		string_has_prefix_deleted_=${string_has_prefix_deleted_#$prefix}
-
-		return 0
-	fi
-
-	return 1
-}
-
-string.has-suffix-deleted() {
-	local -n string_has_suffix_deleted_=${1?${FUNCNAME[0]}: missing argument}; shift
-	local    suffix=${1?${FUNCNAME[0]}: missing argument};                     shift
-
-	if [[ $string_has_suffix_deleted_ =~ $suffix$ ]]; then
-		string_has_suffix_deleted_=${string_has_suffix_deleted_%$suffix}
-
-		return 0
-	fi
-
-	return 1
-}
-
-# temp.sh - Functions involving temporary directories or files
-
-# Remove temp files or directories
-temp.clean() {
-	while [[ $# -gt 0 ]]; do
-		local -n temp_clean_=$1; shift
-
-		rm -rf -- "$temp_clean_"
-	done
-}
-
-# Create a temp dir
-temp.dir() {
-	# shellcheck disable=2155
-	local -n temp_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local dir
-
-	# shellcheck disable=2128
-	dir=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || .die 'Fatal error: mktemp'
-	.clean "$dir"
-
-	# shellcheck disable=2034
-	temp_dir_=$dir
-}
-
-# Create a temp file
-temp.file() {
-	# shellcheck disable=2155
-	local -n temp_file_=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local file
-
-	# shellcheck disable=2128
-	file=$(mktemp -p "${TMPDIR:-/tmp}" "$PROGNAME".XXXXXXXX) || .die 'Fatal error: mktemp'
-	.clean "$file"
-
-	# shellcheck disable=2034
-	temp_file_=$file
-}
-
-# Execute command in temp dir
-temp.inside() {
-	# shellcheck disable=2128
-	local temp_inside_ orig_dir_=$PWD
-	temp.dir temp_inside_
-
-	.must -- cd "$temp_inside_"
-	"$@"
-	.must -- cd "$orig_dir_"
-
-	rm -rf -- "$temp_inside_"
-}
-
-# text.sh - Text blob manipulations
-
-text.fix() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-	local mark=${1:-_}
-
-	.must 'Input from stdin required' .piped
-	.must "No such file: $file" [[ -f "$file" ]]
-
-	text.unfix "$file" "$mark"
-
-	{
-		echo "# begin $mark"
-		cat
-		echo "# END $mark"
-	} >>"$file"
-}
-
-text.unfix() {
-	local file=${1?${FUNCNAME[0]}: missing argument}; shift
-	local mark=${1:-_}
-
-	.must "No such file: $file" [[ -f "$file" ]]
-
-	grep -qE "#\s+(begin|end)\s+$mark" "$file" || return 0
-	.must "No such file or file is not writable: $file" [[ -w "$file" ]]
-	sed -i "/begin $mark/,/end $mark/d" "$file"
-}
-
-# ui.sh - UI functions
-
-ui.out() {
-	local name=${1:-default}
-	shift || true
-
-	local sign=${_sign[$name]}
-
-	# shellcheck disable=2154
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	echo -en "${sign_color}${sign}${reset} "
-	.out "$@"
-	echo -en "$reset "
-}
-
-# shellcheck disable=2154
-ui.echo() {
-	[[ $# -gt 0 ]] || return 0
-
-	local message=$1
-
-	local name=${FUNCNAME[1]#*.}
-
-	local sign=${_sign[$name]}
-
-	local sign_color=${_sign_color[$name]} text_color=${_text_color[$name]} reset=${_color[reset]}
-
-	if [[ -n ${sign:-} ]]; then
-		echo -e "${sign_color}${sign}${reset} ${text_color}${message}${reset}"
-	else
-		echo -e "${text_color}${message}${reset}"
-	fi
-}
-
-# ui - Init
-
-# shellcheck disable=2034,2154
-ui.init-() {
-	declare -Ag _sign _sign_color _text_color
-
-	# Style
-
-	_sign[ask]='?';     _sign_color[ask]=+yellow;    _text_color[ask]=high
-	_sign[bug]='✖';     _sign_color[bug]=red;        _text_color[bug]=high
-	_sign[bye]='ℹ';     _sign_color[bye]=-yellow;    _text_color[bye]=low
-	_sign[cry]='!';     _sign_color[cry]=+yellow;    _text_color[cry]=medium
-	_sign[die]='✗';     _sign_color[die]=+red;       _text_color[die]=high
-	_sign[hmm]='ℹ';     _sign_color[hmm]=-yellow;    _text_color[hmm]=low
-	_sign[say]='' ;     _sign_color[say]=+white;     _text_color[say]=medium
-
-	_sign[notok]='✗';   _sign_color[notok]=+red;     _text_color[notok]=high
-	_sign[ok]='✓';      _sign_color[ok]=+green;      _text_color[ok]=high
-
-	_sign[calling]='>'; _sign_color[calling]=+cyan;  _text_color[calling]=high
-	_sign[getting]='↓'; _sign_color[getting]=+cyan;  _text_color[getting]=low
-	_sign[running]='∙'; _sign_color[running]=+cyan;  _text_color[running]=low
-	_sign[default]='∙'; _sign_color[default]=+white; _text_color[default]=medium
-
-	color.expand _sign_color _text_color
-
-	.bug()     { ui.echo "$@" >&2; exit 127; }
-	.bye()     { ui.echo "$@" >&2; exit 0;   }
-	.calling() { ui.echo "$1" >&2; "${@:2}"; }
-	.cry()     { ui.echo "$@" >&2;           }
-	.die()     { ui.echo "$@" >&2; exit 1;   }
-	.getting() { ui.echo "$1" >&2; "${@:2}"; }
-	.hmm()     { ui.echo "$@" >&2;           }
-	.notok()   { ui.echo "$@" >&2;           }
-	.ok()      { ui.echo "$@" >&2;           }
-	.running() { ui.echo "$1" >&2; "${@:2}"; }
-	.say()     { ui.echo "$@" >&2;           }
-}
-
-ui.init-
-
-# url.sh - URL processing
-
-url.is() {
-	local url=${1?${FUNCNAME[0]}: missing argument};     shift
-	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	case $feature in
-	local)
-		[[ $url =~ ^(/.*|[.][.]?|[.][.]?/.*)$ ]]
-		;;
-	local+)
-		[[ $url =~ ^(/.*|[.][.]?|[.][.]?/.*|file://.+)$ ]]
-		;;
-	naked)
-		[[ ! $url =~ ^[^/]+:// ]] && [[ ! $url =~ ^(/.*|[.][.]?|[.][.]?/.*)$ ]]
-		;;
-	schemeless)
-		[[ ! $url =~ ^[^/]+:// ]]
-		;;
-	schemed)
-		[[ $url =~ ^[^/]+:// ]]
-		;;
-	*)
-		.bug "Unrecognized feature: $feature"
-		;;
-	esac
-}
-
-url.usl() {
-	usl "${_url_usl_args[@]}" "$@"
-}
-
-url.parse() {
-	local exp
-
-	exp=$(url.usl "$@") || return 1
-
-	eval -- "$exp"
-}
-
-url.template() {
-	local name=${1?${FUNCNAME[0]}: missing argument};     shift
-	local template=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	_url_usl_args+=(
-		'-var' "$name = $template"
-	)
-}
-
-# url - Init
-
-url.init-() {
-	declare -ag _url_usl_args=()
-}
-
-url.init-
-
-# virt.sh - Virtualization functions
-
-virt.any() {
-	local virt
-
-	for virt; do
-		local func=virt.is."${virt}"
-
-		if .callable "$func"; then
-			"$func"
-		else
-			[[ $(virt.which) = "$virt" ]]
-		fi || continue
-
-		return 0
-	done
-
-	return 1
-}
-
-virt.is() {
-	local virt=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local func=virt.is."${virt}"
-
-	if .callable "$func"; then
-		"$func"
-	else
-		[[ $(virt.which) = "$virt" ]]
-	fi
-}
-
-virt.which() {
-	systemd-detect-virt || true
-}
-
-virt.is.any() {
-	[[ -z ${CI:-} ]] || return 0
-	[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
-
-	systemd-detect-virt -q
-}
-
-virt.is.chroot() {
-	systemd-detect-virt -qr
-}
-
-virt.is.container() {
-	systemd-detect-virt -qc
-}
-
-virt.is.physical() {
-	! systemd-detect-virt -q
-}
-
-virt.is.vagrant() {
-	virt.is.any || return 1
-
-	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
-}
-
-virt.is.virtual() {
-	systemd-detect-virt -q
-}
-
-virt.is.vm() {
-	systemd-detect-virt -qv
-}
-
-zip.unpack() {
-	local in=${1?${FUNCNAME[0]}: missing argument}; shift
-	local out=${1:-}
-
-	local ext=${in##*.}
-	.must "Extension required: $in" [[ -n "$ext" ]]
-
-	local type
-	case $in in
-	*.tar.*) type=tar.$ext ;;
-	*)       type=$ext     ;;
-	esac
-
-	[[ -n $out ]] || out=${in%.*}
-	.must "Destination already exists: $out" [[ ! -e "$out" ]]
-
-	local func=zip.unpack."$type"
-
-	.must "Unsupported compressed file: $in" .callable "$func"
-
-	"$func" "$in" "$out"
-}
-
-zip.unpack.bz2() {
-	.must 'No program found: bzcat' .available bzcat && zip.prep-unzip- "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	local temp_file
-	temp.file temp_file
-
-	bzcat "$in" >"$temp_file" && mv "$temp_file" "$out"
-}
-
-zip.unpack.gz() {
-	.must 'No program found: zcat' .available zcat && zip.prep-unzip- "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	zip.prep-unzip- zcat
-
-	local temp_file
-	temp.file temp_file
-
-	zcat "$in" >"$temp_file" && mv "$temp_file" "$out"
-}
-
-zip.unpack.tar.bz2() {
-	.must 'No program found: bzip2' .available bzip2 && zip.prep-untar- "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	tar --strip-components=1 -jxf "$in" -C "$out"
-}
-
-zip.unpack.tar.gz() {
-	zip.prep-untar- "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	tar --strip-components=1 -zxf "$in" -C "$out"
-}
-
-zip.unpack.tar.xz() {
-	.must 'No program found: xz' .available xz && zip.prep-untar- "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	tar --strip-components=1 -Jxf "$in" -C "$out"
-}
-
-zip.unpack.tar.zst() {
-	.must 'No program found: zstd' .available zstd && zip.prep-untar- "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	tar --strip-components=1 --zstd -xf "$in" -C "$out"
-}
-
-zip.unpack.xz() {
-	.must 'No program found: unxz' .available unxz && zip.prep-unzip- "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	local temp_file
-	temp.file temp_file
-
-	unxz "$in" >"$temp_file" && mv "$temp_file" "$out"
-}
-
-zip.unpack.zip() {
-	.must 'No program found: unzip' .available unzip && zip.prep-unzip- "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	unzip -q -d "$out" "$in"
-}
-
-zip.unpack.zst() {
-	.must 'No program found: zstdcat' .available zstdcat && zip.prep-unzip- "$@"
-
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	local temp_file
-	temp.file temp_file
-
-	zstdcat -f "$in" >"$temp_file" && mv "$temp_file" "$out"
-}
-
-# zip - Private functions
-
-zip.prep-untar-() {
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	[[ -n $out ]] || out=${in%.tar.*}
-
-	if [[ -e $out ]]; then
-		.die "Directory already exist: $out"
-	fi
-
-	.must -- mkdir -p "$out"
-}
-
-zip.prep-unzip-() {
-	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
-
-	[[ -n $out ]] || out=${in%.*}
-
-	if [[ -e $out ]]; then
-		.die "File already exist: $out"
-	fi
 }
 
 # src.sh - Source cache management
@@ -2412,138 +2450,248 @@ src.none.renew-() {
 	src.none.new-
 }
 
-# etc.sh - Simple configuration management
+# temp.sh - Functions involving temporary directories or files
 
-# shellcheck disable=2034
-etc.get() {
-	local prefix="${1?${FUNCNAME[0]}: missing argument}";      shift
-	local bucket="${1?${FUNCNAME[0]}: missing argument}";      shift
-	local -n etc_get_="${1?${FUNCNAME[0]}: missing argument}"; shift
+# Remove temp files or directories
+temp.clean() {
+	while [[ $# -gt 0 ]]; do
+		local -n temp_clean_=$1; shift
 
-	local dir
-	dir=$(etc.bucket- "$prefix" "$bucket")
-
-	local -a args=("$@")
-
-	if [[ "${#args[@]}" -eq 0 ]]; then
-		if [[ -d $dir ]]; then
-			local f
-			for f in "$dir"/*; do
-				if [[ -f $f ]] && [[ -r $f ]]; then
-					args+=("${f##*/}")
-				fi
-			done
-		fi
-	fi
-
-	local -A variable=()
-
-	local arg name value
-
-	for arg in ${args[@]+"${args[@]}"}; do
-		if [[ "$arg" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
-			name=$arg
-			[[ -r $dir/$name ]] || continue
-
-			value=$(<"$dir/$name")
-			variable[$name]=$value
-		else
-			.die "Invalid variable name: $arg"
-		fi
+		rm -rf -- "$temp_clean_"
 	done
-
-	[[ "${#variable[@]}" -gt 0 ]] || return 0
-
-	.merge etc_get_ variable
 }
 
-etc.reset() {
-	local prefix="${1?${FUNCNAME[0]}: missing argument}"; shift
-	local bucket="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	local dir
-	dir=$(etc.bucket- "$prefix" "$bucket")
-
-	.must -- rm -rf "$dir"
-}
-
-# shellcheck disable=2034
-etc.set() {
-	local prefix="${1?${FUNCNAME[0]}: missing argument}";      shift
-	local bucket="${1?${FUNCNAME[0]}: missing argument}";      shift
-	local -n etc_set_="${1?${FUNCNAME[0]}: missing argument}"; shift
-
-	local dir
-	dir=$(etc.bucket- "$prefix" "$bucket")
-
-	local -a args=("$@")
-
-	if [[ "${#args[@]}" -eq 0 ]]; then
-		if [[ -d $dir ]]; then
-			local f
-			for f in "$dir"/*; do
-				if [[ -f $f ]] && [[ -r $f ]]; then
-					args+=("${f##*/}")
-				fi
-			done
-		fi
-	fi
-
-	local -A variable=()
-	local -a writes=()
-
-	local arg name value
-
-	for arg in ${args[@]+"${args[@]}"}; do
-		if [[ "$arg" =~ ^[a-zA-Z_][a-zA-Z0-9_]*= ]]; then
-			name=${arg%%=*}
-			value=${arg#$name=}
-
-			variable[$name]=$value
-			writes+=("$name")
-		elif [[ "$arg" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
-			.die "Value requiredi for variable: $arg"
-		else
-			.die "Invalid variable name: $arg"
-		fi
-	done
-
-	if [[ ${#writes[@]} -gt 0 ]]; then
-		etc.prep- "$prefix"
-
-		[[ -d $dir ]] || .must -- mkdir -p "$dir"
-		for name in "${writes[@]}"; do
-			echo "${variable[$name]-}" >"$dir/$name"
-		done
-	fi
-
-	[[ "${#variable[@]}" -gt 0 ]] || return 0
-
-	.merge etc_set_ variable
-}
-
-etc.bucket-() {
-	local prefix="${1?${FUNCNAME[0]}: missing argument}"; shift
-	local bucket="${1?${FUNCNAME[0]}: missing argument}"; shift
+# Create a temp dir
+temp.dir() {
+	# shellcheck disable=2155
+	local -n temp_dir_=${1?${FUNCNAME[0]}: missing argument}; shift
 
 	local dir
 
-	case $bucket in
-	""|.|/)
-		dir=$bucket
+	# shellcheck disable=2128
+	dir=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || .die 'Fatal error: mktemp'
+	.clean "$dir"
+
+	# shellcheck disable=2034
+	temp_dir_=$dir
+}
+
+# Create a temp file
+temp.file() {
+	# shellcheck disable=2155
+	local -n temp_file_=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	local file
+
+	# shellcheck disable=2128
+	file=$(mktemp -p "${TMPDIR:-/tmp}" "$PROGNAME".XXXXXXXX) || .die 'Fatal error: mktemp'
+	.clean "$file"
+
+	# shellcheck disable=2034
+	temp_file_=$file
+}
+
+# Execute command in a temp dir
+temp.inside() {
+	# shellcheck disable=2128
+	local temp_inside_ orig_dir_=$PWD
+	temp.dir temp_inside_
+
+	.must -- cd "$temp_inside_"
+	"$@"
+	.must -- cd "$orig_dir_"
+
+	rm -rf -- "$temp_inside_"
+}
+
+# url.sh - URL processing
+
+url.is() {
+	local url=${1?${FUNCNAME[0]}: missing argument};     shift
+	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	case $feature in
+	local)
+		[[ $url =~ ^(/.*|[.][.]?|[.][.]?/.*)$ ]]
+		;;
+	local+)
+		[[ $url =~ ^(/.*|[.][.]?|[.][.]?/.*|file://.+)$ ]]
+		;;
+	naked)
+		[[ ! $url =~ ^[^/]+:// ]] && [[ ! $url =~ ^(/.*|[.][.]?|[.][.]?/.*)$ ]]
+		;;
+	schemeless)
+		[[ ! $url =~ ^[^/]+:// ]]
+		;;
+	schemed)
+		[[ $url =~ ^[^/]+:// ]]
 		;;
 	*)
-		dir=$prefix/$bucket
+		.bug "Unrecognized feature: $feature"
 		;;
 	esac
-
-	.must -- readlink -m "$dir"
 }
 
-etc.prep-() {
-	local prefix="${1?${FUNCNAME[0]}: missing argument}"; shift
+url.usl() {
+	usl "${_url_usl_args[@]}" "$@"
+}
 
-	mkdir -p "$prefix" || .die "Prefix directory not writable: $prefix"
+url.parse() {
+	local exp
+
+	exp=$(url.usl "$@") || return 1
+
+	eval -- "$exp"
+}
+
+url.template() {
+	local name=${1?${FUNCNAME[0]}: missing argument};     shift
+	local template=${1?${FUNCNAME[0]}: missing argument}; shift
+
+	_url_usl_args+=(
+		'-var' "$name = $template"
+	)
+}
+
+# url - Init
+
+url.init-() {
+	declare -ag _url_usl_args=()
+}
+
+url.init-
+
+zip.unpack() {
+	local in=${1?${FUNCNAME[0]}: missing argument}; shift
+	local out=${1:-}
+
+	local ext=${in##*.}
+	.must "Extension required: $in" [[ -n "$ext" ]]
+
+	local type
+	case $in in
+	*.tar.*) type=tar.$ext ;;
+	*)       type=$ext     ;;
+	esac
+
+	[[ -n $out ]] || out=${in%.*}
+	.must "Destination already exists: $out" [[ ! -e "$out" ]]
+
+	local func=zip.unpack."$type"
+
+	.must "Unsupported compressed file: $in" .callable "$func"
+
+	"$func" "$in" "$out"
+}
+
+zip.unpack.bz2() {
+	.must 'No program found: bzcat' .available bzcat && zip.prep-unzip- "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	local temp_file
+	temp.file temp_file
+
+	bzcat "$in" >"$temp_file" && mv "$temp_file" "$out"
+}
+
+zip.unpack.gz() {
+	.must 'No program found: zcat' .available zcat && zip.prep-unzip- "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	zip.prep-unzip- zcat
+
+	local temp_file
+	temp.file temp_file
+
+	zcat "$in" >"$temp_file" && mv "$temp_file" "$out"
+}
+
+zip.unpack.tar.bz2() {
+	.must 'No program found: bzip2' .available bzip2 && zip.prep-untar- "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	tar --strip-components=1 -jxf "$in" -C "$out"
+}
+
+zip.unpack.tar.gz() {
+	zip.prep-untar- "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	tar --strip-components=1 -zxf "$in" -C "$out"
+}
+
+zip.unpack.tar.xz() {
+	.must 'No program found: xz' .available xz && zip.prep-untar- "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	tar --strip-components=1 -Jxf "$in" -C "$out"
+}
+
+zip.unpack.tar.zst() {
+	.must 'No program found: zstd' .available zstd && zip.prep-untar- "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	tar --strip-components=1 --zstd -xf "$in" -C "$out"
+}
+
+zip.unpack.xz() {
+	.must 'No program found: unxz' .available unxz && zip.prep-unzip- "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	local temp_file
+	temp.file temp_file
+
+	unxz "$in" >"$temp_file" && mv "$temp_file" "$out"
+}
+
+zip.unpack.zip() {
+	.must 'No program found: unzip' .available unzip && zip.prep-unzip- "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	unzip -q -d "$out" "$in"
+}
+
+zip.unpack.zst() {
+	.must 'No program found: zstdcat' .available zstdcat && zip.prep-unzip- "$@"
+
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	local temp_file
+	temp.file temp_file
+
+	zstdcat -f "$in" >"$temp_file" && mv "$temp_file" "$out"
+}
+
+# zip - Private functions
+
+zip.prep-untar-() {
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	[[ -n $out ]] || out=${in%.tar.*}
+
+	if [[ -e $out ]]; then
+		.die "Directory already exist: $out"
+	fi
+
+	.must -- mkdir -p "$out"
+}
+
+zip.prep-unzip-() {
+	local in=${1?${FUNCNAME[0]}: missing argument}; out=${2:-}
+
+	[[ -n $out ]] || out=${in%.*}
+
+	if [[ -e $out ]]; then
+		.die "File already exist: $out"
+	fi
 }
 
 # Commands
@@ -2590,6 +2738,20 @@ bin:use() {
 	bin.install- "$url" "${_[-prefix]}" "${_[-name]:-}"
 }
 
+bin.name() {
+	local raw="${1?${FUNCNAME[0]}: missing argument}"; shift
+	local name=${1:-}
+
+	if [[ -n ${name:-} ]]; then
+		echo "$name"
+
+		return 0
+	fi
+
+	name=${url##*/}
+	# TODO
+}
+
 # cmd/bin - Private functions
 
 bin.install-() {
@@ -2612,7 +2774,9 @@ bin.install-() {
 
 	local src
 	for src in "${bins[@]}"; do
-		[[ -z $name ]] || name=${src##*/}
+		if [[ -z $name ]]; then
+			name=${src##*/}
+		fi
 
 		file.cp "$src" "$prefix"/"$name" 0755
 	done
@@ -3963,7 +4127,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 					# Command names
 					declare -g CMDNAMES=()
 				}
-
 				.prelude
 
 				declare -gr _SELF=$_SELF
