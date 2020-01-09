@@ -193,6 +193,16 @@
 	.must -- curl -fsSL "$url"
 }
 
+.nwait() {
+	local tries=${1:-10}
+
+	while ! ip route get 1.1.1.1 &>/dev/null; do
+		sleep 0.1
+
+		((tries--)); [[ $tries -gt 0 ]] || .die 'Network not available'
+	done
+}
+
 .out() {
 	local arg
 
