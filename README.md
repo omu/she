@@ -59,9 +59,8 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | http is       | Assert HTTP response against the given code           |
 | must          | Ensure the given command succeeds                     |
 | os any        | Assert any OS feature                                 |
-| os codename   | Print distribution codename                           |
-| os dist       | Print distribution name                               |
 | os is         | Assert OS feature                                     |
+| os which      | Print OS feature                                      |
 | run           | Run a local or remote file with optional environment  |
 | self install  | Install self                                          |
 | self name     | Print self name                                       |

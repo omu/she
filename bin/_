@@ -851,10 +851,10 @@ http.is() {
 # os.sh - OS related functions
 
 os.any() {
-	local feature
+	local predicate
 
-	for feature; do
-		if os.is "$feature"; then
+	for predicate; do
+		if os.is "$predicate"; then
 			return 0
 		fi
 	done
@@ -862,79 +862,72 @@ os.any() {
 	return 1
 }
 
-os.arch() {
-	local arch; arch=$(uname -m)
-
-	case $arch in
-	x86_64) echo amd64 ;;
-	i386|i686) echo 386 ;;
-	*) echo "$arch" ;;
-	esac
-}
-
-os.codename() {
-	lsb_release -sc
-}
-
-os.dist() {
-	# shellcheck disable=1091
-	(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
-}
-
 os.is() {
-	local feature=${1?${FUNCNAME[0]}: missing argument}; shift
+	local predicate
 
-	local func=os.is."${feature//\//+}"
+	for predicate; do
+		[[ $predicate =~ '=' ]] || predicate="codename=$predicate"
 
-	if .callable "$func"; then
-		"$func"
-	else
-		local dist
-		dist=$(os.dist)
+		local feature=${predicate%%=*} expected=${predicate#*=} actual
 
-		if [[ $dist = "$feature" ]]; then
-			return 0
-		fi
+		case $feature in
+		dist)
+			case $expected in
+			proxmox)
+				{ .available pveversion && uname -a | grep -q -i pve; } || return 1
+				continue
+				;;
+			esac
+			;;
+		codename)
+			case $expected in
+			sid|unstable|testing)
+				grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null || return 1
+				continue
+				;;
+			stable)
+				grep -qvwE '(sid|unstable)' /etc/debian_version 2>/dev/null || return 1
+				continue
+				;;
+			esac
+			;;
+		esac
 
-		local codename
-		codename=$(os.codename)
+		[[ $(os.which "$feature") = "$expected" ]] || return 1
+	done
 
-		if [[ $codename = "$feature" ]]; then
-			return 0
-		fi
-
-		return 1
-	fi
+	return 0
 }
 
-os.is.proxmox() {
-	.available pveversion && uname -a | grep -q -i pve
-}
+os.which() {
+	local feature
 
-os.is.sid() {
-	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-}
+	for feature; do
+		case $feature in
+		os|platform)
+			actual=$(uname -s); actual=${actual,,}
+			;;
+		arch)
+			actual=$(uname -m)
 
-os.is.debian+sid() {
-	os.is.sid
-}
+			case $actual in
+			x86_64)    actual=amd64 ;;
+			i386|i686) actual=386 ;;
+			esac
+			;;
+		codename)
+			actual=$(lsb_release -sc)
+			;;
+		dist)
+			actual=$(unset ID && . /etc/os-release 2>/dev/null && echo "$ID")
+			;;
+		*)
+			.die "Unrecognized feature: $feature"
+			;;
+		esac
 
-os.is.debian+stable() {
-	! os.is.debian+unstable
-}
-
-os.is.debian+unstable() {
-	grep -qwE '(sid|unstable)' /etc/debian_version 2>/dev/null
-}
-
-os.is.debian+testing() {
-	os.is.debian+unstable
-}
-
-os.name() {
-	local os; os=$(uname -s); os=${os,,}
-
-	echo "$os"
+		echo "$actual"
+	done
 }
 
 # string.sh - String manipulation
@@ -1081,70 +1074,31 @@ ui.init-
 # virt.sh - Virtualization functions
 
 virt.any() {
-	local virt
+	local feature
 
-	for virt; do
-		local func=virt.is."${virt}"
-
-		if .callable "$func"; then
-			"$func"
-		else
-			[[ $(virt.which) = "$virt" ]]
-		fi || continue
-
-		return 0
+	for feature; do
+		if virt.is "$feature"; then
+			return 0
+		fi
 	done
 
 	return 1
 }
 
 virt.is() {
-	local virt=${1?${FUNCNAME[0]}: missing argument}; shift
+	local virt=${1:-virtual}
 
-	local func=virt.is."${virt}"
-
-	if .callable "$func"; then
-		"$func"
-	else
-		[[ $(virt.which) = "$virt" ]]
-	fi
+	case $virt in
+	chroot)     systemd-detect-virt -qr ;;
+	container)  systemd-detect-virt -qc ;;
+	physical) ! systemd-detect-virt -q  ;;
+	virtual)    [[ -n ${CI:-} ]] || [[ -n ${PACKER_BUILDER_TYPE:-} ]] || systemd-detect-virt -q ;;
+	vm)         systemd-detect-virt -qv ;;
+	esac
 }
 
 virt.which() {
 	systemd-detect-virt || true
-}
-
-virt.is.any() {
-	[[ -z ${CI:-} ]] || return 0
-	[[ -z ${PACKER_BUILDER_TYPE:-} ]] || return 0
-
-	systemd-detect-virt -q
-}
-
-virt.is.chroot() {
-	systemd-detect-virt -qr
-}
-
-virt.is.container() {
-	systemd-detect-virt -qc
-}
-
-virt.is.physical() {
-	! systemd-detect-virt -q
-}
-
-virt.is.vagrant() {
-	virt.is.any || return 1
-
-	[[ -d /vagrant ]] || id -u vagrant 2>/dev/null
-}
-
-virt.is.virtual() {
-	systemd-detect-virt -q
-}
-
-virt.is.vm() {
-	systemd-detect-virt -qv
 }
 
 # Custom libraries
@@ -3362,6 +3316,7 @@ os:any() {
 	local -A _=(
 		[.help]='<feature>...'
 		[.argc]=1-
+		[.raw]=true
 	)
 
 	flag.parse
@@ -3369,31 +3324,29 @@ os:any() {
 	os.any "$@"
 }
 
-# Print distribution codename
-os:codename() {
-	local -A _; flag.parse
-
-	os.codename "$@"
-}
-
-# Print distribution name
-os:dist() {
-	local -A _; flag.parse
-
-	os.dist "$@"
-}
-
 # Assert OS feature
 os:is() {
 	local -A _=(
 		[.help]='<feature>'
-		[.argc]=1
+		[.argc]=1-
+		[.raw]=true
 	)
 
 	flag.parse
 
 	os.is "$@"
 }
+
+# Print OS feature
+os:which() {
+	local -A _=(
+		[.help]='<feature>'
+		[.argc]=1-
+	)
+
+	os.which "$@"
+}
+
 
 # cmd/self - Commands related to theprogram itself
 
@@ -3919,9 +3872,8 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['http:get']='Get URL'
 		['http:is']='Assert HTTP response against the given code'
 		['os:any']='Assert any OS feature'
-		['os:codename']='Print distribution codename'
-		['os:dist']='Print distribution name'
 		['os:is']='Assert OS feature'
+		['os:which']='Print OS feature'
 		['self:install']='Install self'
 		['self:name']='Print self name'
 		['self:path']='Print self path'
@@ -3979,9 +3931,8 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['http is']='http:is'
 		['must']=':must'
 		['os any']='os:any'
-		['os codename']='os:codename'
-		['os dist']='os:dist'
 		['os is']='os:is'
+		['os which']='os:which'
 		['run']=':run'
 		['self install']='self:install'
 		['self name']='self:name'
@@ -4071,7 +4022,7 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 			fi
 		done
 
-		[[ -n ${cmd:-} ]] || .die "No command found: $orig"
+		[[ -n ${cmd:-} ]] || .die "Wrong or missing command: $orig"
 
 		local fun=${_command["$cmd"]}
 

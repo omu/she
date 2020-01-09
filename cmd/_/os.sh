@@ -5,6 +5,7 @@ os:any() {
 	local -A _=(
 		[.help]='<feature>...'
 		[.argc]=1-
+		[.raw]=true
 	)
 
 	flag.parse
@@ -12,28 +13,26 @@ os:any() {
 	os.any "$@"
 }
 
-# Print distribution codename
-os:codename() {
-	local -A _; flag.parse
-
-	os.codename "$@"
-}
-
-# Print distribution name
-os:dist() {
-	local -A _; flag.parse
-
-	os.dist "$@"
-}
-
 # Assert OS feature
 os:is() {
 	local -A _=(
 		[.help]='<feature>'
-		[.argc]=1
+		[.argc]=1-
+		[.raw]=true
 	)
 
 	flag.parse
 
 	os.is "$@"
 }
+
+# Print OS feature
+os:which() {
+	local -A _=(
+		[.help]='<feature>'
+		[.argc]=1-
+	)
+
+	os.which "$@"
+}
+

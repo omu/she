@@ -53,7 +53,7 @@
 		fi
 	done
 
-	[[ -n ${cmd:-} ]] || .die "No command found: $orig"
+	[[ -n ${cmd:-} ]] || .die "Wrong or missing command: $orig"
 
 	local fun=${_command["$cmd"]}
 
