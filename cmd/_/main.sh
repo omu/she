@@ -5,6 +5,7 @@
 #=github.com/omu/home/src/sh/_.sh
 #=github.com/omu/home/src/sh/color.sh
 #=github.com/omu/home/src/sh/deb.sh
+#=github.com/omu/home/src/sh/file.sh
 #=github.com/omu/home/src/sh/git.sh
 #=github.com/omu/home/src/sh/meta.sh
 #=github.com/omu/home/src/sh/os.sh
