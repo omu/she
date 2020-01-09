@@ -63,6 +63,10 @@
 	exit 1
 }
 
+.gettable() {
+	curl --output /dev/null --silent --head --fail"${1?${FUNCNAME[0]}: missing argument}"
+}
+
 .must() {
 	if [[ ${1:-} = -- ]]; then
 		shift
@@ -203,7 +207,9 @@
 
 	[[ $url =~ ^[^:]+:// ]] || url=https://$url
 
-	.getting "Getting $url"
+	.gettable "$url" || .die "URL not gettable: $url"
+
+	.getting 'Getting file'
 	.must -- curl -fsSL "$url"
 }
 

@@ -54,9 +54,8 @@ that can be used in shell tests.  These functions are consumed as the recommende
 | filetype is   | Assert file type                                      |
 | filetype mime | Print mime type                                       |
 | git update    | Git pull if repository expired                        |
-| http any      | Assert HTTP response against any of the given codes   |
 | http get      | Get URL                                               |
-| http is       | Assert HTTP response against the given code           |
+| http ok       | Assert HTTP response is ok                            |
 | must          | Ensure the given command succeeds                     |
 | os any        | Assert any OS feature                                 |
 | os is         | Assert OS feature                                     |

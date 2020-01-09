@@ -32,7 +32,7 @@ file.download() {
 	local download
 	temp.file download
 
-	http.download "$url" "$download"
+	.ncat "$url" >"$download"
 	.must -- chmod 644 "$download"
 
 	# shellcheck disable=2034

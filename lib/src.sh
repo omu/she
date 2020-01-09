@@ -229,7 +229,7 @@ src.zip.renew-() {
 src.none.new-() {
 	[[ ${_src_[scheme]} =~ ^http ]] || .bug "Unimplemented scheme: ${_src_[scheme]}"
 
-	http.download "${_src_[source]}" "${_src_[temp]}"
+	.ncat "${_src_[source]}" >"${_src_[temp]}"
 }
 
 src.none.renew-() {

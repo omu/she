@@ -63,6 +63,10 @@
 	exit 1
 }
 
+.gettable() {
+	curl --output /dev/null --silent --head --fail"${1?${FUNCNAME[0]}: missing argument}"
+}
+
 .must() {
 	if [[ ${1:-} = -- ]]; then
 		shift
@@ -203,7 +207,9 @@
 
 	[[ $url =~ ^[^:]+:// ]] || url=https://$url
 
-	.getting "Getting $url"
+	.gettable "$url" || .die "URL not gettable: $url"
+
+	.getting 'Getting file'
 	.must -- curl -fsSL "$url"
 }
 
@@ -436,7 +442,7 @@ deb.dist-added() {
 deb.dist-valid() {
 	local dist=${1?${FUNCNAME[0]}: missing argument}; shift
 
-	http.is http://ftp.debian.org/debian/dists/"$dist"/ OK
+	.gettable http://ftp.debian.org/debian/dists/"$dist"/
 }
 
 deb.install() {
@@ -540,7 +546,7 @@ deb.add-key-() {
 	local temp_file
 	temp.file temp_file
 
-	http.get "$url" >"$temp_file" || .die "Couldn't get key file: $url"
+	.ncat "$url" >"$temp_file" || .die "Couldn't get key file: $url"
 
 	local -a questioned_fingerprints installed_fingerprints
 
@@ -743,38 +749,6 @@ git.is.sane-() {
 
 git.is.sane-and-clean-() {
 	git.is.sane- "$@" && git.is.clean- "$@"
-}
-
-# http.sh - HTTP functions
-
-http.download() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-	local dst=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	.getting 'Downloading file'
-	.must -- .get "$url" >"$dst"
-}
-
-http.get() {
-	local url=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	[[ $url =~ ^[^:]+:// ]] || url=https://$url
-
-	curl -fsSL "$url"
-}
-
-http.is() {
-	local url=${1?${FUNCNAME[0]}: missing argument};  shift
-	local code=${1?${FUNCNAME[0]}: missing argument}; shift
-
-	local response
-	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
-
-	if [[ ${code,,} = ok ]]; then
-		code=200
-	fi
-
-	[[ $response = "$code" ]]
 }
 
 # meta - Meta functions
@@ -1396,7 +1370,7 @@ file.download() {
 	local download
 	temp.file download
 
-	http.download "$url" "$download"
+	.ncat "$url" >"$download"
 	.must -- chmod 644 "$download"
 
 	# shellcheck disable=2034
@@ -2399,7 +2373,7 @@ src.zip.renew-() {
 src.none.new-() {
 	[[ ${_src_[scheme]} =~ ^http ]] || .bug "Unimplemented scheme: ${_src_[scheme]}"
 
-	http.download "${_src_[source]}" "${_src_[temp]}"
+	.ncat "${_src_[source]}" >"${_src_[temp]}"
 }
 
 src.none.renew-() {
@@ -3247,28 +3221,6 @@ git:update() {
 
 # cmd/http - HTTP commands
 
-# Assert HTTP response against any of the given codes
-http:any() {
-	local -A _=(
-		[.help]='<url> <code>...'
-		[.argc]=2-
-	)
-
-	flag.parse
-
-	local url=$1
-	shift
-
-	local response
-	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
-
-	local code
-
-	for code; do
-		http:is- "$response" "$code"
-	done
-}
-
 # Get URL
 http:get() {
 	local -A _=(
@@ -3278,37 +3230,23 @@ http:get() {
 
 	flag.parse
 
-	http.get "$1"
+	local url=$1
+
+	.ncat "$url"
 }
 
-# Assert HTTP response against the given code
-http:is() {
+# Assert HTTP response is ok
+http:ok() {
 	local -A _=(
-		[.help]='<url> <code>'
-		[.argc]=2
+		[.help]='<url>'
+		[.argc]=1
 	)
 
 	flag.parse
 
-	local url=$1 code=$2
+	local url=$1
 
-	local response
-	response=$(curl -fsL -w '%{http_code}\n' -o /dev/null "$url" || true)
-
-	http:is- "$response" "$code"
-}
-
-# cmd/http - Private functions
-
-http:is-() {
-	local response=${1?${FUNCNAME[0]}: missing argument}; shift
-	local code=${1?${FUNCNAME[0]}: missing argument};     shift
-
-	if [[ ${code,,} = ok ]]; then
-		code=200
-	fi
-
-	[[ $response = "$code" ]]
+	.gettable "$url"
 }
 
 # cmd/os - OS related commands
@@ -3870,9 +3808,8 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['filetype:is']='Assert file type'
 		['filetype:mime']='Print mime type'
 		['git:update']='Git pull if repository expired'
-		['http:any']='Assert HTTP response against any of the given codes'
 		['http:get']='Get URL'
-		['http:is']='Assert HTTP response against the given code'
+		['http:ok']='Assert HTTP response is ok'
 		['os:any']='Assert any OS feature'
 		['os:is']='Assert OS feature'
 		['os:which']='Print OS feature'
@@ -3928,9 +3865,8 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 		['filetype is']='filetype:is'
 		['filetype mime']='filetype:mime'
 		['git update']='git:update'
-		['http any']='http:any'
 		['http get']='http:get'
-		['http is']='http:is'
+		['http ok']='http:ok'
 		['must']=':must'
 		['os any']='os:any'
 		['os is']='os:is'
