@@ -902,6 +902,8 @@ os.is() {
 os.which() {
 	local feature
 
+	[[ $# -gt 0 ]] || set -- codename
+
 	for feature; do
 		case $feature in
 		os|platform)
