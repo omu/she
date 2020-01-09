@@ -906,7 +906,7 @@ os.which() {
 
 	for feature; do
 		case $feature in
-		os|platform)
+		name|os|platform)
 			actual=$(uname -s); actual=${actual,,}
 			;;
 		arch)
