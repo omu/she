@@ -31,20 +31,6 @@
 	[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
 }
 
-.contains() {
-	: "${1?${FUNCNAME[0]}: missing argument}"
-
-	local element
-
-	for element in "${@:2}"; do
-		if [[ $element = "$1" ]]; then
-			return 0
-		fi
-	done
-
-	return 1
-}
-
 .cry() {
 	if [[ $# -gt 0 ]]; then
 		echo -e >&2 "W: $*"
@@ -63,10 +49,6 @@
 	exit 1
 }
 
-.gettable() {
-	curl --output /dev/null --silent --head --fail"${1?${FUNCNAME[0]}: missing argument}"
-}
-
 .must() {
 	if [[ ${1:-} = -- ]]; then
 		shift
@@ -83,26 +65,6 @@
 
 .say() {
 	echo -e "${@-""}" >&2
-}
-
-# Execute command in a temp dir
-.temping() {
-	[[ $# -gt 0 ]] || return 0
-
-	local dir=$PWD
-
-	local tmp
-	tmp=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || exit
-
-	.must -- cd "$tmp"
-
-	local err
-	("$@") || err=$?
-
-	.must -- cd "$dir"
-	.must -- rm -rf "$tmp"
-
-	return ${err:-0}
 }
 
 # Init
@@ -138,6 +100,20 @@
 	[[ -z ${group:-} ]] || .must -- chgrp "$group"
 }
 
+.contains() {
+	: "${1?${FUNCNAME[0]}: missing argument}"
+
+	local element
+
+	for element in "${@:2}"; do
+		if [[ $element = "$1" ]]; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
 .err() {
 	.out "$@" >&2
 }
@@ -162,6 +138,10 @@
 	done
 
 	return 0
+}
+
+.gettable() {
+	curl --output /dev/null --silent --head --fail"${1?${FUNCNAME[0]}: missing argument}"
 }
 
 .interactive() {
@@ -265,6 +245,27 @@
 
 	.temping .sponge- && unset -f .convey-
 }
+
+# Execute command in a temp dir
+.temping() {
+	[[ $# -gt 0 ]] || return 0
+
+	local dir=$PWD
+
+	local tmp
+	tmp=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || exit
+
+	.must -- cd "$tmp"
+
+	local err
+	("$@") || err=$?
+
+	.must -- cd "$dir"
+	.must -- rm -rf "$tmp"
+
+	return ${err:-0}
+}
+
 
 # shellcheck disable=2120
 .zcat() {
@@ -1510,20 +1511,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 					[[ $(type -t "${1?${FUNCNAME[0]}: missing argument}" || true) == function ]]
 				}
 
-				.contains() {
-					: "${1?${FUNCNAME[0]}: missing argument}"
-
-					local element
-
-					for element in "${@:2}"; do
-						if [[ $element = "$1" ]]; then
-							return 0
-						fi
-					done
-
-					return 1
-				}
-
 				.cry() {
 					if [[ $# -gt 0 ]]; then
 						echo -e >&2 "W: $*"
@@ -1542,10 +1529,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 					exit 1
 				}
 
-				.gettable() {
-					curl --output /dev/null --silent --head --fail"${1?${FUNCNAME[0]}: missing argument}"
-				}
-
 				.must() {
 					if [[ ${1:-} = -- ]]; then
 						shift
@@ -1562,26 +1545,6 @@ if [[ "${BASH_SOURCE[0]}" = "$0" ]]; then
 
 				.say() {
 					echo -e "${@-""}" >&2
-				}
-
-				# Execute command in a temp dir
-				.temping() {
-					[[ $# -gt 0 ]] || return 0
-
-					local dir=$PWD
-
-					local tmp
-					tmp=$(mktemp -p "${TMPDIR:-/tmp}" -d "$PROGNAME".XXXXXXXX) || exit
-
-					.must -- cd "$tmp"
-
-					local err
-					("$@") || err=$?
-
-					.must -- cd "$dir"
-					.must -- rm -rf "$tmp"
-
-					return ${err:-0}
 				}
 
 				# Init
